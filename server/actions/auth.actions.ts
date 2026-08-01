@@ -1,4 +1,7 @@
 "use server";
+// server/actions/auth.actions.ts
+// Server actions for user registration, login, and sessions.
+
 
 import { db } from "@/server/repositories/db";
 import { hashPassword, verifyPassword, validatePasswordStrength } from "@/services/security/password";
@@ -8,6 +11,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "@/services/emails
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import crypto from "crypto";
 import "server-only";
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -158,16 +162,18 @@ export async function registerAction(formData: FormData) {
     });
 
     // Generate Verification Token
-    const token = generateSecureToken();
+    const rawToken = generateSecureToken();
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+    
     await db.verificationToken.create({
       data: {
         identifier: email,
-        token,
+        token: hashedToken,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });
 
-    await sendVerificationEmail(email, token);
+    await sendVerificationEmail(email, rawToken);
     await logSecurityEvent("ACCOUNT_REGISTERED", user.id);
 
     return { success: true };
@@ -246,4 +252,95 @@ export async function getActiveSessions() {
   });
 
   return { sessions, currentSessionId: currentSession.id };
+}
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export async function forgotPasswordAction(formData: FormData) {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { error: "Invalid email" };
+
+    const { email } = parsed.data;
+    const user = await db.user.findUnique({ where: { email } });
+
+    // Always return success even if user doesn't exist (prevent email enumeration)
+    if (!user || user.isDeleted) return { success: true };
+
+    const rawToken = generateSecureToken();
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    await db.passwordResetToken.create({
+      data: {
+        email,
+        token: hashedToken,
+        expires: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    await sendPasswordResetEmail(email, rawToken);
+    await logSecurityEvent("PASSWORD_RESET_REQUESTED", user.id);
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export async function resetPasswordAction(formData: FormData) {
+  try {
+    const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+    const { token: rawToken, password } = parsed.data;
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    const resetTokenRecord = await db.passwordResetToken.findUnique({
+      where: { token: hashedToken },
+    });
+
+    if (!resetTokenRecord || resetTokenRecord.expires < new Date()) {
+      return { error: "Invalid or expired token" };
+    }
+
+    const user = await db.user.findUnique({ where: { email: resetTokenRecord.email } });
+    if (!user || user.isDeleted) return { error: "Invalid user" };
+
+    const strength = validatePasswordStrength(password, [user.email, user.name || ""]);
+    if (!strength.isStrongEnough) {
+      return { error: "Password is too weak. " + (strength.feedback.warning || "") };
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+
+    await db.passwordResetToken.delete({ where: { id: resetTokenRecord.id } });
+    
+    // Invalidate all existing sessions on password reset
+    await db.session.deleteMany({ where: { userId: user.id } });
+
+    await logSecurityEvent("PASSWORD_RESET_COMPLETED", user.id);
+    await logSecurityEvent("PASSWORD_CHANGED", user.id);
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "An unexpected error occurred" };
+  }
 }

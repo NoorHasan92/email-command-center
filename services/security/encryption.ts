@@ -1,3 +1,6 @@
+// services/security/encryption.ts
+// AES-256-GCM symmetric encryption utility.
+
 import crypto from "crypto";
 import "server-only";
 import { env } from "@/config/env";

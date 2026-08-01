@@ -1,3 +1,6 @@
+// components/layout/header.tsx
+// Header navigation component.
+
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

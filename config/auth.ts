@@ -1,21 +1,20 @@
+// config/auth.ts
+// Main NextAuth configuration with Prisma adapter.
+
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/server/repositories/db";
-import Google from "next-auth/providers/google";
+import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(db),
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-  ],
   callbacks: {
+    ...authConfig.callbacks,
     async session({ session, user }) {
       if (session.user && user) {
         session.user.id = user.id;

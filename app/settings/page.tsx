@@ -1,3 +1,6 @@
+// app/settings/page.tsx
+// Renders the security settings and active sessions dashboard.
+
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { getActiveSessions, logoutAllDevicesAction } from "@/server/actions/auth.actions";

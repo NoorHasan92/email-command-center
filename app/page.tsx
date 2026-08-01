@@ -1,3 +1,6 @@
+// app/page.tsx
+// Main landing page for the application.
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { APP_CONFIG } from "@/config/app";

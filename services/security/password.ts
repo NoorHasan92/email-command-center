@@ -1,3 +1,6 @@
+// services/security/password.ts
+// Argon2id hashing and zxcvbn password strength validation.
+
 import * as argon2 from "argon2";
 import zxcvbn from "zxcvbn";
 import "server-only";

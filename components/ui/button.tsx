@@ -1,3 +1,6 @@
+// components/ui/button.tsx
+// Reusable button UI component (shadcn).
+
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 

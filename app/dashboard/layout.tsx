@@ -1,3 +1,6 @@
+// app/dashboard/layout.tsx
+// Core component or utility for Inbox Sentinel.
+
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 

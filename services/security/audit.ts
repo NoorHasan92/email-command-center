@@ -1,3 +1,6 @@
+// services/security/audit.ts
+// Audit logging service for security events.
+
 import { db } from "@/server/repositories/db";
 import { headers } from "next/headers";
 import { UAParser } from "ua-parser-js";

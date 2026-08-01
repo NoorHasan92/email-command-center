@@ -1,3 +1,6 @@
+// services/emails/resend.ts
+// Email delivery service using Resend.
+
 import { Resend } from "resend";
 import { env } from "@/config/env";
 import "server-only";

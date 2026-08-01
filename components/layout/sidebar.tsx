@@ -1,3 +1,6 @@
+// components/layout/sidebar.tsx
+// Sidebar navigation component.
+
 import Link from "next/link";
 import { APP_CONFIG } from "@/config/app";
 import { NAVIGATION } from "@/config/navigation";
