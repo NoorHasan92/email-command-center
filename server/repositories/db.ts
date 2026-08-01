@@ -65,6 +65,63 @@ const prismaClientSingleton = () => {
           return query(args);
         },
       },
+      emailAccount: {
+        async create({ args, query }) {
+          if (args.data.accessToken) {
+            args.data.accessToken = encrypt(args.data.accessToken) || args.data.accessToken;
+          }
+          if (args.data.refreshToken) {
+            args.data.refreshToken = encrypt(args.data.refreshToken) || undefined;
+          }
+          return query(args);
+        },
+        async update({ args, query }) {
+          if (args.data.accessToken && typeof args.data.accessToken === "string") {
+            args.data.accessToken = encrypt(args.data.accessToken) || args.data.accessToken;
+          }
+          if (args.data.refreshToken && typeof args.data.refreshToken === "string") {
+            args.data.refreshToken = encrypt(args.data.refreshToken) || undefined;
+          }
+          return query(args);
+        },
+        async upsert({ args, query }) {
+          if (args.create.accessToken) {
+            args.create.accessToken = encrypt(args.create.accessToken as string) || args.create.accessToken;
+          }
+          if (args.create.refreshToken) {
+            args.create.refreshToken = encrypt(args.create.refreshToken as string) || undefined;
+          }
+          if (args.update.accessToken && typeof args.update.accessToken === "string") {
+            args.update.accessToken = encrypt(args.update.accessToken) || args.update.accessToken;
+          }
+          if (args.update.refreshToken && typeof args.update.refreshToken === "string") {
+            args.update.refreshToken = encrypt(args.update.refreshToken) || undefined;
+          }
+          return query(args);
+        },
+        async createMany({ args, query }) {
+          if (Array.isArray(args.data)) {
+            args.data = args.data.map(item => ({
+              ...item,
+              accessToken: item.accessToken ? encrypt(item.accessToken) || item.accessToken : item.accessToken,
+              refreshToken: item.refreshToken ? encrypt(item.refreshToken) || undefined : item.refreshToken,
+            }));
+          } else if (args.data) {
+            if (args.data.accessToken) args.data.accessToken = encrypt(args.data.accessToken) || args.data.accessToken;
+            if (args.data.refreshToken) args.data.refreshToken = encrypt(args.data.refreshToken) || undefined;
+          }
+          return query(args);
+        },
+        async updateMany({ args, query }) {
+          if (args.data.accessToken && typeof args.data.accessToken === "string") {
+            args.data.accessToken = encrypt(args.data.accessToken) || args.data.accessToken;
+          }
+          if (args.data.refreshToken && typeof args.data.refreshToken === "string") {
+            args.data.refreshToken = encrypt(args.data.refreshToken) || undefined;
+          }
+          return query(args);
+        },
+      },
     },
     result: {
       account: {
@@ -78,6 +135,20 @@ const prismaClientSingleton = () => {
           needs: { refresh_token: true },
           compute(account) {
             return account.refresh_token ? decrypt(account.refresh_token) : null;
+          },
+        },
+      },
+      emailAccount: {
+        accessToken: {
+          needs: { accessToken: true },
+          compute(emailAccount) {
+            return emailAccount.accessToken ? decrypt(emailAccount.accessToken) || emailAccount.accessToken : emailAccount.accessToken;
+          },
+        },
+        refreshToken: {
+          needs: { refreshToken: true },
+          compute(emailAccount) {
+            return emailAccount.refreshToken ? decrypt(emailAccount.refreshToken) : null;
           },
         },
       },

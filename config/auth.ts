@@ -10,17 +10,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db),
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     ...authConfig.callbacks,
-    async session({ session, user }) {
-      if (session.user && user) {
-        session.user.id = user.id;
-        // Extend session with role
-        // @ts-expect-error - role is not typed in default Session
-        session.user.role = user.role;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        // @ts-expect-error - role is not typed
+        token.role = user.role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token) {
+        session.user.id = token.id as string;
+        // @ts-expect-error - role is not typed
+        session.user.role = token.role as string;
       }
       return session;
     },

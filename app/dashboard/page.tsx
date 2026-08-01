@@ -1,41 +1,57 @@
 // app/dashboard/page.tsx
-// Core component or utility for Inbox Sentinel.
+// This file is a page component for the dashboard.
+// It fetches data from the database and passes it to the DashboardClient component.
 
-export default function DashboardPage() {
+import { db } from "@/server/repositories/db";
+import { Prisma } from "@prisma/client";
+import DashboardClient from "./DashboardClient";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  // Fetch Inbox Health Metrics
+  const criticalCount = await db.emailAnalysis.count({
+    where: { score: { gte: 90 } }
+  });
+
+  const actionRequiredCount = await db.emailAnalysis.count({
+    where: { isActionRequired: true }
+  });
+
+  // Very simplified approximation for deadlines - in a real app, you'd parse dates
+  const deadlinesCount = await db.emailAnalysis.count({
+    where: { extractedDeadlines: { not: Prisma.DbNull } }
+  });
+
+  const lastSync = await db.emailAccount.findFirst({
+    where: { provider: "gmail" },
+    orderBy: { lastSyncCompletedAt: "desc" },
+    select: { lastSyncCompletedAt: true }
+  });
+
+  const healthData = {
+    criticalCount,
+    actionRequiredCount,
+    deadlinesToday: Math.floor(deadlinesCount * 0.2), // Mock logic for V1 visual
+    deadlinesWeek: deadlinesCount,
+    lastSync: lastSync?.lastSyncCompletedAt?.toISOString() || null
+  };
+
+  // Fetch recent emails with analysis
+  const recentEmails = await db.email.findMany({
+    orderBy: { date: "desc" },
+    take: 50,
+    include: {
+      analysis: true,
+      emailAccount: {
+        select: { provider: true, emailAddress: true }
+      }
+    }
+  });
+
   return (
-    <div className="flex flex-col gap-4 md:gap-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Placeholder cards for dashboard */}
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
-          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Total Emails</h3>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">0</div>
-          </div>
-        </div>
-        
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
-          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Action Items</h3>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">0</div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="rounded-xl border bg-card text-card-foreground shadow">
-        <div className="flex flex-col space-y-1.5 p-6">
-          <h3 className="font-semibold leading-none tracking-tight">Recent Activity</h3>
-          <p className="text-sm text-muted-foreground">Emails processed today.</p>
-        </div>
-        <div className="p-6 pt-0">
-          <div className="flex h-[200px] items-center justify-center rounded-md border border-dashed">
-            <p className="text-sm text-muted-foreground">No recent activity</p>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
+      <DashboardClient initialEmails={recentEmails} healthData={healthData} />
     </div>
   );
 }

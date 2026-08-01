@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "subject": "Your Google Cloud Invoice",
+    "from": "billing@google.com",
+    "body": "Your invoice for $54.32 is due on Aug 15. Please pay to avoid suspension.",
+    "expected": {
+      "category": "NOTIFICATION",
+      "isActionRequired": true,
+      "opportunityDetected": false,
+      "notification": true
+    }
+  },
+  {
+    "id": "2",
+    "subject": "Weekend Sale: 50% Off Everything!",
+    "from": "marketing@ecommerce.com",
+    "body": "Don't miss out on our huge weekend sale. Click here to shop.",
+    "expected": {
+      "category": "NEWSLETTER",
+      "isActionRequired": false,
+      "opportunityDetected": false,
+      "notification": false
+    }
+  },
+  {
+    "id": "3",
+    "subject": "Software Engineer Intern - Final Interview Invitation",
+    "from": "recruiting@techgiant.com",
+    "body": "Congratulations! We would like to invite you to the final interview stage on Friday at 10 AM.",
+    "expected": {
+      "category": "DIRECT_MESSAGE",
+      "isActionRequired": true,
+      "opportunityDetected": true,
+      "notification": true
+    }
+  }
+]

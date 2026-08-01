@@ -12,6 +12,73 @@ enum Role {
   ADMIN
 }
 
+enum EmailCategory {
+  SPAM
+  NEWSLETTER
+  NOTIFICATION
+  DIRECT_MESSAGE
+  URGENT
+  OTHER
+}
+
+enum PriorityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum OpportunityType {
+  INTERNSHIP
+  JOB
+  HACKATHON
+  SCHOLARSHIP
+  COMPETITION
+  COLLEGE_NOTICE
+  EXAM
+  INTERVIEW
+  PAYMENT
+  SECURITY_ALERT
+  NONE
+}
+
+enum DeadlineType {
+  HARD
+  SOFT
+  EVENT
+  REMINDER
+}
+
+enum SenderReputation {
+  TRUSTED
+  FREQUENT
+  NEW
+  SUSPICIOUS
+}
+
+enum FeedbackType {
+  CORRECT
+  WRONG
+  IGNORE_SIMILAR
+  ALWAYS_NOTIFY
+  NEVER_NOTIFY
+}
+
+enum RuleType {
+  SENDER
+  DOMAIN
+  SUBJECT_PATTERN
+  KEYWORD
+  OPPORTUNITY_TYPE
+  CATEGORY
+}
+
+enum ReminderPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum AuditAction {
   LOGIN_SUCCESS
   LOGIN_FAILED
@@ -22,6 +89,34 @@ enum AuditAction {
   PROFILE_UPDATED
   ACCOUNT_LOCKED
   ACCOUNT_REGISTERED
+}
+
+enum SyncStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  ERROR
+}
+
+enum EmailStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }
 
 model User {
@@ -35,6 +130,10 @@ model User {
   isDeleted             Boolean   @default(false)
   deletedAt             DateTime?
   deletedBy             String?
+
+  // Contact Info
+  phoneNumber           String?
+  whatsappOptIn         Boolean   @default(false)
 
   // Account Lockout
   failedLoginAttempts   Int       @default(0)
@@ -50,8 +149,12 @@ model User {
   updatedAt             DateTime  @updatedAt
 
   accounts              Account[]
+  emailAccounts         EmailAccount[]
   sessions              Session[]
   auditLogs             AuditLog[]
+  notificationRules     NotificationRule[]
+  senderProfiles        SenderProfile[]
+  learningRules         UserLearningRule[]
 }
 
 model Account {
@@ -118,4 +221,246 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model EmailAccount {
+  id                String       @id @default(cuid())
+  userId            String
+  provider          String       // 'gmail', 'outlook', etc.
+  providerAccountId String       // Unique ID from the provider
+  emailAddress      String
+  
+  // Encrypted OAuth Tokens
+  accessToken       String       @db.Text
+  refreshToken      String?      @db.Text
+  expiresAt         Int?
+  
+  // Gmail Sync State
+  lastHistoryId     String? 
+  watchExpiration   DateTime?
+  syncStatus        SyncStatus   @default(PENDING)
+  lastSyncedAt      DateTime?
+
+  // Resumable Initial Sync
+  nextPageToken       String?  
+
+  // Sync Metrics
+  lastSyncStartedAt   DateTime?
+  lastSyncCompletedAt DateTime?
+  lastSyncDurationMs  Int?
+  lastSyncError       String?  @db.Text
+  totalEmailsSynced   Int      @default(0)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emails            Email[]
+
+  @@unique([provider, providerAccountId])
+}
+
+model WebhookEvent {
+  id         String   @id @default(cuid())
+  provider   String   // e.g., 'gmail'
+  payload    Json     // The raw webhook payload
+  processed  Boolean  @default(false)
+  status     String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  retryCount Int      @default(0)
+  error      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Email {
+  id                String       @id @default(cuid())
+  emailAccountId    String       
+  providerMessageId String
+  threadId          String?
+
+  subject           String?
+  from              String
+  to                String
+  date              DateTime
+  plainText         String?      @db.Text
+  htmlBody          String?      @db.Text
+  status            EmailStatus  @default(PENDING)
+  retryCount        Int          @default(0)
+  pipelineMetrics   Json?        // Stores latency details
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  emailAccount      EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  analysis          EmailAnalysis?
+  notificationLogs  NotificationLog[]
+
+  @@unique([emailAccountId, providerMessageId])
+}
+
+model EmailAnalysis {
+  id                 String   @id @default(cuid())
+  emailId            String   @unique
+  score              Int      @default(0)
+  explanation        String?  @db.Text
+  isActionRequired   Boolean  @default(false)
+  extractedDeadlines Json?
+  
+  // New Milestone 7 Fields
+  confidence          Int               @default(0)
+  category            EmailCategory     @default(OTHER)
+  actionSummary       String?           @db.Text
+  consequence         String?           @db.Text
+  opportunityDetected Boolean           @default(false)
+  opportunityType     OpportunityType   @default(NONE)
+  priority            PriorityLevel     @default(LOW)
+  suggestedNextStep   String?           @db.Text
+  estimatedReadTime   Int?
+  reminderSuggested   Boolean           @default(false)
+  reminderReason      String?           @db.Text
+  reminderPriority    ReminderPriority?
+  reminderWindow      String?
+  requiresHumanReview Boolean           @default(false)
+  appliedRules        Json?
+  
+  // AI Cost & Performance Tracking
+  model              String?
+  promptTokens       Int      @default(0)
+  completionTokens   Int      @default(0)
+  totalTokens        Int      @default(0)
+  estimatedCost      Float    @default(0.0) // In USD
+  latencyMs          Int      @default(0)
+
+  // Prompt Versioning
+  promptVersion      String   @default("1.0")
+  modelVersion       String   @default("gpt-4o-mini") 
+  aiProvider         String   @default("OPENAI")
+  aiAnalysisVersion  String   @default("v1") 
+  aiVersion          String   @default("1.0-gpt-4o-mini") // promptVersion + modelVersion 
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  email              Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+}
+
+model NotificationRule {
+  id                String              @id @default(cuid())
+  userId            String
+  minScoreThreshold Int                 @default(50)
+  channel           NotificationChannel @default(WHATSAPP)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id           String             @id @default(cuid())
+  emailId      String
+  channel      NotificationChannel
+  status       NotificationStatus @default(PENDING)
+  
+  // WhatsApp Delivery Tracking
+  providerMessageId String?       @unique // Meta's wamid
+  error             String?       @db.Text
+  retryCount        Int           @default(0)
+
+  dispatchedAt DateTime?
+  createdAt    DateTime           @default(now())
+
+  email        Email              @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@unique([emailId, channel])
+}
+
+model SenderProfile {
+  id                String           @id @default(cuid())
+  userId            String
+  emailAddress      String
+  reputation        SenderReputation @default(NEW)
+  
+  // Tracking
+  emailsReceived    Int              @default(0)
+  notificationsSent Int              @default(0)
+  actionsTaken      Int              @default(0)
+  ignoredCount      Int              @default(0)
+  lastInteractionAt DateTime?
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, emailAddress])
+}
+
+model UserLearningRule {
+  id              String       @id @default(cuid())
+  userId          String
+  ruleType        RuleType
+  pattern         String       // The actual keyword/domain/etc
+  feedbackType    FeedbackType
+  weight          Int          @default(1) // To allow user-defined to take precedence over learned
+  isUserDefined   Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AIEvalRun {
+  id                    String         @id @default(cuid())
+  datasetName           String
+  promptVersion         String
+  modelVersion          String
+  totalEmails           Int            @default(0)
+  
+  // Aggregate Metrics
+  accuracy              Float          @default(0.0)
+  precision             Float          @default(0.0)
+  recall                Float          @default(0.0)
+  f1Score               Float          @default(0.0)
+  opportunityAccuracy   Float          @default(0.0)
+  deadlineAccuracy      Float          @default(0.0)
+  notificationAccuracy  Float          @default(0.0)
+  
+  totalCost             Float          @default(0.0)
+  averageLatencyMs      Float          @default(0.0)
+  
+  createdAt             DateTime       @default(now())
+  
+  results               AIEvalResult[]
+}
+
+model AIEvalResult {
+  id                    String         @id @default(cuid())
+  runId                 String
+  
+  // The email content being tested
+  emailSubject          String
+  emailFrom             String
+  emailBody             String         @db.Text
+  
+  // Expected vs Actual
+  expectedCategory      EmailCategory
+  actualCategory        EmailCategory
+  expectedActionReq     Boolean
+  actualActionReq       Boolean
+  expectedOpportunity   Boolean
+  actualOpportunity     Boolean
+  expectedNotification  Boolean
+  actualNotification    Boolean
+  
+  // Performance
+  latencyMs             Int
+  cost                  Float
+  
+  // Flags
+  isFalsePositive       Boolean        @default(false)
+  isFalseNegative       Boolean        @default(false)
+  isPerfectMatch        Boolean        @default(false)
+  
+  createdAt             DateTime       @default(now())
+  
+  run                   AIEvalRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
