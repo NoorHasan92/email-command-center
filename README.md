@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inbox Sentinel
+
+Inbox Sentinel is an AI-powered email intelligence platform that continuously analyzes incoming emails (Inbox and Spam), identifies important opportunities, deadlines, required actions, and risks, then notifies the user through WhatsApp so that no critical email is ever missed.
+
+## Tech Stack
+- Next.js 15 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- Prisma ORM
+- PostgreSQL
+- Zod & React Hook Form
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository.
+2. Run `npm install` to install dependencies.
+3. Copy `.env.example` to `.env` and configure your `DATABASE_URL`.
+4. Run `npm run dev` to start the development server.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Architecture
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This project follows a feature-based architecture pattern for scalability:
+- `app/`: Next.js App Router pages and layouts.
+- `components/`: Global UI and layout components.
+- `features/`: Feature-specific logic (e.g. email processing, notifications).
+- `core/`: The main processing pipeline (Collector, Analyzer, Decision, Notifications).
+- `services/`: External integrations (Gmail, WhatsApp, AI).
+- `server/`: Server Actions and Data queries.
+- `config/`: Centralized application configuration.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev`: Starts the development server.
+- `npm run build`: Builds the application for production.
+- `npm run start`: Starts the production server.
+- `npm run lint`: Runs ESLint to check for code issues.
