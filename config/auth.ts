@@ -91,6 +91,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig.callbacks,
     async signIn({ user, account, profile }) {
       if (account && account.provider === "google") {
+        // First, check if this Google account already exists in our DB.
+        // If it does, this is a RETURNING user logging in — always allow it.
+        const existingAccount = await db.account.findUnique({
+          where: { provider_providerAccountId: { provider: account.provider, providerAccountId: account.providerAccountId } }
+        });
+
+        if (existingAccount) {
+          // Returning user — normal login, no linking needed
+          return true;
+        }
+
+        // This Google account is NOT in our DB yet.
+        // Check if there's an active session (JWT) — if so, this is an ACCOUNT LINKING attempt.
         const cookiesStore = await cookies();
         const headersStore = await headers();
         
@@ -99,8 +112,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           headers: Object.fromEntries(headersStore.entries()),
         } as any;
         
-        // This resolves the token without importing `auth()` to prevent circular deps.
-        // It correctly handles both development and production cookie names.
         const token = await getToken({ 
           req, 
           secret: process.env.AUTH_SECRET as string,
@@ -112,7 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const activeUserId = token.id as string;
           const googleEmail = profile?.email || user?.email;
 
-          // Requirement 2: Verify Google profile email EXACTLY matches the authenticated user's email.
+          // Verify Google email matches the authenticated user's email
           const activeUser = await db.user.findUnique({ where: { id: activeUserId } });
           
           if (!activeUser || !googleEmail || activeUser.email.toLowerCase() !== googleEmail.toLowerCase()) {
@@ -120,17 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return "/settings?error=EmailMismatch";
           }
 
-          // Requirement 3: Verify providerAccountId is not already linked (Pre-check)
-          const existingAccount = await db.account.findUnique({
-            where: { provider_providerAccountId: { provider: account.provider, providerAccountId: account.providerAccountId } }
-          });
-
-          if (existingAccount) {
-            await logSecurityEvent("ACCOUNT_LINK_FAILED_ALREADY_LINKED", activeUserId, { provider: account.provider });
-            return "/settings?error=AccountAlreadyLinked";
-          }
-
-          // Return true so NextAuth continues its native lifecycle and fires events.linkAccount
+          // Allow NextAuth to proceed with linking
           return true;
         }
       }
