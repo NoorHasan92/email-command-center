@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
 
     const clientId = process.env.AUTH_GOOGLE_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-    const origin = req.nextUrl.origin;
-    const redirectUri = `${origin}/api/integrations/gmail/callback`;
+    const baseUrl = getBaseUrl();
+    const redirectUri = `${baseUrl}/api/integrations/gmail/callback`;
+    console.log(`[GMAIL_CONNECT] baseUrl=${baseUrl} redirectUri=${redirectUri}`);
 
     if (!clientId || !clientSecret) {
       console.error("Missing Google OAuth credentials");
