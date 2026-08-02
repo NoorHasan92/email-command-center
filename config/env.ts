@@ -10,6 +10,7 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(32).optional(), // Used for token encryption
   RESEND_API_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  EMAIL_FROM: z.string().default("Inbox Sentinel <noreply@tars.homes>"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 }).superRefine((data, ctx) => {

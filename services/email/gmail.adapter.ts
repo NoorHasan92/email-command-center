@@ -2,13 +2,8 @@ import { google, gmail_v1 } from "googleapis";
 import { db } from "@/server/repositories/db";
 import { IEmailProvider, StandardizedEmail } from "../../core/interfaces/IEmailProvider";
 import { logger } from "@/lib/logger";
+import { encrypt, decrypt } from "@/services/security/encryption";
 
-
-const oauth2Client = new google.auth.OAuth2(
-  process.env.AUTH_GOOGLE_ID,
-  process.env.AUTH_GOOGLE_SECRET,
-  process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/auth/callback/google` : "http://localhost:3000/api/auth/callback/google"
-);
 
 // Utility for Exponential Backoff on rate limits
 async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -31,7 +26,16 @@ async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promis
 }
 
 export class GmailAdapter implements IEmailProvider {
-  private async getGmailClient(emailAccountId: string) {
+
+  private getOAuth2Client() {
+    return new google.auth.OAuth2(
+      process.env.AUTH_GOOGLE_ID,
+      process.env.AUTH_GOOGLE_SECRET,
+      process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/auth/callback/google` : "http://localhost:3000/api/auth/callback/google"
+    );
+  }
+
+  private async getCredentials(emailAccountId: string) {
     const account = await db.emailAccount.findUnique({
       where: { id: emailAccountId }
     });
@@ -40,23 +44,65 @@ export class GmailAdapter implements IEmailProvider {
       throw new Error(`EmailAccount not found: ${emailAccountId}`);
     }
 
-    oauth2Client.setCredentials({
-      access_token: account.accessToken,
-      refresh_token: account.refreshToken,
-      expiry_date: account.expiresAt ? account.expiresAt * 1000 : undefined,
+    const decryptedAccess = account.accessToken ? decrypt(account.accessToken) : null;
+    const decryptedRefresh = account.refreshToken ? decrypt(account.refreshToken) : null;
+
+    // Temporary debug logging per requirements
+    if (process.env.NODE_ENV === "development") {
+      const now = Date.now();
+      const expiresMs = account.expiresAt ? account.expiresAt * 1000 : 0;
+      logger.info(`[GMAIL_DEBUG] Has access token: ${!!account.accessToken}`);
+      logger.info(`[GMAIL_DEBUG] Has refresh token: ${!!account.refreshToken}`);
+      logger.info(`[GMAIL_DEBUG] Access token decrypted: ${!!decryptedAccess}`);
+      logger.info(`[GMAIL_DEBUG] Refresh token decrypted: ${!!decryptedRefresh}`);
+      logger.info(`[GMAIL_DEBUG] Token expiry: ${new Date(expiresMs).toISOString()}`);
+      logger.info(`[GMAIL_DEBUG] Token expired?: ${expiresMs < now}`);
+    }
+
+    return {
+      account,
+      credentials: {
+        access_token: decryptedAccess as string,
+        refresh_token: decryptedRefresh as string | undefined,
+        expiry_date: account.expiresAt ? account.expiresAt * 1000 : undefined,
+      }
+    };
+  }
+
+  private async persistTokens(emailAccountId: string, tokens: any, existingAccount: any) {
+    const newAccessToken = tokens.access_token ? encrypt(tokens.access_token) : existingAccount.accessToken;
+    // CRITICAL: Preserve existing refresh token if Google didn't send a new one
+    const newRefreshToken = tokens.refresh_token ? encrypt(tokens.refresh_token) : existingAccount.refreshToken;
+    const newExpiresAt = tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : existingAccount.expiresAt;
+
+    await db.emailAccount.update({
+      where: { id: emailAccountId },
+      data: {
+        accessToken: newAccessToken as string,
+        refreshToken: newRefreshToken as string | null,
+        expiresAt: newExpiresAt,
+      }
     });
 
+    if (process.env.NODE_ENV === "development") {
+      logger.info(`[GMAIL_DEBUG] Refresh succeeded? YES`);
+    }
+  }
+
+  private async getGmailClient(emailAccountId: string) {
+    const { account, credentials } = await this.getCredentials(emailAccountId);
+    
+    // Instantiate a NEW client per request to prevent listener accumulation (memory leak)
+    const oauth2Client = this.getOAuth2Client();
+    oauth2Client.setCredentials(credentials);
+
     oauth2Client.on("tokens", async (tokens) => {
+      if (process.env.NODE_ENV === "development") {
+        logger.info(`[GMAIL_DEBUG] Automatic refresh triggered? YES`);
+      }
       if (tokens.refresh_token || tokens.access_token) {
-        logger.info(`[GMAIL_ADAPTER] Updating refreshed tokens for account: ${emailAccountId}`);
-        await db.emailAccount.update({
-          where: { id: emailAccountId },
-          data: {
-            accessToken: tokens.access_token || account.accessToken,
-            refreshToken: tokens.refresh_token || account.refreshToken,
-            expiresAt: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : undefined,
-          }
-        });
+        logger.info(`[GMAIL_ADAPTER] Updating refreshed tokens securely for account: ${emailAccountId}`);
+        await this.persistTokens(emailAccountId, tokens, account);
       }
     });
 
@@ -96,7 +142,7 @@ export class GmailAdapter implements IEmailProvider {
       logger.info(`[GMAIL_ADAPTER] Webhook registered for ${emailAccountId}. History ID: ${newHistoryId}`);
       return true;
     } catch (error) {
-      logger.error(`[GMAIL_ADAPTER] Failed to register webhook for ${emailAccountId}:`, error);
+      logger.error({ err: error }, `[GMAIL_ADAPTER] Failed to register webhook for ${emailAccountId}`);
       await db.emailAccount.update({
         where: { id: emailAccountId },
         data: { syncStatus: "ERROR" }
@@ -119,7 +165,7 @@ export class GmailAdapter implements IEmailProvider {
       });
       return true;
     } catch (error) {
-      logger.error(`[GMAIL_ADAPTER] Failed to stop watch for ${emailAccountId}:`, error);
+      logger.error({ err: error }, `[GMAIL_ADAPTER] Failed to stop watch for ${emailAccountId}`);
       return false;
     }
   }
@@ -211,7 +257,7 @@ export class GmailAdapter implements IEmailProvider {
       return newEmails;
 
     } catch (error: any) {
-      logger.error(`[GMAIL_ADAPTER] Sync failed for ${emailAccountId}:`, error);
+      logger.error({ err: error }, `[GMAIL_ADAPTER] Sync failed for ${emailAccountId}`);
       
       const endTime = Date.now();
       let updateData: any = {
@@ -245,6 +291,9 @@ export class GmailAdapter implements IEmailProvider {
         format: "full"
       }));
 
+      // 1. Message Fetch Log
+      logger.info(`Fetched Gmail message: ${messageId}`);
+
       const payload = res.data.payload;
       const headers = payload?.headers;
       
@@ -259,19 +308,29 @@ export class GmailAdapter implements IEmailProvider {
       let plainText = "";
       let htmlBody = "";
       
-      if (payload?.parts) {
-        const textPart = payload.parts.find(p => p.mimeType === "text/plain");
-        const htmlPart = payload.parts.find(p => p.mimeType === "text/html");
-        
-        if (textPart?.body?.data) plainText = Buffer.from(textPart.body.data, "base64url").toString("utf8");
-        if (htmlPart?.body?.data) htmlBody = Buffer.from(htmlPart.body.data, "base64url").toString("utf8");
-      } else if (payload?.body?.data) {
+      const extractParts = (part: any) => {
+        if (part.mimeType === "text/plain" && part.body?.data) {
+          plainText += Buffer.from(part.body.data, "base64url").toString("utf8") + "\n";
+        } else if (part.mimeType === "text/html" && part.body?.data) {
+          htmlBody += Buffer.from(part.body.data, "base64url").toString("utf8") + "\n";
+        }
+        if (part.parts) {
+          part.parts.forEach(extractParts);
+        }
+      };
+
+      if (payload) {
+        extractParts(payload);
+      }
+      
+      // Fallback for extremely simple emails without parts
+      if (!plainText && !htmlBody && payload?.body?.data) {
         const decoded = Buffer.from(payload.body.data, "base64url").toString("utf8");
         if (payload.mimeType === "text/html") htmlBody = decoded;
         else plainText = decoded;
       }
 
-      return {
+      const standardizedEmail = {
         providerMessageId: messageId,
         threadId: res.data.threadId || undefined,
         subject,
@@ -281,8 +340,13 @@ export class GmailAdapter implements IEmailProvider {
         plainText,
         htmlBody,
       };
+
+      // 2. Normalization Log
+      logger.info(`Normalized email\nsubject: ${standardizedEmail.subject}\nfrom: ${standardizedEmail.from}\nthreadId: ${standardizedEmail.threadId}\nmessageId: ${standardizedEmail.providerMessageId}`);
+
+      return standardizedEmail;
     } catch (error) {
-      logger.error(`[GMAIL_ADAPTER] Failed to fetch message ${messageId}:`, error);
+      logger.error({ err: error }, `[GMAIL_ADAPTER] Failed to fetch message ${messageId}`);
       return null;
     }
   }

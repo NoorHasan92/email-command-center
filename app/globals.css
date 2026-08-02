@@ -128,3 +128,23 @@
     @apply font-sans;
   }
 }
+
+/* Custom react-phone-number-input overrides */
+.PhoneInput {
+  @apply flex items-center w-full;
+}
+.PhoneInputCountry {
+  @apply flex items-center gap-2 mr-3 pr-3 border-r border-border;
+}
+.PhoneInputCountrySelect {
+  @apply bg-transparent text-foreground outline-none text-sm cursor-pointer;
+}
+.PhoneInputCountrySelect option {
+  @apply bg-background text-foreground;
+}
+.PhoneInputCountryIcon {
+  @apply w-5 h-4 shadow-sm object-cover rounded-sm;
+}
+.PhoneInputCountryIcon--border {
+  @apply border border-border;
+}

@@ -89,6 +89,14 @@ enum AuditAction {
   PROFILE_UPDATED
   ACCOUNT_LOCKED
   ACCOUNT_REGISTERED
+  ACCOUNT_LINK_SUCCESS
+  ACCOUNT_LINK_FAILED_EMAIL_MISMATCH
+  ACCOUNT_LINK_FAILED_ALREADY_LINKED
+  GMAIL_CONNECT_STARTED
+  GMAIL_CONNECTED
+  GMAIL_CONNECT_FAILED
+  GMAIL_WATCH_REGISTERED
+  GMAIL_WATCH_FAILED
 }
 
 enum SyncStatus {
@@ -99,10 +107,12 @@ enum SyncStatus {
 }
 
 enum EmailStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+  SYNCED
+  QUEUED_FOR_AI
+  AI_PROCESSING
+  AI_COMPLETE
+  AI_FAILED
+  NOTIFIED
   SKIPPED
 }
 
@@ -284,7 +294,7 @@ model Email {
   date              DateTime
   plainText         String?      @db.Text
   htmlBody          String?      @db.Text
-  status            EmailStatus  @default(PENDING)
+  status            EmailStatus  @default(SYNCED)
   retryCount        Int          @default(0)
   pipelineMetrics   Json?        // Stores latency details
   createdAt         DateTime     @default(now())
@@ -300,27 +310,20 @@ model Email {
 model EmailAnalysis {
   id                 String   @id @default(cuid())
   emailId            String   @unique
-  score              Int      @default(0)
-  explanation        String?  @db.Text
-  isActionRequired   Boolean  @default(false)
-  extractedDeadlines Json?
-  
-  // New Milestone 7 Fields
-  confidence          Int               @default(0)
-  category            EmailCategory     @default(OTHER)
-  actionSummary       String?           @db.Text
-  consequence         String?           @db.Text
-  opportunityDetected Boolean           @default(false)
-  opportunityType     OpportunityType   @default(NONE)
-  priority            PriorityLevel     @default(LOW)
-  suggestedNextStep   String?           @db.Text
-  estimatedReadTime   Int?
-  reminderSuggested   Boolean           @default(false)
-  reminderReason      String?           @db.Text
-  reminderPriority    ReminderPriority?
-  reminderWindow      String?
-  requiresHumanReview Boolean           @default(false)
-  appliedRules        Json?
+
+  summary              String   @db.Text
+  category             String
+  priority             String
+  confidence           Int      @default(0)
+  requiresAction       Boolean  @default(false)
+  reasoning            String   @db.Text
+  deadline             DateTime?
+  actionItems          Json?
+  entities             Json?
+  sentiment            String?
+  urgencyScore         Int      @default(0)
+  estimatedReadingTime Int?
+  suggestedNotification Boolean @default(false)
   
   // AI Cost & Performance Tracking
   model              String?
@@ -329,13 +332,14 @@ model EmailAnalysis {
   totalTokens        Int      @default(0)
   estimatedCost      Float    @default(0.0) // In USD
   latencyMs          Int      @default(0)
+  finishReason       String?
 
   // Prompt Versioning
   promptVersion      String   @default("1.0")
-  modelVersion       String   @default("gpt-4o-mini") 
-  aiProvider         String   @default("OPENAI")
-  aiAnalysisVersion  String   @default("v1") 
-  aiVersion          String   @default("1.0-gpt-4o-mini") // promptVersion + modelVersion 
+  modelVersion       String   @default("gemini-2.5-flash") 
+  aiProvider         String   @default("GEMINI")
+  aiAnalysisVersion  String   @default("v2") 
+  aiVersion          String   @default("2.0-gemini-2.5-flash")
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

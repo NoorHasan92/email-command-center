@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
+import crypto from "crypto";
+import { auth } from "@/config/auth";
+import { logSecurityEvent } from "@/services/security/audit";
+import { cookies } from "next/headers";
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+    }
+
+    await logSecurityEvent("GMAIL_CONNECT_STARTED", session.user.id);
+
+    const clientId = process.env.AUTH_GOOGLE_ID;
+    const clientSecret = process.env.AUTH_GOOGLE_SECRET;
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/integrations/gmail/callback`;
+
+    if (!clientId || !clientSecret) {
+      console.error("Missing Google OAuth credentials");
+      return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
+    }
+
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+    // Requirement 3: Generate a cryptographically secure state value
+    const state = crypto.randomBytes(32).toString("hex");
+
+    // Store state in a secure HttpOnly cookie
+    const cookieStore = await cookies();
+    cookieStore.set("gmail_oauth_state", state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 10 * 60, // 10 minutes
+      path: "/",
+      sameSite: "lax",
+    });
+
+    // Generate the URL
+    // Requirement 2: Request minimum required scopes
+    const scopes = [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "openid",
+      "email",
+    ];
+
+    const authorizationUrl = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent", // Force consent to ensure a refresh token is provided
+      scope: scopes,
+      state: state,
+    });
+
+    return NextResponse.redirect(authorizationUrl);
+  } catch (error) {
+    console.error("Error initiating Gmail OAuth:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

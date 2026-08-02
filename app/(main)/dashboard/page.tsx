@@ -11,16 +11,16 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   // Fetch Inbox Health Metrics
   const criticalCount = await db.emailAnalysis.count({
-    where: { score: { gte: 90 } }
+    where: { urgencyScore: { gte: 90 } }
   });
 
   const actionRequiredCount = await db.emailAnalysis.count({
-    where: { isActionRequired: true }
+    where: { requiresAction: true }
   });
 
-  // Very simplified approximation for deadlines - in a real app, you'd parse dates
+  // Very simplified approximation for deadlines
   const deadlinesCount = await db.emailAnalysis.count({
-    where: { extractedDeadlines: { not: Prisma.DbNull } }
+    where: { deadline: { not: null } }
   });
 
   const lastSync = await db.emailAccount.findFirst({
@@ -49,9 +49,22 @@ export default async function DashboardPage() {
     }
   });
 
+  // Fetch recent notifications
+  const recentNotifications = await db.notificationLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: {
+      email: { select: { subject: true } }
+    }
+  });
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
-      <DashboardClient initialEmails={recentEmails} healthData={healthData} />
+    <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
+      <DashboardClient 
+        initialEmails={recentEmails} 
+        healthData={healthData} 
+        recentNotifications={recentNotifications} 
+      />
     </div>
   );
 }

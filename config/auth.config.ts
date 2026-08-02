@@ -20,12 +20,20 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isProtectedRoute = nextUrl.pathname.startsWith("/dashboard") || nextUrl.pathname.startsWith("/settings");
+      const path = nextUrl.pathname;
       
-      if (isProtectedRoute) {
+      const isPublicRoute = 
+        path === "/" || 
+        path.startsWith("/login") || 
+        path.startsWith("/register") || 
+        path.startsWith("/verify") ||
+        path.startsWith("/api/auth"); // NextAuth routes must be public
+
+      if (!isPublicRoute && !path.startsWith("/api/")) {
+        // Any non-public, non-API route requires login
         if (isLoggedIn) return true;
         return false; // Redirect to signIn page
-      } else if (isLoggedIn && (nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register"))) {
+      } else if (isLoggedIn && (path.startsWith("/login") || path.startsWith("/register"))) {
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
       return true;

@@ -5,4 +5,10 @@ export const ROUTES = {
   home: "/",
   dashboard: "/dashboard",
   settings: "/settings",
+  inbox: "/inbox",
+  alerts: "/alerts",
+  admin: "/admin",
+  rules: "/rules",
+  analytics: "/analytics",
+  integrations: "/integrations",
 } as const;

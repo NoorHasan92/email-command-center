@@ -95,7 +95,7 @@ export class WhatsAppAdapter implements INotificationProvider {
       
       throw new Error("No message ID returned from Meta");
     } catch (error) {
-      logger.error("[WHATSAPP_ADAPTER] Dispatch Failed:", error);
+      logger.error({ err: error }, "[WHATSAPP_ADAPTER] Dispatch Failed");
       throw error;
     }
   }

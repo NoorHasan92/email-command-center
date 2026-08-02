@@ -1,7 +1,6 @@
-"use server";
 // server/actions/auth.actions.ts
-// Server actions for user registration, login, and sessions.
-
+// Handles all authentication related server actions
+"use server";
 
 import { db } from "@/server/repositories/db";
 import { hashPassword, verifyPassword, validatePasswordStrength } from "@/services/security/password";
@@ -12,6 +11,8 @@ import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
+import { auth } from "@/config/auth";
 import "server-only";
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -54,7 +55,6 @@ async function createDatabaseSession(userId: string) {
   const useSecureCookies = process.env.NODE_ENV === "production";
   const cookieName = useSecureCookies ? "__Secure-authjs.session-token" : "authjs.session-token";
 
-  // Next.js 15 requires cookies() to be awaited
   const cookieStore = await cookies();
   cookieStore.set(cookieName, sessionToken, {
     httpOnly: true,
@@ -79,7 +79,6 @@ export async function loginAction(formData: FormData) {
       return { error: "Invalid email or password" };
     }
 
-    // Check account lockout
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return { error: "Account is temporarily locked. Try again later." };
     }
@@ -108,12 +107,10 @@ export async function loginAction(formData: FormData) {
       return { error: "Invalid email or password" };
     }
 
-    // Require email verification before login
     if (!user.emailVerified) {
       return { error: "Please verify your email address before logging in." };
     }
 
-    // Success login
     await db.user.update({
       where: { id: user.id },
       data: {
@@ -142,7 +139,6 @@ export async function registerAction(formData: FormData) {
 
     const existingUser = await db.user.findUnique({ where: { email } });
     if (existingUser) {
-      // Don't reveal account existence directly for security, but return generic error or handle flow
       return { error: "Email is already registered" };
     }
 
@@ -161,7 +157,6 @@ export async function registerAction(formData: FormData) {
       },
     });
 
-    // Generate Verification Token
     const rawToken = generateSecureToken();
     const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
     
@@ -177,8 +172,52 @@ export async function registerAction(formData: FormData) {
     await logSecurityEvent("ACCOUNT_REGISTERED", user.id);
 
     return { success: true };
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    logger.error({ err: error }, "Registration error");
+    return { error: error.message || "An unexpected error occurred" };
+  }
+}
+
+export async function verifyEmailAction(token: string) {
+  try {
+    if (!token) return { error: "Invalid token" };
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    
+    const verificationRecord = await db.verificationToken.findUnique({
+      where: { token: hashedToken },
+    });
+
+    if (!verificationRecord) {
+      return { error: "Invalid token" };
+    }
+
+    const user = await db.user.findUnique({ where: { email: verificationRecord.identifier } });
+    
+    if (!user) {
+      return { error: "User not found" };
+    }
+
+    if (user.emailVerified) {
+      await db.verificationToken.delete({ where: { token: hashedToken } });
+      return { error: "Already verified" };
+    }
+
+    if (verificationRecord.expires < new Date()) {
+      return { error: "Expired token" };
+    }
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { emailVerified: new Date() },
+    });
+
+    await db.verificationToken.delete({ where: { token: hashedToken } });
+    await logSecurityEvent("PASSWORD_CHANGED", user.id, { note: "Email verified" });
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error({ err: error }, "Verify email error");
     return { error: "An unexpected error occurred" };
   }
 }
@@ -266,7 +305,6 @@ export async function forgotPasswordAction(formData: FormData) {
     const { email } = parsed.data;
     const user = await db.user.findUnique({ where: { email } });
 
-    // Always return success even if user doesn't exist (prevent email enumeration)
     if (!user || user.isDeleted) return { success: true };
 
     const rawToken = generateSecureToken();
@@ -332,12 +370,92 @@ export async function resetPasswordAction(formData: FormData) {
 
     await db.passwordResetToken.delete({ where: { id: resetTokenRecord.id } });
     
-    // Invalidate all existing sessions on password reset
     await db.session.deleteMany({ where: { userId: user.id } });
 
     await logSecurityEvent("PASSWORD_RESET_COMPLETED", user.id);
     await logSecurityEvent("PASSWORD_CHANGED", user.id);
 
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function updateProfileAction(formData: FormData) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Unauthorized" };
+
+    const name = formData.get("name")?.toString();
+    if (!name || name.trim().length < 2) {
+      return { error: "Name must be at least 2 characters" };
+    }
+
+    await db.user.update({
+      where: { id: session.user.id },
+      data: { name: name.trim() }
+    });
+
+    await logSecurityEvent("PROFILE_UPDATED", session.user.id);
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function updatePasswordAction(formData: FormData) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Unauthorized" };
+
+    const currentPassword = formData.get("currentPassword")?.toString();
+    const newPassword = formData.get("newPassword")?.toString();
+
+    if (!currentPassword || !newPassword) {
+      return { error: "Both current and new passwords are required" };
+    }
+
+    const user = await db.user.findUnique({ where: { id: session.user.id } });
+    if (!user || !user.passwordHash) return { error: "User not found or uses OAuth" };
+
+    const isCurrentValid = await verifyPassword(user.passwordHash, currentPassword);
+    if (!isCurrentValid) {
+      return { error: "Current password is incorrect" };
+    }
+
+    const strength = validatePasswordStrength(newPassword, [user.email, user.name || ""]);
+    if (!strength.isStrongEnough) {
+      return { error: "New password is too weak: " + (strength.feedback.warning || "") };
+    }
+
+    const newHash = await hashPassword(newPassword);
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash }
+    });
+
+    // Invalidate other sessions
+    const cookieStore = await cookies();
+    const useSecureCookies = process.env.NODE_ENV === "production";
+    const cookieName = useSecureCookies ? "__Secure-authjs.session-token" : "authjs.session-token";
+    const sessionToken = cookieStore.get(cookieName)?.value;
+
+    if (sessionToken) {
+      await db.session.deleteMany({
+        where: {
+          userId: user.id,
+          sessionToken: {
+            not: sessionToken // keep current session
+          }
+        }
+      });
+    }
+
+    await logSecurityEvent("PASSWORD_CHANGED", user.id);
+    
     return { success: true };
   } catch (error) {
     console.error(error);

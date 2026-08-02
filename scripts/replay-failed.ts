@@ -11,7 +11,7 @@ async function replayFailed() {
   // Replay Webhooks
   const { count: webhookCount } = await db.webhookEvent.updateMany({
     where: { status: "FAILED" },
-    data: { status: "PENDING", attempts: 0, error: null }
+    data: { status: "PENDING", retryCount: 0, error: null }
   });
   logger.info({ replayedCount: webhookCount }, "Replayed FAILED Webhooks");
 

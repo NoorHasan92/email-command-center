@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
-import { Sidebar } from "@/components/layout/sidebar";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -18,19 +17,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <Suspense
-          fallback={
-            <div className="flex h-full w-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          }
-        >
-          {children}
-        </Suspense>
-      </div>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
   );
 }

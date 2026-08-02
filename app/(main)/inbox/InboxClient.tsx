@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { 
   Search, ShieldAlert, CheckCircle, Clock, Activity, 
@@ -10,9 +10,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 import { Email, EmailAnalysis } from "@prisma/client";
-import { Lightbulb, Calendar, ThumbsUp, ThumbsDown, BellRing, BellOff, Sparkles, AlertCircle } from "lucide-react";
+import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff } from "lucide-react";
+import { submitAIFeedbackAction } from "@/server/actions/training.actions";
+import { markEmailReviewedAction } from "@/server/actions/inbox.actions";
 
 export type EmailWithAnalysis = Email & {
   analysis: EmailAnalysis | null;
@@ -22,39 +25,66 @@ export type EmailWithAnalysis = Email & {
   };
 };
 
-interface HealthData {
-  criticalCount: number;
-  actionRequiredCount: number;
-  deadlinesToday: number;
-  deadlinesWeek: number;
-  lastSync: string | null;
-}
-
-export default function DashboardClient({ 
-  initialEmails, 
-  healthData 
+export default function InboxClient({ 
+  initialEmails 
 }: { 
   initialEmails: EmailWithAnalysis[];
-  healthData: HealthData;
 }) {
   const [emails, setEmails] = useState(initialEmails);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEmail, setSelectedEmail] = useState<EmailWithAnalysis | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [reviewedEmails, setReviewedEmails] = useState<Set<string>>(new Set());
+  const [feedbackStates, setFeedbackStates] = useState<Record<string, string>>({});
 
-  const handleMarkReviewed = (emailId: string) => {
+  const handleMarkReviewed = useCallback((emailId: string) => {
+    setReviewedEmails(prev => {
+      const next = new Set(prev);
+      next.add(emailId);
+      return next;
+    });
+    startTransition(async () => {
+      const result = await markEmailReviewedAction(emailId);
+      if (result.error) toast.error(result.error);
+    });
+  }, []);
+
+  const handleFeedback = async (feedbackType: "CORRECT" | "WRONG" | "ALWAYS_NOTIFY" | "NEVER_NOTIFY") => {
+    if (!selectedEmail) return;
+
+    let reason = undefined;
+    if (feedbackType === "WRONG") {
+      const userInput = prompt("Why was the AI wrong? What should the category/priority be?");
+      if (userInput === null) return; // User cancelled
+      reason = userInput;
+    }
+    
+    // Optimistically update UI
+    const emailId = selectedEmail.id;
+    setFeedbackStates(prev => ({ ...prev, [emailId]: feedbackType }));
+
+    startTransition(async () => {
+      const result = await submitAIFeedbackAction(emailId, feedbackType, reason);
+      if (result.error) {
+        toast.error(result.error);
+        setFeedbackStates(prev => {
+          const next = { ...prev };
+          delete next[emailId];
+          return next;
+        });
+      } else {
+        toast.success("AI Training Feedback submitted!");
+      }
+    });
+  };
+
+  const handleSnooze = useCallback((emailId: string) => {
     setEmails(prev => prev.filter(e => e.id !== emailId));
     if (selectedEmail?.id === emailId) {
       setSelectedEmail(null);
     }
-  };
-
-  const handleSnooze = (emailId: string) => {
-    setEmails(prev => prev.filter(e => e.id !== emailId));
-    if (selectedEmail?.id === emailId) {
-      setSelectedEmail(null);
-    }
-  };
+  }, [selectedEmail]);
 
   // Filtered emails
   const filteredEmails = emails.filter(e => 
@@ -73,8 +103,10 @@ export default function DashboardClient({
       } else if (e.key === "k") {
         setSelectedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === "e" || e.key === "Enter") {
-        if (filteredEmails[selectedIndex]) {
-          setSelectedEmail(filteredEmails[selectedIndex]);
+        if (selectedEmail) {
+          setSelectedEmail(null); // Toggle close
+        } else if (filteredEmails[selectedIndex]) {
+          setSelectedEmail(filteredEmails[selectedIndex]); // Toggle open
         }
       } else if (e.key === "r") {
         if (selectedEmail) {
@@ -98,7 +130,7 @@ export default function DashboardClient({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIndex, filteredEmails]);
+  }, [selectedIndex, filteredEmails, selectedEmail, handleMarkReviewed, handleSnooze]);
 
   return (
     <div className="flex h-full w-full">
@@ -107,8 +139,8 @@ export default function DashboardClient({
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${selectedEmail ? 'pr-[400px] xl:pr-[500px]' : ''}`}>
         
         {/* Top Header & Search */}
-        <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10">
-          <div className="relative w-full max-w-md flex items-center">
+        <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-4">
+          <div className="relative flex-1 max-w-md flex items-center">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3" />
             <input 
               id="global-search"
@@ -119,105 +151,20 @@ export default function DashboardClient({
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <select 
+            className="bg-secondary/50 border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground"
+            defaultValue="all"
+          >
+            <option value="all">All Emails</option>
+            <option value="critical">Critical Priority</option>
+            <option value="action_req">Action Required</option>
+            <option value="deadlines">Has Deadlines</option>
+          </select>
         </header>
 
         <ScrollArea className="flex-1">
           <div className="p-6 max-w-6xl mx-auto space-y-8">
             
-            {/* Inbox Health Dashboard */}
-            <section>
-              <h2 className="text-lg font-semibold tracking-tight mb-4">Inbox Health</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <HealthCard 
-                  title="Critical" 
-                  value={healthData.criticalCount} 
-                  icon={<ShieldAlert className="w-5 h-5 text-destructive" />} 
-                  trend="Requires immediate attention"
-                />
-                <HealthCard 
-                  title="Action Required" 
-                  value={healthData.actionRequiredCount} 
-                  icon={<CheckCircle className="w-5 h-5 text-orange-500" />} 
-                  trend="Pending tasks"
-                />
-                <HealthCard 
-                  title="Deadlines Today" 
-                  value={healthData.deadlinesToday} 
-                  icon={<Clock className="w-5 h-5 text-blue-500" />} 
-                  trend="Due within 24h"
-                />
-                <HealthCard 
-                  title="Last Sync" 
-                  value={healthData.lastSync ? formatDistanceToNow(new Date(healthData.lastSync), { addSuffix: true }) : "Never"} 
-                  icon={<Activity className="w-5 h-5 text-muted-foreground" />} 
-                  trend="Gmail & WhatsApp active"
-                />
-              </div>
-            </section>
-
-            {/* Dashboard Additions for Milestone 8 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Opportunities Panel */}
-              <section className="bg-card/50 border border-border rounded-lg p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-yellow-500" />
-                    <h2 className="text-lg font-semibold tracking-tight">Opportunities</h2>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {emails.filter(e => e.analysis?.opportunityDetected && e.analysis?.opportunityType !== "NONE").slice(0, 3).map(email => (
-                    <div key={email.id} className="flex flex-col gap-1 p-3 bg-secondary/30 rounded-md border border-border">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/20">{email.analysis?.opportunityType}</Badge>
-                        <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(email.date), { addSuffix: true })}</span>
-                      </div>
-                      <span className="font-medium text-sm truncate">{email.subject || "No Subject"}</span>
-                      <span className="text-xs text-muted-foreground truncate">{email.analysis?.explanation}</span>
-                    </div>
-                  ))}
-                  {emails.filter(e => e.analysis?.opportunityDetected).length === 0 && (
-                    <div className="text-sm text-muted-foreground text-center p-4">No opportunities detected yet.</div>
-                  )}
-                </div>
-              </section>
-
-              {/* Upcoming Deadlines */}
-              <section className="bg-card/50 border border-border rounded-lg p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-blue-500" />
-                    <h2 className="text-lg font-semibold tracking-tight">Upcoming Deadlines</h2>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {/* Flatten deadlines across emails */}
-                  {emails.map(e => ({ email: e, deadlines: (e.analysis?.extractedDeadlines as {date: string; type: string; description: string}[]) || [] }))
-                    .flatMap(item => item.deadlines.map(d => ({ ...d, emailId: item.email.id, subject: item.email.subject })))
-                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                    .filter(d => new Date(d.date) > new Date())
-                    .slice(0, 3)
-                    .map((deadline, idx) => (
-                      <div key={idx} className="flex flex-col gap-1 p-3 bg-secondary/30 rounded-md border border-border">
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline" className={`text-[10px] ${deadline.type === 'HARD' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                            {deadline.type}
-                          </Badge>
-                          <span className="text-[10px] font-medium text-foreground">{format(new Date(deadline.date), "MMM d, yyyy")}</span>
-                        </div>
-                        <span className="font-medium text-sm truncate">{deadline.subject || "No Subject"}</span>
-                        <span className="text-xs text-muted-foreground truncate">{deadline.description}</span>
-                      </div>
-                    ))}
-                    {emails.flatMap(e => (e.analysis?.extractedDeadlines as {date: string; type: string; description: string}[]) || []).length === 0 && (
-                      <div className="text-sm text-muted-foreground text-center p-4">No upcoming deadlines detected.</div>
-                    )}
-                </div>
-              </section>
-
-            </div>
-
             {/* Email List */}
             <section>
               <div className="flex items-center justify-between mb-4">
@@ -241,6 +188,7 @@ export default function DashboardClient({
                         key={email.id}
                         email={email}
                         isSelected={idx === selectedIndex}
+                        isReviewed={reviewedEmails.has(email.id) || email.status === 'NOTIFIED'}
                         onClick={() => {
                           setSelectedIndex(idx);
                           setSelectedEmail(email);
@@ -256,11 +204,14 @@ export default function DashboardClient({
         </ScrollArea>
       </div>
 
-      {/* Sliding Right Pane */}
       <EmailDetailPane 
         email={selectedEmail} 
         onClose={() => setSelectedEmail(null)} 
         onMarkReviewed={() => selectedEmail && handleMarkReviewed(selectedEmail.id)}
+        onFeedback={handleFeedback}
+        isPending={isPending}
+        feedbackState={selectedEmail ? (feedbackStates[selectedEmail.id] || (selectedEmail.pipelineMetrics as any)?.userFeedback) : undefined}
+        isReviewed={selectedEmail ? (reviewedEmails.has(selectedEmail.id) || selectedEmail.status === 'NOTIFIED') : false}
       />
 
     </div>
@@ -288,9 +239,9 @@ function HealthCard({ title, value, icon, trend }: { title: string, value: strin
   );
 }
 
-function EmailRow({ email, isSelected, onClick }: { email: EmailWithAnalysis, isSelected: boolean, onClick: () => void }) {
+function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWithAnalysis, isSelected: boolean, isReviewed?: boolean, onClick: () => void }) {
   const analysis = email.analysis;
-  const score = analysis?.score || 0;
+  const score = analysis?.urgencyScore || 0;
   
   // Color code based on score
   let scoreColor = "text-muted-foreground bg-secondary";
@@ -305,7 +256,7 @@ function EmailRow({ email, isSelected, onClick }: { email: EmailWithAnalysis, is
         isSelected 
           ? "bg-secondary/50 border-l-primary" 
           : "border-l-transparent hover:bg-secondary/30"
-      }`}
+      } ${isReviewed ? "opacity-60" : ""}`}
     >
       {/* Score Badge */}
       <div className="w-12 shrink-0 flex items-center justify-center mr-4">
@@ -318,7 +269,12 @@ function EmailRow({ email, isSelected, onClick }: { email: EmailWithAnalysis, is
       <div className="flex-1 min-w-0 mr-4">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-medium text-sm truncate text-foreground">{extractName(email.from)}</span>
-          {analysis?.isActionRequired && (
+          {isReviewed && (
+            <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" /> Reviewed
+            </Badge>
+          )}
+          {analysis?.requiresAction && !isReviewed && (
             <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-orange-500/10 text-orange-500 border-orange-500/20">Action Req</Badge>
           )}
         </div>
@@ -326,10 +282,10 @@ function EmailRow({ email, isSelected, onClick }: { email: EmailWithAnalysis, is
           <span className="truncate max-w-[200px]">{email.subject || "(No Subject)"}</span>
           <span className="shrink-0 text-xs opacity-50">&bull;</span>
           <span className="truncate text-xs opacity-75">
-            {analysis?.isActionRequired && analysis?.actionSummary ? (
-              <strong className="text-foreground">{analysis.actionSummary}</strong>
+            {analysis?.requiresAction && (analysis?.actionItems as string[])?.length > 0 ? (
+              <strong className="text-foreground">{(analysis.actionItems as string[])[0]}</strong>
             ) : (
-              analysis?.explanation || "Analyzing..."
+              analysis?.summary || "Analyzing..."
             )}
           </span>
         </div>
@@ -341,9 +297,9 @@ function EmailRow({ email, isSelected, onClick }: { email: EmailWithAnalysis, is
           {formatDistanceToNow(new Date(email.date), { addSuffix: true })}
         </span>
         
-        {analysis?.estimatedReadTime && (
+        {analysis?.estimatedReadingTime && (
           <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded">
-            <Clock3 className="w-3 h-3" /> {analysis.estimatedReadTime}m
+            <Clock3 className="w-3 h-3" /> {analysis.estimatedReadingTime}m
           </span>
         )}
         
@@ -370,10 +326,26 @@ function ActionButton({ icon, title }: { icon: React.ReactNode, title: string })
 // Email Detail Pane
 // ----------------------------------------------------------------------------
 
-function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithAnalysis | null, onClose: () => void, onMarkReviewed: () => void }) {
+function EmailDetailPane({ 
+  email, 
+  onClose, 
+  onMarkReviewed,
+  onFeedback,
+  isPending,
+  feedbackState,
+  isReviewed
+}: { 
+  email: EmailWithAnalysis | null;
+  onClose: () => void;
+  onMarkReviewed: () => void;
+  onFeedback: (type: "CORRECT" | "WRONG" | "ALWAYS_NOTIFY" | "NEVER_NOTIFY") => void;
+  isPending: boolean;
+  feedbackState?: string;
+  isReviewed?: boolean;
+}) {
   return (
     <aside 
-      className={`fixed inset-y-0 right-0 w-[400px] xl:w-[500px] bg-card border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-20 flex flex-col ${
+      className={`fixed inset-y-0 right-0 w-[400px] xl:w-[500px] bg-card border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-50 flex flex-col ${
         email ? "translate-x-0" : "translate-x-full"
       }`}
     >
@@ -383,12 +355,16 @@ function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithA
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Thread Details</span>
             </div>
-            <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors">
-              <X className="w-4 h-4" />
+            <button 
+              onClick={onClose} 
+              title="Close panel (Esc)"
+              className="p-1.5 bg-secondary/80 text-foreground hover:bg-destructive hover:text-destructive-foreground rounded-md transition-colors border border-border flex items-center gap-1.5 text-xs font-medium px-2"
+            >
+              <X className="w-3.5 h-3.5" /> Close
             </button>
           </header>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <div className="p-6 space-y-6">
               
               {/* Header Info */}
@@ -414,7 +390,7 @@ function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithA
               {email.analysis && (
                 <div className="bg-secondary/30 border border-border rounded-lg overflow-hidden relative">
                   {/* Priority Strip */}
-                  <div className={`absolute top-0 left-0 w-1 h-full ${email.analysis.score >= 90 ? 'bg-destructive' : email.analysis.score >= 70 ? 'bg-orange-500' : 'bg-blue-500'}`} />
+                  <div className={`absolute top-0 left-0 w-1 h-full ${email.analysis.urgencyScore >= 90 ? 'bg-destructive' : email.analysis.urgencyScore >= 70 ? 'bg-orange-500' : 'bg-blue-500'}`} />
                   
                   <div className="p-5 space-y-5 pl-6">
                     {/* Top Row: AI Ring & Category */}
@@ -432,83 +408,86 @@ function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithA
                         </div>
                       </div>
                       
-                      <div className="shrink-0 flex flex-col items-center">
-                        <div className="relative flex items-center justify-center w-12 h-12" title={`Confidence: ${email.analysis.confidence}%`}>
-                          <svg className="w-12 h-12 transform -rotate-90">
-                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="none" className="text-secondary" />
-                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="none" 
-                              strokeDasharray={`${email.analysis.score * 1.25} 125`} 
-                              className={email.analysis.score >= 90 ? "text-destructive" : email.analysis.score >= 70 ? "text-orange-500" : "text-blue-500"} 
-                            />
-                          </svg>
-                          <span className="absolute text-xs font-bold">{email.analysis.score}</span>
+                      <div className="shrink-0 flex items-center gap-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Urgency</span>
+                          <div className="relative flex items-center justify-center w-10 h-10" title={`Urgency Score: ${email.analysis.urgencyScore}`}>
+                            <svg className="w-10 h-10 transform -rotate-90">
+                              <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="none" className="text-secondary" />
+                              <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="none" 
+                                strokeDasharray={`${email.analysis.urgencyScore * 1.0} 100`} 
+                                className={email.analysis.urgencyScore >= 90 ? "text-destructive" : email.analysis.urgencyScore >= 70 ? "text-orange-500" : "text-blue-500"} 
+                              />
+                            </svg>
+                            <span className="absolute text-xs font-bold">{email.analysis.urgencyScore}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Confidence</span>
+                          <div className="relative flex items-center justify-center w-10 h-10" title={`Confidence: ${email.analysis.confidence}%`}>
+                            <svg className="w-10 h-10 transform -rotate-90">
+                              <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="none" className="text-secondary" />
+                              <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="none" 
+                                strokeDasharray={`${email.analysis.confidence * 1.0} 100`} 
+                                className={email.analysis.confidence >= 80 ? "text-green-500" : email.analysis.confidence >= 50 ? "text-orange-500" : "text-destructive"} 
+                              />
+                            </svg>
+                            <span className="absolute text-[10px] font-bold">{email.analysis.confidence}%</span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* What happens if I ignore it? */}
-                    {email.analysis.consequence && (
-                      <div className="bg-destructive/10 border border-destructive/20 rounded p-3">
-                        <p className="text-xs font-bold text-destructive uppercase tracking-wide mb-1">If Ignored:</p>
-                        <p className="text-sm font-medium text-destructive/90 leading-snug">
-                          {email.analysis.consequence}
+                    {/* Context / Reasoning */}
+                    {email.analysis.reasoning && (
+                      <div className="bg-secondary/20 border border-border rounded p-3">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Reasoning:</p>
+                        <p className="text-sm text-foreground/90 leading-snug">
+                          {email.analysis.reasoning}
                         </p>
                       </div>
                     )}
 
-                    {/* What do I need to do? */}
-                    {(email.analysis.actionSummary || email.analysis.suggestedNextStep) && (
+                    {/* Action Items */}
+                    {(email.analysis.actionItems as string[])?.length > 0 && (
                       <div className="bg-orange-500/10 border border-orange-500/20 rounded p-3">
-                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wide mb-1">Action Required:</p>
-                        <p className="text-sm font-medium text-orange-500/90 leading-snug">
-                          {email.analysis.actionSummary || email.analysis.suggestedNextStep}
-                        </p>
+                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wide mb-1">Action Items:</p>
+                        <ul className="text-sm font-medium text-orange-500/90 leading-snug list-disc pl-4 space-y-1">
+                          {(email.analysis.actionItems as string[]).map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
-                    {/* By When? */}
-                    {email.analysis.reminderSuggested && (
+                    {/* Entities */}
+                    {(email.analysis.entities as string[])?.length > 0 && (
                       <div className="flex items-start gap-2 bg-blue-500/10 border border-blue-500/20 rounded p-3">
-                        <Clock className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                        <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-1">Timing:</p>
-                          <p className="text-sm font-medium text-blue-500/90 leading-snug">
-                            {email.analysis.reminderReason} ({email.analysis.reminderWindow})
-                          </p>
+                          <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mb-1">Entities Detected:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(email.analysis.entities as string[]).map((entity, idx) => (
+                              <Badge key={idx} variant="outline" className="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">{entity}</Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )}
 
                     {/* Explanation */}
                     <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Context:</p>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Summary:</p>
                       <p className="text-sm text-muted-foreground leading-relaxed">
-                        {email.analysis.explanation}
+                        {email.analysis.summary}
                       </p>
                     </div>
 
-                    {email.analysis.requiresHumanReview && (
-                      <div className="flex items-center gap-2 text-xs text-orange-500 font-medium">
+                    {email.analysis.confidence < 80 && (
+                      <div className="flex items-center gap-2 text-xs text-orange-500 font-medium mt-2">
                         <ShieldAlert className="w-3.5 h-3.5" />
                         AI confidence low ({email.analysis.confidence}%). Human review suggested.
-                      </div>
-                    )}
-
-                    {/* AI Learning Insights (Applied Rules) */}
-                    {(email.analysis.appliedRules as string[])?.length > 0 && (
-                      <div className="border-t border-border pt-4 mt-2">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="w-4 h-4 text-purple-500" />
-                          <h4 className="text-xs font-bold text-purple-500 uppercase tracking-wide">AI Learning Insights</h4>
-                        </div>
-                        <div className="space-y-1">
-                          {(email.analysis.appliedRules as string[]).map((ruleId, idx) => (
-                            <div key={idx} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <AlertCircle className="w-3 h-3 opacity-50" />
-                              Rule applied: {ruleId}
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </div>
@@ -526,7 +505,7 @@ function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithA
               </div>
 
             </div>
-          </ScrollArea>
+          </div>
           
           {/* Footer Actions (Feedback & Train AI) */}
           <footer className="p-4 border-t border-border bg-background flex flex-col gap-3 shrink-0">
@@ -534,25 +513,58 @@ function EmailDetailPane({ email, onClose, onMarkReviewed }: { email: EmailWithA
               <span>Train AI</span>
             </div>
             <div className="flex gap-2">
-              <button title="Spot On" className="flex-1 bg-secondary/50 text-foreground hover:bg-secondary border border-border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5">
-                <ThumbsUp className="w-3.5 h-3.5 text-green-500" /> Correct
+              <button 
+                onClick={() => onFeedback('CORRECT')} 
+                disabled={isPending || feedbackState === 'CORRECT'} 
+                title="Spot On" 
+                className={`flex-1 ${feedbackState === 'CORRECT' ? 'bg-green-500/20 text-green-500 border-green-500/30' : 'bg-secondary/50 text-foreground hover:bg-secondary border-border'} border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50`}
+              >
+                <ThumbsUp className="w-3.5 h-3.5" /> Correct
               </button>
-              <button title="Missed the mark" className="flex-1 bg-secondary/50 text-foreground hover:bg-secondary border border-border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5">
-                <ThumbsDown className="w-3.5 h-3.5 text-orange-500" /> Wrong
+              <button 
+                onClick={() => onFeedback('WRONG')} 
+                disabled={isPending || feedbackState === 'WRONG'} 
+                title="Missed the mark" 
+                className={`flex-1 ${feedbackState === 'WRONG' ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' : 'bg-secondary/50 text-foreground hover:bg-secondary border-border'} border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50`}
+              >
+                <ThumbsDown className="w-3.5 h-3.5" /> Wrong
               </button>
-              <button title="Always Notify" className="flex-1 bg-secondary/50 text-foreground hover:bg-secondary border border-border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5">
-                <BellRing className="w-3.5 h-3.5 text-blue-500" /> Always
+              <button 
+                onClick={() => onFeedback('ALWAYS_NOTIFY')} 
+                disabled={isPending || feedbackState === 'ALWAYS_NOTIFY'} 
+                title="Always Notify" 
+                className={`flex-1 ${feedbackState === 'ALWAYS_NOTIFY' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30' : 'bg-secondary/50 text-foreground hover:bg-secondary border-border'} border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50`}
+              >
+                <BellRing className="w-3.5 h-3.5" /> Always
               </button>
-              <button title="Ignore Sender" className="flex-1 bg-secondary/50 text-foreground hover:bg-secondary border border-border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5">
-                <BellOff className="w-3.5 h-3.5 text-destructive" /> Ignore
+              <button 
+                onClick={() => onFeedback('NEVER_NOTIFY')} 
+                disabled={isPending || feedbackState === 'NEVER_NOTIFY'} 
+                title="Ignore Sender" 
+                className={`flex-1 ${feedbackState === 'NEVER_NOTIFY' ? 'bg-destructive/20 text-destructive border-destructive/30' : 'bg-secondary/50 text-foreground hover:bg-secondary border-border'} border px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50`}
+              >
+                <BellOff className="w-3.5 h-3.5" /> Ignore
               </button>
             </div>
             <div className="flex items-center gap-2 mt-1">
               <button 
                 onClick={onMarkReviewed}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                disabled={isReviewed}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  isReviewed 
+                    ? "bg-secondary text-muted-foreground cursor-default" 
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                }`}
               >
-                <Check className="w-4 h-4" /> Mark Reviewed
+                {isReviewed ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-green-500" /> Reviewed
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" /> Mark Reviewed
+                  </>
+                )}
               </button>
               <button className="px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 rounded-md text-sm font-medium transition-colors">
                 <MoreHorizontal className="w-4 h-4" />

@@ -1,7 +1,7 @@
 import { db } from "@/server/repositories/db";
 import { GmailAdapter } from "@/services/email/gmail.adapter";
+import { EmailIngestionService } from "@/services/email/email-ingestion.service";
 import { logger } from "@/lib/logger";
-
 
 export async function processWebhooks() {
   logger.info("[JOB] [WEBHOOK_PROCESSOR] [STARTED] Sweeping pending webhook events...");
@@ -53,7 +53,10 @@ export async function processWebhooks() {
       
       const newEmails = await adapter.syncAccount(emailAccount.id);
       
-      logger.info(`[JOB] [WEBHOOK_PROCESSOR] [SUCCESS] Synced ${newEmails.length} emails for ${emailAddress}`);
+      const successfulInserts = await EmailIngestionService.ingest(emailAccount.id, newEmails);
+
+      // 6. Success Counter
+      logger.info(`[JOB] [WEBHOOK_PROCESSOR] [SUCCESS] Synced ${successfulInserts} emails for ${emailAddress}`);
 
       await db.webhookEvent.update({
         where: { id: event.id },

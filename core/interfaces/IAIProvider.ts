@@ -1,44 +1,27 @@
 import { EmailCategory, PriorityLevel, OpportunityType, ReminderPriority } from "@prisma/client";
 
-export type DeadlineType = "HARD" | "SOFT" | "EVENT" | "REMINDER";
-
-export interface ExtractedDeadline {
-  date: Date;
-  type: DeadlineType;
-  description: string;
-}
-
 export interface AIAnalysisResult {
-  score: number; // 0-100
-  explanation: string;
-  isActionRequired: boolean;
-  extractedDeadlines: ExtractedDeadline[];
-  
-  // New Milestone 7 Fields
+  summary: string;
+  category: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   confidence: number;
-  category: EmailCategory;
-  actionSummary: string | null;
-  consequence: string | null;
-  opportunityDetected: boolean;
-  opportunityType: OpportunityType;
-  priority: PriorityLevel;
-  suggestedNextStep: string | null;
-  estimatedReadTime: number | null;
-  reminderSuggested: boolean;
-  reminderReason: string | null;
-  reminderPriority: ReminderPriority | null;
-  reminderWindow: string | null;
-  requiresHumanReview: boolean;
-  aiVersion: string;
-  appliedRules: string[];
+  requiresAction: boolean;
+  reasoning: string;
+  deadline: Date | null;
+  actionItems: string[];
+  entities: string[];
+  sentiment: string | null;
+  urgencyScore: number;
+  estimatedReadingTime: number | null;
+  suggestedNotification: boolean;
 
   // Telemetry
   model: string;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-  estimatedCost: number;
   latencyMs: number;
+  finishReason: string | null;
 }
 
 export interface IAIProvider {
@@ -51,11 +34,6 @@ export interface IAIProvider {
   analyzeEmail(
     emailText: string,
     subject: string,
-    metadata?: Record<string, any>,
-    context?: {
-      senderProfile?: any;
-      learningRules?: any[];
-      threadContext?: string[];
-    }
+    metadata?: Record<string, any>
   ): Promise<AIAnalysisResult>;
 }
