@@ -31,6 +31,15 @@ export async function logSecurityEvent(action: AuditAction, userId?: string | nu
     const ipAddress = headersList.get("x-forwarded-for") || headersList.get("x-real-ip") || "unknown";
     const userAgent = headersList.get("user-agent") || "unknown";
 
+    // Verify user exists before inserting to prevent FK constraint violations
+    if (userId) {
+      const userExists = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!userExists) {
+        console.warn(`[AUDIT] Skipping log for non-existent userId=${userId} action=${action}`);
+        return;
+      }
+    }
+
     const data: any = {
       userId: userId || undefined,
       action,
