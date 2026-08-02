@@ -6,6 +6,7 @@ import { Command } from "cmdk";
 import { Search, LayoutDashboard, Mail, Bell, Settings, Filter, BarChart, User, LogOut } from "lucide-react";
 import { ROUTES } from "@/config/routes";
 import { cn } from "@/lib/utils";
+import { signOut } from "next-auth/react";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -79,7 +80,10 @@ export function CommandPalette() {
               <CommandItem onSelect={() => runCommand(() => router.push(ROUTES.settings))} icon={<User />}>
                 Profile & Security
               </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => window.location.href = "/api/auth/signout")} icon={<LogOut />}>
+              <CommandItem onSelect={() => {
+                setOpen(false);
+                signOut({ callbackUrl: "/login" });
+              }} icon={<LogOut />}>
                 Log out
               </CommandItem>
             </Command.Group>

@@ -89,7 +89,7 @@ export default function DashboardClient({
                 <h2 className="text-lg font-semibold tracking-tight">Opportunities</h2>
               </div>
             </div>
-            <ScrollArea className="flex-1 -mx-6 px-6">
+            <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
               <div className="space-y-4">
                 {emails.filter(e => e.analysis?.priority === "HIGH" || e.analysis?.priority === "CRITICAL").map(email => (
                   <div key={email.id} className="flex flex-col gap-2 p-4 bg-secondary/30 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
@@ -121,7 +121,7 @@ export default function DashboardClient({
                 <h2 className="text-lg font-semibold tracking-tight">Upcoming Deadlines</h2>
               </div>
             </div>
-            <ScrollArea className="flex-1 -mx-6 px-6">
+            <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
               <div className="space-y-4">
                 {emails.filter(e => e.analysis?.deadline != null).map((email, idx) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-secondary/30 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
@@ -155,7 +155,7 @@ export default function DashboardClient({
                 <h2 className="text-lg font-semibold tracking-tight">Recent Notifications</h2>
               </div>
             </div>
-            <ScrollArea className="flex-1 -mx-6 px-6">
+            <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
               <div className="space-y-4">
                 {recentNotifications?.map((log) => (
                   <div key={log.id} className="flex flex-col gap-2 p-4 bg-secondary/30 rounded-lg border border-border hover:bg-secondary/50 transition-colors">

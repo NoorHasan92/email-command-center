@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { logoutAction } from "@/server/actions/auth.actions";
+import { signOut } from "next-auth/react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -19,8 +19,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await logoutAction();
-    window.location.href = "/login";
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (
