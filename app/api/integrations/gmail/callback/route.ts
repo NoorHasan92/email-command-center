@@ -44,7 +44,8 @@ export async function GET(request: Request) {
 
     const clientId = process.env.AUTH_GOOGLE_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-    const redirectUri = `${getBaseUrl()}/api/integrations/gmail/callback`;
+    const origin = url.origin;
+    const redirectUri = `${origin}/api/integrations/gmail/callback`;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
