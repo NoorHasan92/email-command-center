@@ -3,6 +3,7 @@ import { db } from "@/server/repositories/db";
 import { IEmailProvider, StandardizedEmail } from "../../core/interfaces/IEmailProvider";
 import { logger } from "@/lib/logger";
 import { encrypt, decrypt } from "@/services/security/encryption";
+import { getBaseUrl } from "@/lib/utils";
 
 
 // Utility for Exponential Backoff on rate limits
@@ -31,7 +32,7 @@ export class GmailAdapter implements IEmailProvider {
     return new google.auth.OAuth2(
       process.env.AUTH_GOOGLE_ID,
       process.env.AUTH_GOOGLE_SECRET,
-      process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/auth/callback/google` : "http://localhost:3000/api/auth/callback/google"
+      `${getBaseUrl()}/api/auth/callback/google`
     );
   }
 

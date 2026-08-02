@@ -1,22 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { google } from "googleapis";
 import crypto from "crypto";
 import { auth } from "@/config/auth";
 import { logSecurityEvent } from "@/services/security/audit";
 import { cookies } from "next/headers";
+import { getBaseUrl } from "@/lib/utils";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/login", getBaseUrl()));
     }
 
     await logSecurityEvent("GMAIL_CONNECT_STARTED", session.user.id);
 
     const clientId = process.env.AUTH_GOOGLE_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/integrations/gmail/callback`;
+    const redirectUri = `${getBaseUrl()}/api/integrations/gmail/callback`;
 
     if (!clientId || !clientSecret) {
       console.error("Missing Google OAuth credentials");

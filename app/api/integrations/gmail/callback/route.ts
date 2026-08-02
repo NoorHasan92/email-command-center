@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getBaseUrl } from "@/lib/utils";
 import { google } from "googleapis";
 import { auth } from "@/config/auth";
 import { db } from "@/server/repositories/db";
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/login", getBaseUrl()));
     }
     const userId = session.user.id;
 
@@ -21,12 +22,12 @@ export async function GET(request: Request) {
 
     if (error) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "User denied consent", error });
-      return NextResponse.redirect(new URL("/settings?error=ConsentDenied", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=ConsentDenied", getBaseUrl()));
     }
 
     if (!code || !state) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Missing code or state" });
-      return NextResponse.redirect(new URL("/settings?error=InvalidCallback", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=InvalidCallback", getBaseUrl()));
     }
 
     // Requirement 3: Verify CSRF state
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
     if (!savedState || state !== savedState) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "CSRF State mismatch" });
-      return NextResponse.redirect(new URL("/settings?error=StateMismatch", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=StateMismatch", getBaseUrl()));
     }
 
     // Clear state cookie
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 
     const clientId = process.env.AUTH_GOOGLE_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/integrations/gmail/callback`;
+    const redirectUri = `${getBaseUrl()}/api/integrations/gmail/callback`;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
@@ -62,18 +63,18 @@ export async function GET(request: Request) {
 
     if (!gmailAddress) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Could not fetch Gmail address" });
-      return NextResponse.redirect(new URL("/settings?error=NoEmailAddress", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=NoEmailAddress", getBaseUrl()));
     }
 
     const activeUser = await db.user.findUnique({ where: { id: userId } });
     if (!activeUser || activeUser.email.toLowerCase() !== gmailAddress.toLowerCase()) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Email mismatch", expected: activeUser?.email, received: gmailAddress });
-      return NextResponse.redirect(new URL("/settings?error=EmailMismatch", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=EmailMismatch", getBaseUrl()));
     }
 
     if (!tokens.access_token) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "No access token received" });
-      return NextResponse.redirect(new URL("/settings?error=NoAccessToken", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=NoAccessToken", getBaseUrl()));
     }
 
     // Requirement 6: Encrypt tokens
@@ -122,7 +123,7 @@ export async function GET(request: Request) {
       const error = e as Error;
       console.error("Database transaction failed:", error);
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Database error", error: error.message });
-      return NextResponse.redirect(new URL("/settings?error=DatabaseError", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?error=DatabaseError", getBaseUrl()));
     }
 
     // Requirement 8: Call getProfile(), Save historyId, Register Watch()
@@ -179,9 +180,9 @@ export async function GET(request: Request) {
     // Determine redirect logic
     const totalAccounts = await db.emailAccount.count({ where: { userId } });
     if (totalAccounts === 1) {
-      return NextResponse.redirect(new URL("/dashboard", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/dashboard", getBaseUrl()));
     } else {
-      return NextResponse.redirect(new URL("/settings?tab=integrations", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+      return NextResponse.redirect(new URL("/settings?tab=integrations", getBaseUrl()));
     }
 
   } catch (error) {
