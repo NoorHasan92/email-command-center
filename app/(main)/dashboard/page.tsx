@@ -1,30 +1,34 @@
-// app/dashboard/page.tsx
-// This file is a page component for the dashboard.
-// It fetches data from the database and passes it to the DashboardClient component.
-
 import { db } from "@/server/repositories/db";
 import { Prisma } from "@prisma/client";
 import DashboardClient from "./DashboardClient";
+import { auth } from "@/config/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
+
+  // All queries MUST be scoped to the authenticated user's email accounts
+  const userAccountFilter = { emailAccount: { userId } };
+
   // Fetch Inbox Health Metrics
   const criticalCount = await db.emailAnalysis.count({
-    where: { urgencyScore: { gte: 90 } }
+    where: { urgencyScore: { gte: 90 }, email: userAccountFilter }
   });
 
   const actionRequiredCount = await db.emailAnalysis.count({
-    where: { requiresAction: true }
+    where: { requiresAction: true, email: userAccountFilter }
   });
 
-  // Very simplified approximation for deadlines
   const deadlinesCount = await db.emailAnalysis.count({
-    where: { deadline: { not: null } }
+    where: { deadline: { not: null }, email: userAccountFilter }
   });
 
   const lastSync = await db.emailAccount.findFirst({
-    where: { provider: "gmail" },
+    where: { userId, provider: "gmail" },
     orderBy: { lastSyncCompletedAt: "desc" },
     select: { lastSyncCompletedAt: true }
   });
@@ -32,13 +36,14 @@ export default async function DashboardPage() {
   const healthData = {
     criticalCount,
     actionRequiredCount,
-    deadlinesToday: Math.floor(deadlinesCount * 0.2), // Mock logic for V1 visual
+    deadlinesToday: Math.floor(deadlinesCount * 0.2),
     deadlinesWeek: deadlinesCount,
     lastSync: lastSync?.lastSyncCompletedAt?.toISOString() || null
   };
 
-  // Fetch recent emails with analysis
+  // Fetch recent emails with analysis — SCOPED TO USER
   const recentEmails = await db.email.findMany({
+    where: { emailAccount: { userId } },
     orderBy: { date: "desc" },
     take: 50,
     include: {
@@ -49,8 +54,9 @@ export default async function DashboardPage() {
     }
   });
 
-  // Fetch recent notifications
+  // Fetch recent notifications — SCOPED TO USER
   const recentNotifications = await db.notificationLog.findMany({
+    where: { email: { emailAccount: { userId } } },
     orderBy: { createdAt: "desc" },
     take: 5,
     include: {

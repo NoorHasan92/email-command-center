@@ -1,11 +1,18 @@
 import { db } from "@/server/repositories/db";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { auth } from "@/config/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AlertsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
+
   const notifications = await db.notificationLog.findMany({
+    where: { email: { emailAccount: { userId } } },
     orderBy: { createdAt: "desc" },
     take: 50,
     include: {

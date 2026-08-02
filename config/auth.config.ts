@@ -27,7 +27,9 @@ export const authConfig = {
         path.startsWith("/login") || 
         path.startsWith("/register") || 
         path.startsWith("/verify") ||
-        path.startsWith("/api/auth"); // NextAuth routes must be public
+        path.startsWith("/onboarding") ||
+        path.startsWith("/api/auth") ||
+        path.startsWith("/api/webhooks"); // Webhooks must be public
 
       if (!isPublicRoute && !path.startsWith("/api/")) {
         // Any non-public, non-API route requires login
