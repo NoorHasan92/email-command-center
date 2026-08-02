@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { db } from "@/server/repositories/db";
 import { OAuth2Client } from "google-auth-library";
 
@@ -53,11 +53,14 @@ export async function POST(req: NextRequest) {
 
     console.log(`[WEBHOOK_GMAIL] Payload successfully queued.`);
 
-    // Fire the processor asynchronously in the background (fire-and-forget)
-    import("@/jobs/webhook-processor").then((mod) => {
-      mod.processWebhooks().catch(err => {
+    // Process the webhook in the background using Next.js 15 after()
+    after(async () => {
+      try {
+        const mod = await import("@/jobs/webhook-processor");
+        await mod.processWebhooks();
+      } catch (err) {
         console.error("[WEBHOOK_GMAIL] Background processor failed:", err);
-      });
+      }
     });
 
     // 4. Acknowledge Receipt Immediately

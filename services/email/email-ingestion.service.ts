@@ -53,11 +53,12 @@ export class EmailIngestionService {
     // 3. Pipeline Trigger
     if (successfulInserts > 0) {
       logger.info(`[INGESTION] Completed. Inserted ${successfulInserts} new emails. Triggering processor.`);
-      import("@/jobs/email-processor").then((mod) => {
-        mod.processPendingEmails().catch(err => {
-          logger.error(`[INGESTION] Failed to trigger email processor: ${err.message}`);
-        });
-      });
+      try {
+        const mod = await import("@/jobs/email-processor");
+        await mod.processPendingEmails();
+      } catch (err: any) {
+        logger.error(`[INGESTION] Failed to trigger email processor: ${err.message}`);
+      }
     }
 
     return successfulInserts;

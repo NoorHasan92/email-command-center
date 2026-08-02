@@ -20,7 +20,7 @@ export function Sidebar() {
   const handleLogout = async () => {
     setLoggingOut(true);
     await logoutAction();
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   return (
