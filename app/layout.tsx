@@ -22,8 +22,62 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: APP_CONFIG.name,
-  description: APP_CONFIG.description,
+  metadataBase: new URL("https://mail.tars.homes"),
+  title: {
+    default: "Inbox Sentinel \u2013 AI Email Assistant for Smarter Inbox Management",
+    template: "%s | Inbox Sentinel",
+  },
+  description:
+    "Inbox Sentinel is an AI-powered email assistant that analyzes your inbox, detects urgent actions, identifies phishing attempts, extracts deadlines, and delivers intelligent notifications through Gmail, WhatsApp, and Telegram.",
+  keywords: [
+    "AI Email Assistant",
+    "Gmail AI",
+    "Email Automation",
+    "Inbox Management",
+    "Productivity",
+    "Email Intelligence",
+    "Email Summarization",
+    "Deadline Detection",
+    "Phishing Detection",
+    "WhatsApp Notifications",
+    "Telegram Alerts",
+  ],
+  authors: [{ name: "Md Noor Hasan Ansari" }],
+  creator: "Md Noor Hasan Ansari",
+  publisher: "Inbox Sentinel",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  alternates: {
+    canonical: "https://mail.tars.homes",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://mail.tars.homes",
+    siteName: "Inbox Sentinel",
+    title: "Inbox Sentinel \u2013 AI Email Assistant for Smarter Inbox Management",
+    description:
+      "Inbox Sentinel is an AI-powered email assistant that analyzes your inbox, detects urgent actions, identifies phishing attempts, extracts deadlines, and delivers intelligent notifications through Gmail, WhatsApp, and Telegram.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Inbox Sentinel \u2013 AI Email Assistant for Smarter Inbox Management",
+    description:
+      "Inbox Sentinel is an AI-powered email assistant that analyzes your inbox, detects urgent actions, identifies phishing attempts, extracts deadlines, and delivers intelligent notifications through Gmail, WhatsApp, and Telegram.",
+  },
+  verification: {
+    // google: "your-google-site-verification-code",
+    // yandex: "your-yandex-verification-code",
+    // other: {
+    //   me: ["your-email@domain.com"],
+    // },
+  },
 };
 
 export default function RootLayout({

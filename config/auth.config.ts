@@ -33,6 +33,8 @@ export const authConfig = {
         path.startsWith("/register") || 
         path.startsWith("/verify") ||
         path.startsWith("/onboarding") ||
+        path.startsWith("/privacy") ||
+        path.startsWith("/terms") ||
         path.startsWith("/api/auth") ||
         path.startsWith("/api/webhooks"); // Webhooks must be public
 
