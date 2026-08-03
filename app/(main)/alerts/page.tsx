@@ -46,7 +46,7 @@ export default async function AlertsPage() {
               {notifications.map((log) => (
                 <div key={log.id} className="p-5 flex items-start gap-4 hover:bg-secondary/30 transition-colors">
                   <div className="mt-1">
-                    {log.status === "DELIVERED" || log.status === "READ" ? (
+                    {log.status === "DELIVERED" || log.status === "READ" || log.status === "SENT" ? (
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                     ) : log.status === "FAILED" ? (
                       <AlertCircle className="w-5 h-5 text-destructive" />
@@ -57,7 +57,7 @@ export default async function AlertsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-sm">{log.channel}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${log.status === 'FAILED' ? 'bg-destructive/10 text-destructive' : log.status === 'DELIVERED' ? 'bg-green-500/10 text-green-500' : 'bg-secondary text-muted-foreground'}`}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${log.status === 'FAILED' ? 'bg-destructive/10 text-destructive' : (log.status === 'DELIVERED' || log.status === 'READ' || log.status === 'SENT') ? 'bg-green-500/10 text-green-500' : 'bg-secondary text-muted-foreground'}`}>
                         {log.status}
                       </span>
                     </div>

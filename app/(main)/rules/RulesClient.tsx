@@ -12,7 +12,7 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   const router = useRouter();
 
   const handleOpenNew = () => {
@@ -29,7 +29,7 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    
+
     if (editingRule) {
       const res = await updateRuleAction(editingRule.id, formData);
       if (res.success) {
@@ -42,7 +42,7 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
         router.refresh();
       }
     }
-    
+
     setLoading(false);
     setModalOpen(false);
   };
@@ -103,10 +103,10 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
                 </div>
                 <div className="flex items-center gap-6">
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={rule.isActive} 
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={rule.isActive}
                       onChange={() => handleToggle(rule.id, rule.isActive)}
                     />
                     <div className="w-9 h-5 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -131,7 +131,7 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
           <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="p-4 border-b border-border flex justify-between items-center">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Filter className="w-5 h-5 text-primary" /> 
+                <Filter className="w-5 h-5 text-primary" />
                 {editingRule ? "Edit Rule" : "New Rule"}
               </h3>
               <button onClick={() => setModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
@@ -141,10 +141,10 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Condition: Minimum Priority Score</label>
                   <div className="flex items-center gap-4">
-                    <input 
-                      name="minScoreThreshold" 
-                      type="range" 
-                      min="1" max="100" 
+                    <input
+                      name="minScoreThreshold"
+                      type="range"
+                      min="1" max="100"
                       defaultValue={editingRule?.minScoreThreshold || 80}
                       className="flex-1"
                       onChange={(e) => {
@@ -159,14 +159,13 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Action: Notification Channel</label>
-                  <select 
-                    name="channel" 
+                  <select
+                    name="channel"
                     defaultValue={editingRule?.channel || "WHATSAPP"}
-                    className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
                   >
-                    <option value="WHATSAPP">WhatsApp</option>
-                    <option value="SLACK" disabled>Slack (Coming Soon)</option>
-                    <option value="PUSH" disabled>Push Notification (Coming Soon)</option>
+                    <option className="bg-background text-foreground" value="WHATSAPP">WhatsApp</option>
+                    <option className="bg-background text-foreground" value="TELEGRAM">Telegram</option>
                   </select>
                 </div>
               </div>

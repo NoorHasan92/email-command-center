@@ -35,6 +35,7 @@ export default function InboxClient({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedEmail, setSelectedEmail] = useState<EmailWithAnalysis | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialEmails.length >= 10);
@@ -106,10 +107,16 @@ export default function InboxClient({
   };
 
   // Filtered emails
-  const filteredEmails = emails.filter(e => 
-    (e.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (e.from || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEmails = emails.filter(e => {
+    const matchesSearch = (e.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (e.from || "").toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (filterType === "critical") return e.analysis?.urgencyScore && e.analysis.urgencyScore >= 90;
+    if (filterType === "action_req") return e.analysis?.requiresAction;
+    if (filterType === "deadlines") return !!e.analysis?.deadline;
+    return true;
+  });
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -155,7 +162,7 @@ export default function InboxClient({
     <div className="flex h-full w-full">
       
       {/* Main Column */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${selectedEmail ? 'pr-[400px] xl:pr-[500px]' : ''}`}>
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${selectedEmail ? 'pr-[400px] xl:pr-[500px]' : ''}`}>
         
         {/* Top Header & Search */}
         <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-4">
@@ -171,18 +178,19 @@ export default function InboxClient({
             />
           </div>
           <select 
-            className="bg-secondary/50 border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground"
-            defaultValue="all"
+            className="bg-background border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
           >
-            <option value="all">All Emails</option>
-            <option value="critical">Critical Priority</option>
-            <option value="action_req">Action Required</option>
-            <option value="deadlines">Has Deadlines</option>
+            <option className="bg-background text-foreground" value="all">All Emails</option>
+            <option className="bg-background text-foreground" value="critical">Critical Priority</option>
+            <option className="bg-background text-foreground" value="action_req">Action Required</option>
+            <option className="bg-background text-foreground" value="deadlines">Has Deadlines</option>
           </select>
         </header>
 
-        <ScrollArea className="flex-1">
-          <div className="p-6 max-w-6xl mx-auto space-y-8">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 pb-20 max-w-6xl mx-auto space-y-8">
             
             {/* Email List */}
             <section>

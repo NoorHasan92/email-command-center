@@ -42,8 +42,8 @@ export default function DashboardClient({
   const [emails, setEmails] = useState(initialEmails);
 
   return (
-    <div className="flex h-full w-full bg-transparent overflow-auto">
-      <div className="p-6 max-w-6xl mx-auto w-full space-y-8 z-10 relative">
+    <div className="h-full w-full bg-transparent overflow-auto">
+      <div className="p-6 pb-24 max-w-6xl mx-auto w-full space-y-8 z-10 relative">
         
         {/* Inbox Health Dashboard */}
         <section>

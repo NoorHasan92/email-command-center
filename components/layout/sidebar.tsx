@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { APP_CONFIG } from "@/config/app";
 import { NAVIGATION } from "@/config/navigation";
@@ -26,6 +27,7 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-col">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6 shrink-0">
         <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Image src="/app-logo.png" alt="Inbox Sentinel Logo" width={28} height={28} className="rounded-sm" unoptimized />
           <span className="text-primary">{APP_CONFIG.name}</span>
         </Link>
       </div>
