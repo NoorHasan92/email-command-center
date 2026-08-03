@@ -1,5 +1,5 @@
 import makeWASocket, { DisconnectReason, ConnectionState, Browsers } from '@whiskeysockets/baileys';
-import { FilesystemStore } from './session-store/FilesystemStore';
+import { DatabaseStore } from './session-store/DatabaseStore';
 import { logger } from '@/lib/logger';
 import { EventEmitter } from 'events';
 import { db } from '@/server/repositories/db';
@@ -12,7 +12,7 @@ export class WhatsAppManager extends EventEmitter {
     async connect(userId: string) {
         if (this.sockets.has(userId)) return;
 
-        const store = new FilesystemStore(userId);
+        const store = new DatabaseStore(userId);
         const { state, saveCreds } = await store.getAuthState();
 
         const sock = makeWASocket({
@@ -105,7 +105,7 @@ export class WhatsAppManager extends EventEmitter {
             this.sockets.delete(userId);
         }
         if (logout) {
-            const store = new FilesystemStore(userId);
+            const store = new DatabaseStore(userId);
             await store.clear();
         }
     }

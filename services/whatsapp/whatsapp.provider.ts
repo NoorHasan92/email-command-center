@@ -1,7 +1,7 @@
 import { INotificationProvider, NotificationPayload } from "../../core/interfaces/INotificationProvider";
 import { WhatsAppAdapter as MetaAdapter } from "./whatsapp.adapter";
 import { BaileysAdapter } from "./baileys.adapter";
-import { FilesystemStore } from "./session-store/FilesystemStore";
+import { DatabaseStore } from "./session-store/DatabaseStore";
 import { logger } from "@/lib/logger";
 import { NotificationConfig } from "@/config/notifications";
 
@@ -15,7 +15,7 @@ export class WhatsAppProvider implements INotificationProvider {
         for (const provider of priorities) {
             try {
                 if (provider === 'BAILEYS') {
-                    const store = new FilesystemStore(this.userId);
+                    const store = new DatabaseStore(this.userId);
                     const meta = await store.getMetadata();
                     if (meta?.phoneNumber) {
                         const adapter = new BaileysAdapter(this.userId);

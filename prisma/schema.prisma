@@ -478,3 +478,16 @@ model AIEvalResult {
   
   run                   AIEvalRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
+
+model WhatsAppSession {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String   // Usually the userId, but can support multiple devices
+  category  String   // "creds" or "keys"
+  key       String   // e.g., "app-state-sync-key-..." or "creds"
+  data      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, sessionId, category, key])
+}

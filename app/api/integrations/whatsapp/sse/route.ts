@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/config/auth";
 import { whatsappManager } from "@/services/whatsapp/manager";
-import { FilesystemStore } from "@/services/whatsapp/session-store/FilesystemStore";
+import { DatabaseStore } from "@/services/whatsapp/session-store/DatabaseStore";
 import QRCode from 'qrcode';
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
                 } catch (e) {}
             };
 
-            const store = new FilesystemStore(userId);
+            const store = new DatabaseStore(userId);
             const meta = await store.getMetadata();
             
             if (meta?.phoneNumber) {
