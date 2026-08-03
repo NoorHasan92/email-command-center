@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 import { Email, EmailAnalysis } from "@prisma/client";
-import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff } from "lucide-react";
+import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff, Mail } from "lucide-react";
 import { submitAIFeedbackAction } from "@/server/actions/training.actions";
 import { markEmailReviewedAction, getInboxEmailsAction } from "@/server/actions/inbox.actions";
 import { cleanEmailText } from "@/lib/utils";
@@ -124,9 +124,9 @@ export default function InboxClient({
       // Don't trigger shortcuts if user is typing in an input
       if (document.activeElement?.tagName === "INPUT" && e.key !== "Escape") return;
 
-      if (e.key === "j") {
+      if (e.key === "k") {
         setSelectedIndex(prev => Math.min(prev + 1, filteredEmails.length - 1));
-      } else if (e.key === "k") {
+      } else if (e.key === "j") {
         setSelectedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === "e" || e.key === "Enter") {
         if (selectedEmail) {
@@ -166,16 +166,19 @@ export default function InboxClient({
         
         {/* Top Header & Search */}
         <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-4">
-          <div className="relative flex-1 max-w-md flex items-center">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3" />
+          <div className="relative flex-1 max-w-md flex items-center group">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 transition-colors group-focus-within:text-primary" />
             <input 
               id="global-search"
               type="text" 
-              placeholder="Search emails, senders, or AI concepts (Press '/')" 
-              className="w-full bg-secondary/50 border border-border rounded-md pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring transition-all placeholder:text-muted-foreground"
+              placeholder="Search emails, senders, or AI concepts..." 
+              className="w-full bg-secondary/30 hover:bg-secondary/50 border border-border/50 rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-muted-foreground"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            <kbd className="hidden sm:inline-flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-1 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 pointer-events-none">
+              <span className="text-xs">/</span>
+            </kbd>
           </div>
           <select 
             className="bg-background border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
@@ -202,14 +205,14 @@ export default function InboxClient({
                 </div>
               </div>
               
-              <div className="border border-border rounded-lg bg-card overflow-hidden">
+              <div className="bg-transparent overflow-hidden">
                 {filteredEmails.length === 0 ? (
-                  <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
+                  <div className="p-12 border border-border/50 rounded-xl bg-card/50 text-center text-muted-foreground flex flex-col items-center">
                     <Inbox className="w-12 h-12 mb-4 opacity-20" />
                     <p>No emails found matching your criteria.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border">
+                  <div className="space-y-3">
                     {filteredEmails.map((email, idx) => (
                       <EmailRow 
                         key={email.id}
@@ -223,13 +226,13 @@ export default function InboxClient({
                       />
                     ))}
                     {hasMore && !searchQuery && (
-                      <div className="p-4 flex justify-center border-t border-border bg-secondary/10">
+                      <div className="p-4 flex justify-center mt-4">
                         <button 
                           onClick={handleLoadMore} 
                           disabled={isLoadingMore}
-                          className="text-sm font-medium text-muted-foreground hover:text-foreground px-4 py-2 bg-secondary rounded-md transition-colors"
+                          className="text-sm font-medium text-muted-foreground hover:text-foreground px-6 py-2.5 bg-secondary/50 border border-border/50 hover:bg-secondary rounded-lg transition-colors shadow-sm"
                         >
-                          {isLoadingMore ? "Loading..." : "Load More"}
+                          {isLoadingMore ? "Loading..." : "Load More Activity"}
                         </button>
                       </div>
                     )}
@@ -281,71 +284,83 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
   const analysis = email.analysis;
   const score = analysis?.urgencyScore || 0;
   
-  // Color code based on score
-  let scoreColor = "text-muted-foreground bg-secondary";
-  if (score >= 90) scoreColor = "text-destructive bg-destructive/10 border-destructive/20";
-  else if (score >= 70) scoreColor = "text-orange-500 bg-orange-500/10 border-orange-500/20";
-  else if (score >= 50) scoreColor = "text-blue-500 bg-blue-500/10 border-blue-500/20";
+  let scoreColor = "text-muted-foreground bg-secondary/50 border-border/50";
+  let ringColor = "border-border";
+  if (score >= 90) { scoreColor = "text-destructive bg-destructive/10 border-destructive/20"; ringColor = "border-destructive/40 ring-1 ring-destructive/10"; }
+  else if (score >= 70) { scoreColor = "text-orange-500 bg-orange-500/10 border-orange-500/20"; ringColor = "border-orange-500/40 ring-1 ring-orange-500/10"; }
+  else if (score >= 50) { scoreColor = "text-blue-500 bg-blue-500/10 border-blue-500/20"; ringColor = "border-blue-500/40"; }
 
   return (
     <div 
       onClick={onClick}
-      className={`group flex items-center px-4 py-3 cursor-pointer transition-all border-l-2 ${
+      className={`group flex flex-col p-4 bg-card/80 backdrop-blur rounded-xl cursor-pointer transition-all border ${
         isSelected 
-          ? "bg-secondary/50 border-l-primary" 
-          : "border-l-transparent hover:bg-secondary/30"
-      } ${isReviewed ? "opacity-60" : ""}`}
+          ? `shadow-md ${ringColor} scale-[1.01] z-10 relative` 
+          : "border-border/50 hover:bg-secondary/40 hover:border-border/80 shadow-sm"
+      } ${isReviewed ? "opacity-60 saturate-50" : ""}`}
     >
-      {/* Score Badge */}
-      <div className="w-12 shrink-0 flex items-center justify-center mr-4">
-        <div className={`text-xs font-bold px-2 py-1 rounded-md border ${scoreColor}`}>
-          {score}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm border shadow-inner ${scoreColor}`}>
+            {score}
+          </div>
+          <div className="flex flex-col min-w-0 gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm truncate text-foreground">{extractName(email.from)}</span>
+              {analysis?.priority && analysis.priority !== "LOW" && (
+                <Badge variant="outline" className={`text-[10px] px-1.5 h-4 uppercase tracking-wider font-semibold ${score >= 90 ? 'text-destructive border-destructive/30 bg-destructive/5' : 'text-orange-500 border-orange-500/30 bg-orange-500/5'}`}>
+                  {analysis.priority}
+                </Badge>
+              )}
+            </div>
+            <span className="truncate text-sm font-semibold text-foreground/90">{email.subject || "(No Subject)"}</span>
+          </div>
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+           <span className="text-xs text-muted-foreground font-medium">
+             {formatDistanceToNow(new Date(email.date), { addSuffix: true })}
+           </span>
+           {isReviewed && (
+             <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1">
+               <CheckCircle className="w-3 h-3" /> Reviewed
+             </Badge>
+           )}
         </div>
       </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 mr-4">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-medium text-sm truncate text-foreground">{extractName(email.from)}</span>
-          {isReviewed && (
-            <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-green-500/10 text-green-500 border-green-500/20 flex items-center gap-1">
-              <CheckCircle className="w-3 h-3" /> Reviewed
-            </Badge>
-          )}
-          {analysis?.requiresAction && !isReviewed && (
-            <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-orange-500/10 text-orange-500 border-orange-500/20">Action Req</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="truncate max-w-[200px]">{email.subject || "(No Subject)"}</span>
-          <span className="shrink-0 text-xs opacity-50">&bull;</span>
-          <span className="truncate text-xs opacity-75">
-            {analysis?.requiresAction && (analysis?.actionItems as string[])?.length > 0 ? (
-              <strong className="text-foreground">{(analysis.actionItems as string[])[0]}</strong>
-            ) : (
-              analysis?.summary || (email.status === 'SKIPPED' ? "Skipped (Not Important)" : email.status === 'AI_FAILED' ? "Analysis Failed" : "Analyzing...")
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* Meta */}
-      <div className="flex flex-col items-end shrink-0 gap-1.5">
-        <span className="text-xs text-muted-foreground font-mono">
-          {formatDistanceToNow(new Date(email.date), { addSuffix: true })}
+      
+      <div className="mt-3 pl-[60px] pr-2">
+        <span className="line-clamp-2 text-xs text-muted-foreground/80 leading-relaxed font-medium">
+          {analysis?.summary || (email.status === 'SKIPPED' ? "Skipped (Not Important)" : email.status === 'AI_FAILED' ? "Analysis Failed" : "Analyzing...")}
         </span>
         
-        {analysis?.estimatedReadingTime && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded">
-            <Clock3 className="w-3 h-3" /> {analysis.estimatedReadingTime}m
-          </span>
-        )}
-        
-        {/* Bulk Action Reveal */}
-        <div className={`flex items-center gap-1 opacity-0 transition-opacity ${isSelected ? 'opacity-100' : 'group-hover:opacity-100'}`}>
-          <ActionButton icon={<Check className="w-3.5 h-3.5" />} title="Mark Reviewed (R)" />
-          <ActionButton icon={<Clock3 className="w-3.5 h-3.5" />} title="Snooze (S)" />
-          <ActionButton icon={<EyeOff className="w-3.5 h-3.5" />} title="Ignore Sender" />
+        {/* Insights Row */}
+        <div className="flex flex-wrap items-center gap-3 mt-4 pt-3 border-t border-border/40">
+           {analysis?.confidence != null && (
+             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+               <Activity className="w-3.5 h-3.5" /> {analysis.confidence}% Confidence
+             </div>
+           )}
+           {analysis?.estimatedReadingTime != null && (
+             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+               <Clock3 className="w-3.5 h-3.5" /> {analysis.estimatedReadingTime}m read
+             </div>
+           )}
+           {analysis?.deadline && (
+             <div className="flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+               <Calendar className="w-3.5 h-3.5" /> Due {format(new Date(analysis.deadline), "MMM d")}
+             </div>
+           )}
+           {analysis?.requiresAction && (
+             <div className="flex items-center gap-1.5 text-[10px] text-orange-500 font-semibold bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+               <AlertCircle className="w-3.5 h-3.5" /> Action Required
+             </div>
+           )}
+           
+           <div className={`ml-auto flex items-center gap-1 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+              <ActionButton icon={<Check className="w-4 h-4" />} title="Mark Reviewed (R)" />
+              <ActionButton icon={<Clock3 className="w-4 h-4" />} title="Snooze (S)" />
+              <ActionButton icon={<EyeOff className="w-4 h-4" />} title="Ignore Sender" />
+           </div>
         </div>
       </div>
     </div>
@@ -402,27 +417,27 @@ function EmailDetailPane({
             </button>
           </header>
 
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0 bg-muted/10">
             <div className="p-6 space-y-6">
               
-              {/* Header Info */}
-              <div>
-                <h2 className="text-xl font-semibold leading-tight mb-4">{email.subject || "(No Subject)"}</h2>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
-                    {extractName(email.from).charAt(0).toUpperCase()}
+              {/* Header Info Card */}
+              <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
+                <h2 className="text-xl font-bold leading-tight mb-4 tracking-tight">{email.subject || "(No Subject)"}</h2>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shadow-inner">
+                      {extractName(email.from).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold">{extractName(email.from)}</span>
+                      <span className="text-xs text-muted-foreground font-medium">{extractEmailAddress(email.from)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{extractName(email.from)}</span>
-                    <span className="text-xs text-muted-foreground">{extractEmailAddress(email.from)}</span>
-                  </div>
-                  <div className="ml-auto text-xs text-muted-foreground font-mono">
+                  <div className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md">
                     {format(new Date(email.date), "MMM d, h:mm a")}
                   </div>
                 </div>
               </div>
-
-              <Separator />
 
               {/* Consequence Engine Card */}
               {email.analysis && (
@@ -532,11 +547,14 @@ function EmailDetailPane({
                 </div>
               )}
 
-              {/* Email Content */}
-              <div>
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Message Body</h3>
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-secondary">
-                  <div className="whitespace-pre-wrap font-mono text-xs p-4 bg-secondary/30 rounded-lg border border-border overflow-x-auto">
+              {/* Email Content Card */}
+              <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Original Message</h3>
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-secondary/50 prose-pre:border prose-pre:border-border/50 prose-pre:shadow-inner rounded-xl overflow-hidden">
+                  <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed p-5 bg-secondary/20 overflow-x-auto text-foreground/90">
                     {cleanEmailText(email.plainText) || "No plaintext body available."}
                   </div>
                 </div>

@@ -7,7 +7,7 @@ const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline';
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data:;
+    img-src 'self' blob: data: https://*.googleusercontent.com https://*.githubusercontent.com;
     font-src 'self';
     object-src 'none';
     base-uri 'self';
@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.githubusercontent.com",
+      }
+    ]
   },
   async headers() {
     return [

@@ -22,6 +22,7 @@ export default async function SettingsPage() {
     select: { 
       name: true, 
       email: true, 
+      image: true,
       passwordHash: true,
       accounts: { select: { provider: true } }
     }

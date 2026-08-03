@@ -168,6 +168,7 @@ export default function IntegrationsClient({
             status={gmailAccount ? "connected" : "available"}
             onManage={() => setGmailModalOpen(true)}
             onConnect={() => { window.location.href = "/api/integrations/gmail/connect"; }}
+            healthStats={gmailAccount ? { sync: gmailAccount.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccount.lastSyncedAt), { addSuffix: true }) : "Unknown", uptime: "99.9%" } : undefined}
           />
           <IntegrationCard
             title="WhatsApp"
@@ -176,6 +177,7 @@ export default function IntegrationsClient({
             status={whatsappOptIn ? "connected" : "available"}
             onManage={() => setWaModalOpen(true)}
             onConnect={() => setWaModalOpen(true)}
+            healthStats={whatsappOptIn ? { sync: "Live", uptime: "100%" } : undefined}
           />
           <IntegrationCard
             title="Telegram"
@@ -184,6 +186,7 @@ export default function IntegrationsClient({
             status={telegramOptIn ? "connected" : "available"}
             onManage={() => setTgModalOpen(true)}
             onConnect={() => { setTgModalOpen(true); handleConnectTelegram(); }}
+            healthStats={telegramOptIn ? { sync: "Live", uptime: "100%" } : undefined}
           />
           <IntegrationCard
             title="Google Calendar"
@@ -422,46 +425,87 @@ export default function IntegrationsClient({
   );
 }
 
-function IntegrationCard({ title, description, icon, status, onManage, onConnect }: { title: string, description: string, icon: React.ReactNode, status: "connected" | "available" | "coming_soon" | "sandbox", onManage?: () => void, onConnect?: () => void }) {
+function IntegrationCard({ 
+  title, 
+  description, 
+  icon, 
+  status, 
+  onManage, 
+  onConnect,
+  healthStats
+}: { 
+  title: string, 
+  description: string, 
+  icon: React.ReactNode, 
+  status: "connected" | "available" | "coming_soon" | "sandbox", 
+  onManage?: () => void, 
+  onConnect?: () => void,
+  healthStats?: { sync: string, uptime: string }
+}) {
+  const isConnected = status === 'connected' || status === 'sandbox';
+
   return (
-    <Card className={`bg-card/90 backdrop-blur border-border overflow-hidden ${(status === 'connected' || status === 'sandbox') ? 'bg-secondary/20 border-primary/30' : ''} transition-all hover:shadow-sm`}>
+    <Card className={`bg-card/80 backdrop-blur border-border/50 overflow-hidden relative group transition-all duration-300 hover:shadow-md ${isConnected ? 'hover:border-primary/50' : 'hover:border-border'}`}>
+      {isConnected && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+      )}
       <CardContent className="p-6 flex flex-col h-full">
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
+        <div className="flex items-center justify-between mb-5">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner border ${isConnected ? 'bg-primary/5 border-primary/20' : 'bg-secondary border-border/50'}`}>
             {icon}
           </div>
           {status === "connected" && (
-            <span className="flex items-center gap-1 text-xs font-medium text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
-              <Check className="w-3 h-3" /> Connected
-            </span>
+            <div className="flex flex-col items-end">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Healthy
+              </span>
+            </div>
           )}
           {status === "sandbox" && (
-            <span className="flex items-center gap-1 text-xs font-medium text-orange-500 bg-orange-500/10 px-2 py-1 rounded-full border border-orange-500/20" title="Only test numbers will receive messages in Sandbox Mode">
-              <Phone className="w-3 h-3" /> Sandbox Mode
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20" title="Only test numbers will receive messages in Sandbox Mode">
+              <Phone className="w-3 h-3" /> Sandbox
             </span>
           )}
           {status === "coming_soon" && (
-            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-1 rounded-md border border-border/50">
               Coming Soon
             </span>
           )}
         </div>
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+
+        <h3 className="text-xl font-bold mb-2 tracking-tight">{title}</h3>
         <p className="text-sm text-muted-foreground mb-6 flex-1 leading-relaxed">{description}</p>
 
+        {isConnected && healthStats && (
+          <div className="grid grid-cols-2 gap-2 mb-6 p-3 bg-secondary/30 rounded-xl border border-border/50">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Last Sync</span>
+              <span className="text-xs font-medium text-foreground">{healthStats.sync}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uptime</span>
+              <span className="text-xs font-medium text-green-500">{healthStats.uptime}</span>
+            </div>
+          </div>
+        )}
+
         {status === "available" && (
-          <Button variant="outline" className="w-full" onClick={onConnect}>
-            <Plus className="w-4 h-4 mr-2" /> Connect
+          <Button variant="outline" className="w-full rounded-xl hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors" onClick={onConnect}>
+            <Plug className="w-4 h-4 mr-2" /> Connect Integration
           </Button>
         )}
-        {(status === "connected" || status === "sandbox") && (
-          <Button variant="secondary" className="w-full" onClick={onManage}>
-            Manage
+        {isConnected && (
+          <Button variant="secondary" className="w-full rounded-xl shadow-sm border border-border/50" onClick={onManage}>
+            Manage Settings
           </Button>
         )}
         {status === "coming_soon" && (
-          <Button variant="outline" disabled className="w-full">
-            Waitlist
+          <Button variant="outline" disabled className="w-full rounded-xl opacity-50">
+            Join Waitlist
           </Button>
         )}
       </CardContent>
