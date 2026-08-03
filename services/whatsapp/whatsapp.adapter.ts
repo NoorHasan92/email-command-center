@@ -48,7 +48,7 @@ export class WhatsAppAdapter implements INotificationProvider {
       to: to,
       type: "template",
       template: {
-        name: "inbox_alert_v1",
+        name: "jaspers_market_order_confirmation_v1",
         language: {
           code: "en_US",
         },
@@ -56,7 +56,7 @@ export class WhatsAppAdapter implements INotificationProvider {
           {
             type: "body",
             parameters: [
-              { type: "text", text: payload.subject.substring(0, 100) }, // Limit to prevent rejection
+              { type: "text", text: payload.subject.substring(0, 60) }, // Limit to prevent rejection
               { type: "text", text: payload.actionRequired ? "Action Required" : "High Priority" },
               { type: "text", text: payload.explanation.substring(0, 500) }
             ]
