@@ -119,6 +119,7 @@ enum EmailStatus {
 enum NotificationChannel {
   WHATSAPP
   EMAIL
+  TELEGRAM
 }
 
 enum NotificationStatus {
@@ -141,9 +142,18 @@ model User {
   deletedAt             DateTime?
   deletedBy             String?
 
-  // Contact Info
+  // Contact Info — WhatsApp
   phoneNumber           String?
   whatsappOptIn         Boolean   @default(false)
+
+  // Contact Info — Telegram
+  telegramChatId        String?   // Set when user links via bot
+  telegramUsername       String?   // Display name from Telegram
+  telegramOptIn         Boolean   @default(false)
+  telegramLinkToken     String?   @unique // Temporary token for linking
+
+  // Notification Preferences — JSON array of enabled channels e.g. ["WHATSAPP", "TELEGRAM"]
+  notifyChannels        Json      @default("[]")
 
   // Account Lockout
   failedLoginAttempts   Int       @default(0)

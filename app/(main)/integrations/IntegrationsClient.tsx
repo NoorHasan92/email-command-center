@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Plug, Plus, Check, Phone, Loader2, Mail, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plug, Plus, Check, Phone, Loader2, Mail, X, Send, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { toggleWhatsAppAction, disconnectGmailAction } from "@/server/actions/integrations.actions";
+import { toggleWhatsAppAction, disconnectGmailAction, disconnectTelegramAction, updateNotifyChannelsAction } from "@/server/actions/integrations.actions";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
@@ -23,22 +23,47 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function IntegrationsClient({
-  gmailAccount,
-  whatsappOptIn,
-  phoneNumber
-}: {
+const TelegramIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+  </svg>
+);
+
+interface IntegrationsClientProps {
   gmailAccount: any;
   whatsappOptIn: boolean;
   phoneNumber: string | null;
-}) {
+  telegramOptIn: boolean;
+  telegramChatId: string | null;
+  telegramUsername: string | null;
+  notifyChannels: string[];
+}
+
+export default function IntegrationsClient({
+  gmailAccount,
+  whatsappOptIn,
+  phoneNumber,
+  telegramOptIn,
+  telegramChatId,
+  telegramUsername,
+  notifyChannels: initialChannels,
+}: IntegrationsClientProps) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waLoading, setWaLoading] = useState(false);
   const [waPhone, setWaPhone] = useState(phoneNumber || "");
   const [waError, setWaError] = useState("");
 
+  const [tgModalOpen, setTgModalOpen] = useState(false);
+  const [tgLoading, setTgLoading] = useState(false);
+  const [tgDeepLink, setTgDeepLink] = useState("");
+
   const [gmailModalOpen, setGmailModalOpen] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
+
+  // Notification channel preferences
+  const [channels, setChannels] = useState<string[]>(initialChannels);
+  const [channelsSaving, setChannelsSaving] = useState(false);
+  const [channelsSaved, setChannelsSaved] = useState(false);
 
   const router = useRouter();
 
@@ -54,6 +79,10 @@ export default function IntegrationsClient({
     setWaLoading(false);
     if (res.success) {
       setWaModalOpen(false);
+      // Auto-enable WHATSAPP channel
+      const updated = [...new Set([...channels, "WHATSAPP"])];
+      setChannels(updated);
+      await updateNotifyChannelsAction(updated);
       router.refresh();
     }
   };
@@ -64,6 +93,37 @@ export default function IntegrationsClient({
     setWaLoading(false);
     if (res.success) {
       setWaPhone("");
+      // Remove WHATSAPP from channels
+      const updated = channels.filter(c => c !== "WHATSAPP");
+      setChannels(updated);
+      await updateNotifyChannelsAction(updated);
+      router.refresh();
+    }
+  };
+
+  const handleConnectTelegram = async () => {
+    setTgLoading(true);
+    try {
+      const res = await fetch("/api/integrations/telegram/link", { method: "POST" });
+      const data = await res.json();
+      if (data.deepLink) {
+        setTgDeepLink(data.deepLink);
+        window.open(data.deepLink, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to generate Telegram link:", error);
+    }
+    setTgLoading(false);
+  };
+
+  const handleDisconnectTelegram = async () => {
+    setTgLoading(true);
+    const res = await disconnectTelegramAction();
+    setTgLoading(false);
+    if (res.success) {
+      const updated = channels.filter(c => c !== "TELEGRAM");
+      setChannels(updated);
+      await updateNotifyChannelsAction(updated);
       router.refresh();
     }
   };
@@ -75,8 +135,20 @@ export default function IntegrationsClient({
     setGmailLoading(false);
     if (res.success) {
       setGmailModalOpen(false);
-      router.refresh(); // This might redirect to onboarding since 0 accounts remain
+      router.refresh();
     }
+  };
+
+  const toggleChannel = async (channel: string) => {
+    const updated = channels.includes(channel)
+      ? channels.filter(c => c !== channel)
+      : [...channels, channel];
+    setChannels(updated);
+    setChannelsSaving(true);
+    await updateNotifyChannelsAction(updated);
+    setChannelsSaving(false);
+    setChannelsSaved(true);
+    setTimeout(() => setChannelsSaved(false), 2000);
   };
 
   return (
@@ -87,6 +159,7 @@ export default function IntegrationsClient({
           <p className="text-muted-foreground">Connect your favorite tools to Inbox Sentinel.</p>
         </div>
 
+        {/* Integration Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <IntegrationCard
             title="Gmail"
@@ -100,9 +173,17 @@ export default function IntegrationsClient({
             title="WhatsApp"
             description="Get pinged on WhatsApp for highly critical, time-sensitive emails."
             icon={<WhatsAppIcon className="w-6 h-6 text-green-500" />}
-            status={whatsappOptIn ? (process.env.NODE_ENV === "development" ? "sandbox" : "connected") : "available"}
+            status={whatsappOptIn ? "connected" : "available"}
             onManage={() => setWaModalOpen(true)}
             onConnect={() => setWaModalOpen(true)}
+          />
+          <IntegrationCard
+            title="Telegram"
+            description="Receive beautifully formatted AI alerts directly in Telegram."
+            icon={<TelegramIcon className="w-6 h-6 text-sky-500" />}
+            status={telegramOptIn ? "connected" : "available"}
+            onManage={() => setTgModalOpen(true)}
+            onConnect={() => { setTgModalOpen(true); handleConnectTelegram(); }}
           />
           <IntegrationCard
             title="Google Calendar"
@@ -117,6 +198,70 @@ export default function IntegrationsClient({
             status="coming_soon"
           />
         </div>
+
+        {/* Notification Preferences Section */}
+        {(whatsappOptIn || telegramOptIn) && (
+          <Card className="bg-card/90 backdrop-blur border-border overflow-hidden">
+            <CardContent className="p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Notification Preferences</h3>
+                  <p className="text-sm text-muted-foreground">Choose where you want to receive email alerts.</p>
+                </div>
+                {channelsSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />}
+                {channelsSaved && <span className="text-xs text-green-500 font-medium ml-auto flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>}
+              </div>
+
+              <div className="space-y-3">
+                {whatsappOptIn && (
+                  <label className="flex items-center gap-4 p-4 rounded-lg border border-border bg-secondary/20 hover:bg-secondary/40 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={channels.includes("WHATSAPP")}
+                      onChange={() => toggleChannel("WHATSAPP")}
+                      className="w-5 h-5 rounded border-border accent-green-500"
+                    />
+                    <WhatsAppIcon className="w-5 h-5 text-green-500" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">WhatsApp</p>
+                      <p className="text-xs text-muted-foreground">{phoneNumber}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${channels.includes("WHATSAPP") ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-secondary text-muted-foreground"}`}>
+                      {channels.includes("WHATSAPP") ? "Active" : "Paused"}
+                    </span>
+                  </label>
+                )}
+                {telegramOptIn && (
+                  <label className="flex items-center gap-4 p-4 rounded-lg border border-border bg-secondary/20 hover:bg-secondary/40 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={channels.includes("TELEGRAM")}
+                      onChange={() => toggleChannel("TELEGRAM")}
+                      className="w-5 h-5 rounded border-border accent-sky-500"
+                    />
+                    <TelegramIcon className="w-5 h-5 text-sky-500" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Telegram</p>
+                      <p className="text-xs text-muted-foreground">@{telegramUsername || "Connected"}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${channels.includes("TELEGRAM") ? "bg-sky-500/10 text-sky-500 border border-sky-500/20" : "bg-secondary text-muted-foreground"}`}>
+                      {channels.includes("TELEGRAM") ? "Active" : "Paused"}
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              {channels.length === 0 && (whatsappOptIn || telegramOptIn) && (
+                <p className="text-xs text-orange-500 bg-orange-500/10 p-3 rounded-lg border border-orange-500/20">
+                  ⚠️ No channels are active. You won't receive any notifications until you enable at least one channel.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* WhatsApp Modal */}
@@ -157,12 +302,75 @@ export default function IntegrationsClient({
                   <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">
                     <Check className="w-6 h-6 text-green-500" />
                     <div>
-                      <p className="font-medium">{process.env.NODE_ENV === "development" ? "Sandbox Mode" : "Connected"}</p>
+                      <p className="font-medium">Connected</p>
                       <p className="text-sm text-muted-foreground">{phoneNumber}</p>
                     </div>
                   </div>
                   <Button variant="destructive" className="w-full" onClick={handleDisconnectWhatsApp} disabled={waLoading}>
                     {waLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Disconnect
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Modal */}
+      {tgModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-border flex justify-between items-center">
+              <h3 className="font-semibold text-lg flex items-center gap-2"><TelegramIcon className="w-5 h-5 text-sky-500" /> Telegram Integration</h3>
+              <button onClick={() => setTgModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6">
+              {!telegramOptIn ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Connect your Telegram to receive beautifully formatted AI-powered email alerts.</p>
+                  <div className="bg-secondary/30 p-4 rounded-lg border border-border space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                      <p className="text-sm">Click the button below to open the Inbox Sentinel bot in Telegram.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                      <p className="text-sm">Press <strong>"Start"</strong> in the Telegram chat to link your account.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                      <p className="text-sm">Come back here and <strong>refresh the page</strong> to see the connection status.</p>
+                    </div>
+                  </div>
+                  {tgDeepLink ? (
+                    <div className="space-y-3">
+                      <a href={tgDeepLink} target="_blank" rel="noopener noreferrer" className="block">
+                        <Button className="w-full bg-sky-500 hover:bg-sky-600 text-white">
+                          <Send className="w-4 h-4 mr-2" /> Open in Telegram
+                        </Button>
+                      </a>
+                      <Button variant="outline" className="w-full" onClick={() => router.refresh()}>
+                        I've clicked Start — Refresh
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button className="w-full bg-sky-500 hover:bg-sky-600 text-white" onClick={handleConnectTelegram} disabled={tgLoading}>
+                      {tgLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                      Connect Telegram
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">
+                    <Check className="w-6 h-6 text-sky-500" />
+                    <div>
+                      <p className="font-medium">Connected</p>
+                      <p className="text-sm text-muted-foreground">@{telegramUsername || "Telegram User"}</p>
+                    </div>
+                  </div>
+                  <Button variant="destructive" className="w-full" onClick={handleDisconnectTelegram} disabled={tgLoading}>
+                    {tgLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Disconnect
                   </Button>
                 </div>
               )}

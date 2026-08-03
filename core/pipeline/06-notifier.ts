@@ -51,8 +51,27 @@ export async function dispatchNotifications(
     const emailAccount = await db.emailAccount.findUnique({ where: { id: email.emailAccountId }, select: { userId: true } });
     const user = await db.user.findUnique({ where: { id: emailAccount?.userId } });
 
-    if (!user || !user.phoneNumber || !user.whatsappOptIn) {
-      logger.info(`[STAGE 06 - NOTIFIER] [SKIPPED] [ID: ${email.id}] | User opted out or no phone number.`);
+    if (!user) {
+      logger.info(`[STAGE 06 - NOTIFIER] [SKIPPED] [ID: ${email.id}] | No user found.`);
+      continue;
+    }
+
+    // 3b. Resolve destination based on channel
+    let destination: string | null = null;
+    if (channelName === "WHATSAPP") {
+      if (!user.phoneNumber || !user.whatsappOptIn) {
+        logger.info(`[STAGE 06 - NOTIFIER] [SKIPPED] [ID: ${email.id}] | WhatsApp not configured or opted out.`);
+        continue;
+      }
+      destination = user.phoneNumber;
+    } else if (channelName === "TELEGRAM") {
+      if (!user.telegramChatId || !user.telegramOptIn) {
+        logger.info(`[STAGE 06 - NOTIFIER] [SKIPPED] [ID: ${email.id}] | Telegram not configured or opted out.`);
+        continue;
+      }
+      destination = user.telegramChatId;
+    } else {
+      logger.info(`[STAGE 06 - NOTIFIER] [SKIPPED] [ID: ${email.id}] | Unknown channel: ${channelName}`);
       continue;
     }
 
@@ -63,7 +82,7 @@ export async function dispatchNotifications(
       score: analysis.urgencyScore,
       explanation: analysis.reasoning || "No explanation provided.",
       actionRequired: analysis.requiresAction,
-      destination: user.phoneNumber,
+      destination,
     };
 
     // 5. Dispatch and Log

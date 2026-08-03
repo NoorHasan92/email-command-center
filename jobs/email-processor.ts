@@ -61,27 +61,43 @@ export async function processPendingEmails() {
         data: { pipelineMetrics: metrics }
       });
 
-      // 6. Notifier Engine (WhatsApp Integration)
+      // 6. Notifier Engine (Multi-Channel: WhatsApp + Telegram)
       const analysis = await db.emailAnalysis.findUnique({ where: { emailId: email.id } });
       if (analysis && (analysis.suggestedNotification || analysis.urgencyScore >= 80)) {
-        const { WhatsAppAdapter } = await import("@/services/whatsapp/whatsapp.adapter");
         const { dispatchNotifications } = await import("@/core/pipeline/06-notifier");
-        
-        const mockRule = { channel: "WHATSAPP" } as any;
-        
-        stageStart = performance.now();
-        await dispatchNotifications(
-          normalizedEmail,
-          analysis,
-          [mockRule],
-          { WHATSAPP: new WhatsAppAdapter() }
-        );
-        metrics.notifier = Math.round(performance.now() - stageStart);
-        
-        await db.email.update({
-          where: { id: email.id },
-          data: { pipelineMetrics: metrics }
-        });
+
+        // Fetch user to determine which channels they've enabled
+        const emailAccount = await db.emailAccount.findUnique({ where: { id: email.emailAccountId }, select: { userId: true } });
+        const user = emailAccount ? await db.user.findUnique({ where: { id: emailAccount.userId } }) : null;
+
+        if (user) {
+          const enabledChannels = Array.isArray(user.notifyChannels) ? user.notifyChannels as string[] : [];
+          const rules: any[] = [];
+          const registry: Record<string, any> = {};
+
+          if (enabledChannels.includes("WHATSAPP") && user.whatsappOptIn && user.phoneNumber) {
+            const { WhatsAppAdapter } = await import("@/services/whatsapp/whatsapp.adapter");
+            rules.push({ channel: "WHATSAPP" });
+            registry.WHATSAPP = new WhatsAppAdapter();
+          }
+
+          if (enabledChannels.includes("TELEGRAM") && user.telegramOptIn && user.telegramChatId) {
+            const { TelegramAdapter } = await import("@/services/telegram/telegram.adapter");
+            rules.push({ channel: "TELEGRAM" });
+            registry.TELEGRAM = new TelegramAdapter();
+          }
+
+          if (rules.length > 0) {
+            stageStart = performance.now();
+            await dispatchNotifications(normalizedEmail, analysis, rules, registry);
+            metrics.notifier = Math.round(performance.now() - stageStart);
+
+            await db.email.update({
+              where: { id: email.id },
+              data: { pipelineMetrics: metrics }
+            });
+          }
+        }
       }
 
     } catch (error: any) {

@@ -11,7 +11,14 @@ export default async function IntegrationsPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { whatsappOptIn: true, phoneNumber: true }
+    select: { 
+      whatsappOptIn: true, 
+      phoneNumber: true,
+      telegramOptIn: true,
+      telegramChatId: true,
+      telegramUsername: true,
+      notifyChannels: true,
+    }
   });
 
   const accounts = await db.emailAccount.findMany({
@@ -25,6 +32,10 @@ export default async function IntegrationsPage() {
       gmailAccount={gmailAccount ? JSON.parse(JSON.stringify(gmailAccount)) : undefined}
       whatsappOptIn={user?.whatsappOptIn || false}
       phoneNumber={user?.phoneNumber || null}
+      telegramOptIn={user?.telegramOptIn || false}
+      telegramChatId={user?.telegramChatId || null}
+      telegramUsername={user?.telegramUsername || null}
+      notifyChannels={Array.isArray(user?.notifyChannels) ? user.notifyChannels as string[] : []}
     />
   );
 }
