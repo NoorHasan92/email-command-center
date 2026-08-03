@@ -48,7 +48,7 @@ export class WhatsAppAdapter implements INotificationProvider {
       to: to,
       type: "template",
       template: {
-        name: "jaspers_market_order_confirmation_v1",
+        name: "inbox_alert_v1",
         language: {
           code: "en_US",
         },

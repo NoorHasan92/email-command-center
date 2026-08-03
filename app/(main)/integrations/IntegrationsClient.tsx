@@ -86,20 +86,23 @@ export default function IntegrationsClient({
 
       es.addEventListener('status', (event) => {
         const data = JSON.parse(event.data);
-        if (data.status === 'connected') {
-          setWaStatus("connected");
-          setWaMeta(data);
-          setWaQr(null);
-          toast.success("WhatsApp connected successfully", {
-            id: "wa-connected",
-            description: "Your device is now linked."
-          });
-          setChannels(prev => {
-            const updated = [...new Set([...prev, "WHATSAPP"])];
-            updateNotifyChannelsAction(updated).then(() => router.refresh());
-            return updated;
-          });
-          setTimeout(() => setWaModalOpen(false), 2000);
+          if (data.status === 'connected') {
+            setWaStatus("connected");
+            setWaMeta(data);
+            setWaQr(null);
+            toast.success("WhatsApp connected successfully", {
+              id: "wa-connected",
+              description: "Your device is now linked."
+            });
+            
+            setChannels(prev => {
+              const updated = [...new Set([...prev, "WHATSAPP"])];
+              return updated;
+            });
+            
+            // Do side-effects outside the state updater!
+            updateNotifyChannelsAction([...new Set([...channels, "WHATSAPP"])]).then(() => router.refresh());
+            setTimeout(() => setWaModalOpen(false), 2000);
         } else if (data.status === 'logged_out') {
           setWaStatus("available");
           setWaQr(null);
