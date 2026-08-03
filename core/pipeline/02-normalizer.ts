@@ -7,6 +7,7 @@ import { db } from "@/server/repositories/db";
 import { Email } from "@prisma/client";
 import { convert } from "html-to-text";
 import { logger } from "@/lib/logger";
+import { cleanEmailText } from "@/lib/utils";
 
 
 /**
@@ -37,6 +38,9 @@ export async function normalizeEmail(email: Email): Promise<Email> {
     logger.warn(`[STAGE 02 - NORMALIZER] [TRUNCATED] [ID: ${email.id}] | plainText length > 30000`);
     plainText = plainText.substring(0, 30000) + "\n\n...[TRUNCATED]";
   }
+
+  // Clean the plain text to remove excessive URLs and tracking links
+  plainText = cleanEmailText(plainText);
 
   const updatedEmail = await db.email.update({
     where: { id: email.id },

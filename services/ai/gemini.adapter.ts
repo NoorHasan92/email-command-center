@@ -5,7 +5,15 @@ import { parseAIResponse } from "./parser";
 import { logger } from "@/lib/logger";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = "gemini-3.5-flash";
+const FALLBACK_MODELS = [
+  "gemini-3.5-flash", 
+  "gemini-2.5-flash", 
+  "gemini-2.5-flash-lite", 
+  "gemini-3-flash", 
+  "gemini-3.6-flash", 
+  "gemini-3.1-flash-lite", 
+  "gemma-4-31b"
+];
 
 export class GeminiAdapter implements IAIProvider {
   async analyzeEmail(
@@ -16,13 +24,15 @@ export class GeminiAdapter implements IAIProvider {
     const systemInstruction = buildSystemPrompt();
     const prompt = buildUserPrompt(emailText, subject, metadata);
 
-    const maxRetries = 1; // Retry once if validation fails or 5xx occurs
+    const maxRetries = FALLBACK_MODELS.length; // Try every model in the list
     let attempt = 0;
+    let lastError = null;
 
-    while (attempt <= maxRetries) {
+    while (attempt < maxRetries) {
+      const currentModel = FALLBACK_MODELS[attempt];
       attempt++;
       try {
-        logger.info(`[GEMINI_ADAPTER] Attempt ${attempt} - Sending request to ${MODEL}...`);
+        logger.info(`[GEMINI_ADAPTER] Attempt ${attempt} - Sending request to ${currentModel}...`);
         const startTime = Date.now();
 
         // 30 second timeout implementation
@@ -30,7 +40,7 @@ export class GeminiAdapter implements IAIProvider {
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         const response = await ai.models.generateContent({
-          model: MODEL,
+          model: currentModel,
           contents: prompt,
           config: {
             systemInstruction: systemInstruction,
@@ -69,29 +79,26 @@ export class GeminiAdapter implements IAIProvider {
 
         const promptTokens = response.usageMetadata?.promptTokenCount || 0;
         const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
+        const usage = response.usageMetadata;
+        const finishReason = response.candidates?.[0]?.finishReason || null;
 
         const parsedDeadline = validated.deadline ? new Date(validated.deadline) : null;
         const validDeadline = parsedDeadline && !isNaN(parsedDeadline.getTime()) ? parsedDeadline : null;
 
-        return {
+        const result: AIAnalysisResult = {
           ...validated,
           deadline: validDeadline,
-          model: MODEL,
-          promptTokens,
-          completionTokens,
-          totalTokens: response.usageMetadata?.totalTokenCount || 0,
+          model: currentModel,
+          promptTokens: usage?.promptTokenCount || 0,
+          completionTokens: usage?.candidatesTokenCount || 0,
+          totalTokens: usage?.totalTokenCount || 0,
           latencyMs,
-          finishReason: response.candidates?.[0]?.finishReason || null
+          finishReason: finishReason,
         };
 
+        return result;
       } catch (error: any) {
-        // Abort error
-        if (error.name === 'AbortError') {
-          logger.error(`[GEMINI_ADAPTER] Timeout error on attempt ${attempt}`);
-          if (attempt > maxRetries) throw new Error("Gemini API timeout after retries");
-          continue;
-        }
-
+        lastError = error;
         const status = error.status || error.response?.status;
         
         // Non-retryable errors
@@ -100,19 +107,18 @@ export class GeminiAdapter implements IAIProvider {
           throw error;
         }
 
-        // Retryable errors (validation errors or 5xx)
-        logger.warn(`[GEMINI_ADAPTER] Retryable error on attempt ${attempt}: ${error.message}`);
+        logger.warn(`[GEMINI_ADAPTER] Retryable error on attempt ${attempt} with ${currentModel}: ${error.message}`);
         
-        if (attempt > maxRetries) {
-          logger.error(`[GEMINI_ADAPTER] Max retries reached. AI analysis failed.`);
-          throw error;
+        if (attempt >= maxRetries) {
+          logger.error(`[GEMINI_ADAPTER] Exhausted all ${maxRetries} fallback models.`);
+          break;
         }
 
-        // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        // Exponential backoff before next model
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
       }
     }
 
-    throw new Error("Unexpected failure in GeminiAdapter");
+    throw new Error(`AI Analysis failed after trying ${maxRetries} models. Last Error: ${lastError?.message}`);
   }
 }

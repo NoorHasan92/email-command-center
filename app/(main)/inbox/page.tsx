@@ -13,7 +13,7 @@ export default async function InboxPage() {
   const recentEmails = await db.email.findMany({
     where: { emailAccount: { userId } },
     orderBy: { date: "desc" },
-    take: 100,
+    take: 10,
     include: {
       analysis: true,
       emailAccount: {

@@ -16,15 +16,15 @@ export default async function DashboardPage() {
 
   // Fetch Inbox Health Metrics
   const criticalCount = await db.emailAnalysis.count({
-    where: { urgencyScore: { gte: 90 }, email: userAccountFilter }
+    where: { urgencyScore: { gte: 90 }, email: { emailAccount: { userId }, status: { notIn: ["NOTIFIED", "SKIPPED"] } } }
   });
 
   const actionRequiredCount = await db.emailAnalysis.count({
-    where: { requiresAction: true, email: userAccountFilter }
+    where: { requiresAction: true, email: { emailAccount: { userId }, status: { notIn: ["NOTIFIED", "SKIPPED"] } } }
   });
 
   const deadlinesCount = await db.emailAnalysis.count({
-    where: { deadline: { not: null }, email: userAccountFilter }
+    where: { deadline: { not: null }, email: { emailAccount: { userId }, status: { notIn: ["NOTIFIED", "SKIPPED"] } } }
   });
 
   const lastSync = await db.emailAccount.findFirst({
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
 
   // Fetch recent emails with analysis — SCOPED TO USER
   const recentEmails = await db.email.findMany({
-    where: { emailAccount: { userId } },
+    where: { emailAccount: { userId }, status: { notIn: ["NOTIFIED", "SKIPPED"] } },
     orderBy: { date: "desc" },
     take: 50,
     include: {

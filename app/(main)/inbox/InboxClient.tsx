@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { Email, EmailAnalysis } from "@prisma/client";
 import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff } from "lucide-react";
 import { submitAIFeedbackAction } from "@/server/actions/training.actions";
-import { markEmailReviewedAction } from "@/server/actions/inbox.actions";
+import { markEmailReviewedAction, getInboxEmailsAction } from "@/server/actions/inbox.actions";
+import { cleanEmailText } from "@/lib/utils";
 
 export type EmailWithAnalysis = Email & {
   analysis: EmailAnalysis | null;
@@ -35,6 +36,8 @@ export default function InboxClient({
   const [selectedEmail, setSelectedEmail] = useState<EmailWithAnalysis | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialEmails.length >= 10);
   const [reviewedEmails, setReviewedEmails] = useState<Set<string>>(new Set());
   const [feedbackStates, setFeedbackStates] = useState<Record<string, string>>({});
 
@@ -85,6 +88,22 @@ export default function InboxClient({
       setSelectedEmail(null);
     }
   }, [selectedEmail]);
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore || emails.length === 0) return;
+    setIsLoadingMore(true);
+    const lastCursor = emails[emails.length - 1].id;
+    const res = await getInboxEmailsAction(lastCursor, 10);
+    if (res.success && res.data) {
+      setEmails(prev => [...prev, ...(res.data as EmailWithAnalysis[])]);
+      if (res.data.length < 10) {
+        setHasMore(false);
+      }
+    } else {
+      toast.error(res.error || "Failed to load more emails");
+    }
+    setIsLoadingMore(false);
+  };
 
   // Filtered emails
   const filteredEmails = emails.filter(e => 
@@ -195,6 +214,17 @@ export default function InboxClient({
                         }}
                       />
                     ))}
+                    {hasMore && !searchQuery && (
+                      <div className="p-4 flex justify-center border-t border-border bg-secondary/10">
+                        <button 
+                          onClick={handleLoadMore} 
+                          disabled={isLoadingMore}
+                          className="text-sm font-medium text-muted-foreground hover:text-foreground px-4 py-2 bg-secondary rounded-md transition-colors"
+                        >
+                          {isLoadingMore ? "Loading..." : "Load More"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -285,7 +315,7 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
             {analysis?.requiresAction && (analysis?.actionItems as string[])?.length > 0 ? (
               <strong className="text-foreground">{(analysis.actionItems as string[])[0]}</strong>
             ) : (
-              analysis?.summary || "Analyzing..."
+              analysis?.summary || (email.status === 'SKIPPED' ? "Skipped (Not Important)" : email.status === 'AI_FAILED' ? "Analysis Failed" : "Analyzing...")
             )}
           </span>
         </div>
@@ -499,7 +529,7 @@ function EmailDetailPane({
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Message Body</h3>
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-secondary">
                   <div className="whitespace-pre-wrap font-mono text-xs p-4 bg-secondary/30 rounded-lg border border-border overflow-x-auto">
-                    {email.plainText || "No plaintext body available."}
+                    {cleanEmailText(email.plainText) || "No plaintext body available."}
                   </div>
                 </div>
               </div>
