@@ -60,9 +60,9 @@ export async function dispatchNotifications(
     const payload: NotificationPayload = {
       emailId: email.id,
       subject: email.subject || "No Subject",
-      score: analysis.score,
-      explanation: analysis.explanation || "No explanation provided.",
-      actionRequired: analysis.isActionRequired,
+      score: analysis.urgencyScore,
+      explanation: analysis.reasoning || "No explanation provided.",
+      actionRequired: analysis.requiresAction,
       destination: user.phoneNumber,
     };
 
