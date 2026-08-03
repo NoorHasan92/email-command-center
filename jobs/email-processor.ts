@@ -7,8 +7,17 @@ import { logger } from "@/lib/logger";
 
 const aiProvider = new GeminiAdapter();
 
+let isProcessing = false;
+
 export async function processPendingEmails() {
-  logger.info("[JOB] [EMAIL_PROCESSOR] [STARTED] Sweeping queued emails...");
+  if (isProcessing) {
+    logger.info("[JOB] [EMAIL_PROCESSOR] Already processing in this container, skipping.");
+    return;
+  }
+  isProcessing = true;
+
+  try {
+    logger.info("[JOB] [EMAIL_PROCESSOR] [STARTED] Sweeping queued emails...");
 
   const pendingEmails = await db.email.findMany({
     where: { 
@@ -116,4 +125,7 @@ export async function processPendingEmails() {
   }
 
   logger.info("[JOB] [EMAIL_PROCESSOR] [COMPLETED]");
+  } finally {
+    isProcessing = false;
+  }
 }

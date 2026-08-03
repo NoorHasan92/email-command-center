@@ -3,8 +3,17 @@ import { GmailAdapter } from "@/services/email/gmail.adapter";
 import { EmailIngestionService } from "@/services/email/email-ingestion.service";
 import { logger } from "@/lib/logger";
 
+let isProcessing = false;
+
 export async function processWebhooks() {
-  logger.info("[JOB] [WEBHOOK_PROCESSOR] [STARTED] Sweeping pending webhook events...");
+  if (isProcessing) {
+    logger.info("[JOB] [WEBHOOK_PROCESSOR] Already processing in this container, skipping.");
+    return;
+  }
+  isProcessing = true;
+  
+  try {
+    logger.info("[JOB] [WEBHOOK_PROCESSOR] [STARTED] Sweeping pending webhook events...");
 
   const pendingEvents = await db.webhookEvent.findMany({
     where: { status: "PENDING", retryCount: { lt: 3 } },
@@ -80,4 +89,7 @@ export async function processWebhooks() {
   }
 
   logger.info("[JOB] [WEBHOOK_PROCESSOR] [COMPLETED]");
+  } finally {
+    isProcessing = false;
+  }
 }
