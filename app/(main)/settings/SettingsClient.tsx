@@ -78,8 +78,8 @@ export default function SettingsClient({
   ] as const;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto overflow-x-hidden p-6 lg:p-10 z-10 relative styled-scroll">
-      <div className="max-w-[1000px] mx-auto w-full space-y-8">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-10 z-10 relative styled-scroll">
+      <div className="max-w-[1000px] mx-auto w-full space-y-6 md:space-y-8 pb-24">
         
         {/* Premium Hero Section */}
         <motion.div 
@@ -102,14 +102,14 @@ export default function SettingsClient({
         <div className="flex flex-col md:flex-row gap-8">
           
           {/* Better Sidebar Navigation */}
-          <nav className="w-full md:w-56 shrink-0 flex flex-col gap-1.5">
+          <nav className="w-full md:w-56 shrink-0 flex flex-row overflow-x-auto md:flex-col gap-2 pb-2 md:pb-0 no-scrollbar">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button 
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden ${
+                  className={`group relative flex items-center gap-2 md:gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden shrink-0 ${
                     isActive ? 'text-primary' : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
                   }`}
                 >

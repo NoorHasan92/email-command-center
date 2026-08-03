@@ -59,8 +59,8 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-6 lg:p-10 z-10 relative">
-      <div className="max-w-5xl mx-auto w-full space-y-8">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+      <div className="max-w-5xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div className="flex items-center justify-between pb-6 border-b border-border/50">
           <div>
             <h1 className="text-3xl font-bold tracking-tight mb-2">Rules Engine</h1>

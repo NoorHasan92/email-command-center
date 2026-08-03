@@ -23,8 +23,8 @@ export default async function AlertsPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-6 lg:p-10 z-10 relative">
-      <div className="max-w-4xl mx-auto w-full space-y-8 pb-20">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+      <div className="max-w-4xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/50">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-inner">

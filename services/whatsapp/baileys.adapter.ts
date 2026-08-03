@@ -6,10 +6,26 @@ export class BaileysAdapter implements INotificationProvider {
     constructor(private userId: string) {}
 
     async dispatch(payload: NotificationPayload): Promise<string> {
-        const sock = whatsappManager.getSocket(this.userId);
+        let sock = whatsappManager.getSocket(this.userId);
         
         if (!sock || !sock.user) {
-            throw new Error("[BaileysAdapter] Socket not found or not fully connected.");
+            logger.info(`[BaileysAdapter] Socket missing or not fully connected for user ${this.userId}. Attempting to connect...`);
+            await whatsappManager.connect(this.userId);
+            
+            // Wait up to 10 seconds for the connection to establish
+            let connected = false;
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 500));
+                sock = whatsappManager.getSocket(this.userId);
+                if (sock && sock.user) {
+                    connected = true;
+                    break;
+                }
+            }
+
+            if (!connected) {
+                throw new Error("[BaileysAdapter] Socket not found or failed to connect within timeout.");
+            }
         }
 
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
@@ -26,6 +42,7 @@ ${payload.subject}
 ${payload.explanation}`;
 
         try {
+            if (!sock) throw new Error("[BaileysAdapter] Socket is still undefined");
             const result = await sock.sendMessage(to, { text });
             if (!result?.key?.id) {
                 throw new Error("Message failed to send (no key id returned)");

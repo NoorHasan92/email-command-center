@@ -186,8 +186,8 @@ export default function IntegrationsClient({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-6 lg:p-10 z-10 relative">
-      <div className="max-w-4xl mx-auto w-full space-y-8">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+      <div className="max-w-4xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Integrations</h1>
           <p className="text-muted-foreground">Connect your favorite tools to Inbox Sentinel.</p>

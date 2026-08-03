@@ -13,6 +13,7 @@ import { signOut, useSession } from "next-auth/react";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMobileDrawer } from "@/providers/mobile-drawer-provider";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   const { data: session } = useSession();
+  const { isOpen, close } = useMobileDrawer();
 
   // Load state from local storage on mount
   useEffect(() => {
@@ -43,17 +45,33 @@ export function Sidebar() {
   };
 
   return (
-    <TooltipProvider delay={0}>
-      <motion.aside
-        initial={false}
-        animate={{ width: isCollapsed ? 80 : 288 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="relative z-50 flex flex-col shrink-0 h-full rounded-[28px] bg-[#111113]/80 backdrop-blur-xl border border-white/5 shadow-2xl shadow-black/40 overflow-visible"
-      >
-        {/* Floating Collapse Button */}
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={close}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <TooltipProvider delay={0}>
+        <motion.aside
+          initial={false}
+          animate={{ width: isCollapsed ? 80 : 288 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className={cn(
+            "fixed md:relative inset-y-0 left-0 z-50 flex flex-col shrink-0 h-full md:rounded-[28px] bg-[#111113]/95 md:bg-[#111113]/80 backdrop-blur-xl border-r md:border border-white/5 shadow-2xl shadow-black/40 overflow-visible transition-transform duration-300 md:translate-x-0",
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+        {/* Floating Collapse Button (Desktop Only) */}
         <button
           onClick={toggleSidebar}
-          className="absolute -right-3 top-8 w-6 h-6 rounded-full bg-border border border-border/50 flex items-center justify-center shadow-lg hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all z-50 text-foreground cursor-pointer focus:outline-none"
+          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-border border border-border/50 items-center justify-center shadow-lg hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all z-50 text-foreground cursor-pointer focus:outline-none"
         >
           <motion.div
             animate={{ rotate: isCollapsed ? 0 : 180 }}
@@ -239,7 +257,8 @@ export function Sidebar() {
           isDestructive={true}
           loading={loggingOut}
         />
-      </motion.aside>
-    </TooltipProvider>
+        </motion.aside>
+      </TooltipProvider>
+    </>
   );
 }

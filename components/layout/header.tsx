@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, User, CheckCircle2, AlertCircle, Eye, ArrowRight } from "lucide-react";
+import { Bell, User, CheckCircle2, AlertCircle, Eye, ArrowRight, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -17,10 +17,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useMobileDrawer } from "@/providers/mobile-drawer-provider";
 
 export function Header() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { toggle } = useMobileDrawer();
   
   let title = "Dashboard";
   if (pathname.includes("/inbox")) title = "Inbox";
@@ -32,9 +34,15 @@ export function Header() {
   if (pathname.includes("/integrations")) title = "Integrations";
 
   return (
-    <header className="sticky top-4 z-40 flex h-14 items-center gap-4 rounded-2xl border border-white/5 bg-background/40 px-4 backdrop-blur-md lg:h-[60px] lg:px-6 mx-8 mt-4 shadow-sm">
-      <div className="flex flex-1 items-center gap-4">
-        <h1 className="text-xl font-bold tracking-tight capitalize">{title}</h1>
+    <header className="sticky top-0 md:top-4 z-40 flex h-14 md:h-[60px] items-center gap-4 md:rounded-2xl border-b md:border border-white/5 bg-background/80 md:bg-background/40 px-4 backdrop-blur-md lg:px-6 md:mx-8 md:mt-4 shadow-sm shrink-0">
+      <div className="flex flex-1 items-center gap-2 md:gap-4">
+        <button
+          onClick={toggle}
+          className="md:hidden p-2 -ml-2 rounded-lg hover:bg-secondary transition-colors focus:outline-none"
+        >
+          <Menu className="h-5 w-5 text-foreground" />
+        </button>
+        <h1 className="text-lg md:text-xl font-bold tracking-tight capitalize truncate">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
         <DropdownMenu>

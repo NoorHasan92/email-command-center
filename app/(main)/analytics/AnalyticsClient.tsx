@@ -21,8 +21,8 @@ interface AnalyticsData {
 export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
   if (!data.hasData) {
     return (
-      <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-6 lg:p-10 z-10 relative">
-        <div className="max-w-4xl mx-auto w-full h-full flex flex-col items-center justify-center text-center space-y-6">
+      <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+        <div className="max-w-4xl mx-auto w-full h-full flex flex-col items-center justify-center text-center space-y-6 pb-24">
           <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center border border-primary/10 shadow-inner">
             <Inbox className="w-12 h-12 text-primary opacity-50" />
           </div>
@@ -43,8 +43,8 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
   const { stats, activityData, categoryData } = data;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-6 lg:p-10 z-10 relative">
-      <div className="max-w-6xl mx-auto w-full space-y-8">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+      <div className="max-w-6xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">AI Insights</h1>
           <p className="text-muted-foreground">Discover how your AI Chief of Staff is optimizing your daily workflow.</p>

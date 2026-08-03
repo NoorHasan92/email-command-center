@@ -119,36 +119,36 @@ export default function DashboardClient({
           </Card>
 
           {/* Medium Cards */}
-          <div className="col-span-1 md:col-span-6 lg:col-span-5 grid grid-rows-2 gap-6">
+          <div className="col-span-1 md:col-span-6 lg:col-span-5 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-4 md:gap-6">
             <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm group hover:border-red-500/30 transition-colors">
-              <CardContent className="p-6 flex items-center justify-between h-full">
+              <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between h-full gap-3 md:gap-0">
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Critical Threats</p>
-                  <div className="flex items-end gap-3">
-                    <span className="text-4xl font-bold">{healthData.criticalCount}</span>
-                    <span className="text-sm text-red-500 font-medium mb-1 flex items-center gap-1">
+                  <p className="text-xs md:text-sm font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Critical</p>
+                  <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-3">
+                    <span className="text-3xl md:text-4xl font-bold">{healthData.criticalCount}</span>
+                    <span className="text-[10px] md:text-sm text-red-500 font-medium md:mb-1 flex items-center gap-1">
                       {healthData.criticalCount > 0 ? "Action needed" : "All clear"}
                     </span>
                   </div>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                <div className="hidden md:flex h-12 w-12 rounded-full bg-red-500/10 items-center justify-center">
                   <ShieldAlert className={`h-6 w-6 ${healthData.criticalCount > 0 ? "text-red-500" : "text-red-500/50"}`} />
                 </div>
               </CardContent>
             </Card>
             
             <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm group hover:border-orange-500/30 transition-colors">
-              <CardContent className="p-6 flex items-center justify-between h-full">
+              <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between h-full gap-3 md:gap-0">
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Action Required</p>
-                  <div className="flex items-end gap-3">
-                    <span className="text-4xl font-bold">{healthData.actionRequiredCount}</span>
-                    <span className="text-sm text-orange-500 font-medium mb-1">
-                      Pending tasks
+                  <p className="text-xs md:text-sm font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Action Required</p>
+                  <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-3">
+                    <span className="text-3xl md:text-4xl font-bold">{healthData.actionRequiredCount}</span>
+                    <span className="text-[10px] md:text-sm text-orange-500 font-medium md:mb-1">
+                      Pending
                     </span>
                   </div>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <div className="hidden md:flex h-12 w-12 rounded-full bg-orange-500/10 items-center justify-center">
                   <CheckCircle className={`h-6 w-6 ${healthData.actionRequiredCount > 0 ? "text-orange-500" : "text-orange-500/50"}`} />
                 </div>
               </CardContent>
@@ -156,7 +156,7 @@ export default function DashboardClient({
           </div>
 
           {/* Small Stats */}
-          <div className="col-span-1 md:col-span-12 lg:col-span-3 grid grid-cols-2 lg:grid-cols-1 gap-6">
+          <div className="col-span-1 md:col-span-12 lg:col-span-3 grid grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6">
              <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center gap-2 mb-2">

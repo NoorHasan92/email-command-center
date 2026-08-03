@@ -162,7 +162,7 @@ export default function InboxClient({
     <div className="flex h-full w-full">
       
       {/* Main Column */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${selectedEmail ? 'pr-[400px] xl:pr-[500px]' : ''}`}>
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${selectedEmail ? 'md:pr-[400px] xl:pr-[500px]' : ''}`}>
         
         {/* Top Header & Search */}
         <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-4">
@@ -356,7 +356,7 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
              </div>
            )}
            
-           <div className={`ml-auto flex items-center gap-1 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+           <div className={`ml-auto flex items-center gap-1 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>
               <ActionButton icon={<Check className="w-4 h-4" />} title="Mark Reviewed (R)" />
               <ActionButton icon={<Clock3 className="w-4 h-4" />} title="Snooze (S)" />
               <ActionButton icon={<EyeOff className="w-4 h-4" />} title="Ignore Sender" />
@@ -398,7 +398,7 @@ function EmailDetailPane({
 }) {
   return (
     <aside 
-      className={`fixed inset-y-0 right-0 w-[400px] xl:w-[500px] bg-card border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-50 flex flex-col ${
+      className={`fixed inset-y-0 right-0 w-full md:w-[400px] xl:w-[500px] bg-card md:border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-50 flex flex-col ${
         email ? "translate-x-0" : "translate-x-full"
       }`}
     >
@@ -494,23 +494,29 @@ function EmailDetailPane({
 
                     {/* Context / Reasoning */}
                     {email.analysis.reasoning && (
-                      <div className="bg-secondary/20 border border-border rounded p-3">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Reasoning:</p>
-                        <p className="text-sm text-foreground/90 leading-snug">
+                      <details className="bg-secondary/20 border border-border rounded p-3 group">
+                        <summary className="text-xs font-bold text-muted-foreground uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
+                          <span>Reasoning</span>
+                          <span className="text-muted-foreground opacity-50 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <p className="text-sm text-foreground/90 leading-snug mt-2">
                           {email.analysis.reasoning}
                         </p>
-                      </div>
+                      </details>
                     )}
 
                     {/* Action Items */}
                     {(email.analysis.actionItems as string[])?.length > 0 && (
                       <div className="bg-orange-500/10 border border-orange-500/20 rounded p-3">
-                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wide mb-1">Action Items:</p>
-                        <ul className="text-sm font-medium text-orange-500/90 leading-snug list-disc pl-4 space-y-1">
+                        <p className="text-xs font-bold text-orange-500 uppercase tracking-wide mb-2">Action Items:</p>
+                        <div className="space-y-2">
                           {(email.analysis.actionItems as string[]).map((item, idx) => (
-                            <li key={idx}>{item}</li>
+                            <label key={idx} className="flex items-start gap-2 cursor-pointer group">
+                              <div className="w-4 h-4 rounded border border-orange-500/50 flex-shrink-0 mt-0.5 group-hover:bg-orange-500/20 transition-colors" />
+                              <span className="text-sm font-medium text-orange-500/90 leading-snug select-none">{item}</span>
+                            </label>
                           ))}
-                        </ul>
+                        </div>
                       </div>
                     )}
 
@@ -564,11 +570,11 @@ function EmailDetailPane({
           </div>
           
           {/* Footer Actions (Feedback & Train AI) */}
-          <footer className="p-4 border-t border-border bg-background flex flex-col gap-3 shrink-0">
+          <footer className="p-4 border-t border-border bg-background flex flex-col gap-3 shrink-0 mb-safe pb-safe">
             <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mb-1 px-1">
               <span>Train AI</span>
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button 
                 onClick={() => onFeedback('CORRECT')} 
                 disabled={isPending || feedbackState === 'CORRECT'} 
