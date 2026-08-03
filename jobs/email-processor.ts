@@ -76,9 +76,9 @@ export async function processPendingEmails() {
           const registry: Record<string, any> = {};
 
           if (enabledChannels.includes("WHATSAPP") && user.whatsappOptIn && user.phoneNumber) {
-            const { WhatsAppAdapter } = await import("@/services/whatsapp/whatsapp.adapter");
+            const { WhatsAppProvider } = await import("@/services/whatsapp/whatsapp.provider");
             rules.push({ channel: "WHATSAPP" });
-            registry.WHATSAPP = new WhatsAppAdapter();
+            registry.WHATSAPP = new WhatsAppProvider(user.id);
           }
 
           if (enabledChannels.includes("TELEGRAM") && user.telegramOptIn && user.telegramChatId) {

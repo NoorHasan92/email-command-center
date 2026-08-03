@@ -10,6 +10,8 @@ import { formatDistanceToNow } from "date-fns";
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import * as Flags from 'country-flag-icons/react/3x2';
+import { toast } from "sonner";
+import { QRCode } from 'react-qrcode-logo';
 
 const CustomFlag = ({ country, countryName }: { country: string, countryName: string }) => {
   const Flag = Flags[country as keyof typeof Flags];
@@ -50,8 +52,9 @@ export default function IntegrationsClient({
 }: IntegrationsClientProps) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waLoading, setWaLoading] = useState(false);
-  const [waPhone, setWaPhone] = useState(phoneNumber || "");
-  const [waError, setWaError] = useState("");
+  const [waStatus, setWaStatus] = useState<"connecting" | "connected" | "logged_out" | "available">(whatsappOptIn ? "connected" : "available");
+  const [waQr, setWaQr] = useState<string | null>(null);
+  const [waMeta, setWaMeta] = useState<any>(null);
 
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
@@ -67,32 +70,60 @@ export default function IntegrationsClient({
 
   const router = useRouter();
 
+  useEffect(() => {
+    let es: EventSource | null = null;
+    
+    if (waModalOpen && !whatsappOptIn) {
+      setWaStatus("connecting");
+      setWaQr(null);
+      es = new EventSource("/api/integrations/whatsapp/sse");
+      
+      es.addEventListener('qr', (event) => {
+        const data = JSON.parse(event.data);
+        setWaQr(data.qr);
+        setWaStatus("connecting");
+      });
+
+      es.addEventListener('status', (event) => {
+        const data = JSON.parse(event.data);
+        if (data.status === 'connected') {
+          setWaStatus("connected");
+          setWaMeta(data);
+          setWaQr(null);
+          toast.success("WhatsApp connected successfully", {
+            id: "wa-connected",
+            description: "Your device is now linked."
+          });
+          setChannels(prev => {
+            const updated = [...new Set([...prev, "WHATSAPP"])];
+            updateNotifyChannelsAction(updated).then(() => router.refresh());
+            return updated;
+          });
+          setTimeout(() => setWaModalOpen(false), 2000);
+        } else if (data.status === 'logged_out') {
+          setWaStatus("available");
+          setWaQr(null);
+        }
+      });
+    }
+    
+    return () => {
+      if (es) es.close();
+    };
+  }, [waModalOpen, whatsappOptIn, router]);
+
+  // Legacy fallback or just disabled
   const handleConnectWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!waPhone || !isValidPhoneNumber(waPhone)) {
-      setWaError("Please enter a valid phone number for the selected country.");
-      return;
-    }
-
-    setWaLoading(true);
-    const res = await toggleWhatsAppAction(waPhone);
-    setWaLoading(false);
-    if (res.success) {
-      setWaModalOpen(false);
-      // Auto-enable WHATSAPP channel
-      const updated = [...new Set([...channels, "WHATSAPP"])];
-      setChannels(updated);
-      await updateNotifyChannelsAction(updated);
-      router.refresh();
-    }
   };
 
   const handleDisconnectWhatsApp = async () => {
     setWaLoading(true);
-    const res = await toggleWhatsAppAction(null);
+    const res = await fetch("/api/integrations/whatsapp/disconnect", { method: "POST" });
     setWaLoading(false);
-    if (res.success) {
-      setWaPhone("");
+    if (res.ok) {
+      setWaStatus("available");
+      setWaMeta(null);
       // Remove WHATSAPP from channels
       const updated = channels.filter(c => c !== "WHATSAPP");
       setChannels(updated);
@@ -230,7 +261,7 @@ export default function IntegrationsClient({
                     <WhatsAppIcon className="w-5 h-5 text-green-500" />
                     <div className="flex-1">
                       <p className="font-medium text-sm">WhatsApp</p>
-                      <p className="text-xs text-muted-foreground">{phoneNumber}</p>
+                      <p className="text-xs text-muted-foreground">{waMeta?.phoneNumber || phoneNumber}</p>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${channels.includes("WHATSAPP") ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-secondary text-muted-foreground"}`}>
                       {channels.includes("WHATSAPP") ? "Active" : "Paused"}
@@ -277,38 +308,55 @@ export default function IntegrationsClient({
             </div>
             <div className="p-6">
               {!whatsappOptIn ? (
-                <form onSubmit={handleConnectWhatsApp} className="space-y-4">
-                  <p className="text-sm text-muted-foreground mb-4">Enter your phone number to receive critical alerts directly on WhatsApp.</p>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Phone Number</label>
-                    <div className="flex w-full rounded-md border border-border bg-secondary/50 focus-within:ring-1 focus-within:ring-ring overflow-hidden items-center px-3 py-2">
-                      <PhoneInput
-                        international
-                        defaultCountry="US"
-                        flagComponent={CustomFlag}
-                        value={waPhone}
-                        onChange={(value) => {
-                          setWaPhone(value || "");
-                          if (waError) setWaError("");
-                        }}
-                        className="w-full text-sm outline-none bg-transparent custom-phone-input"
+                <div className="space-y-4 flex flex-col items-center">
+                  <p className="text-sm text-muted-foreground mb-2 text-center">Scan the QR code with your WhatsApp app to link your device.</p>
+                  
+                  <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
+                    {waQr ? (
+                      <QRCode
+                        value={waQr}
+                        qrStyle="dots"
+                        eyeRadius={[10, 10, 10] as any}
+                        fgColor="#16a34a"
+                        bgColor="transparent"
+                        logoImage="/whatsapp.svg"
+                        logoWidth={40}
+                        logoHeight={40}
+                        size={200}
+                        removeQrCodeBehindLogo={true}
                       />
-                    </div>
-                    {waError && <p className="text-xs text-destructive mt-1">{waError}</p>}
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Generating QR...</span>
+                      </div>
+                    )}
                   </div>
-                  <Button type="submit" className="w-full" disabled={waLoading}>
-                    {waLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Connect WhatsApp
-                  </Button>
-                </form>
+                  
+                  <ol className="text-sm text-muted-foreground space-y-2 mt-4 text-left w-full pl-4 list-decimal">
+                    <li>Open WhatsApp on your phone</li>
+                    <li>Tap <strong>Settings</strong> and select <strong>Linked Devices</strong></li>
+                    <li>Tap on <strong>Link a device</strong></li>
+                    <li>Point your phone to this screen to capture the code</li>
+                  </ol>
+                </div>
               ) : (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">
                     <Check className="w-6 h-6 text-green-500" />
                     <div>
                       <p className="font-medium">Connected</p>
-                      <p className="text-sm text-muted-foreground">{phoneNumber}</p>
+                      <p className="text-sm text-muted-foreground">{waMeta?.phoneNumber || phoneNumber}</p>
                     </div>
                   </div>
+                  
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p><strong>Device:</strong> {waMeta?.deviceName || 'Personal Device'}</p>
+                    <p><strong>Platform:</strong> {waMeta?.platform || 'Linked Device'}</p>
+                    <p><strong>Last Connected:</strong> {waMeta?.lastConnected ? formatDistanceToNow(new Date(waMeta.lastConnected), { addSuffix: true }) : 'Live'}</p>
+                    <p><strong>Delivery Method:</strong> Personal Device</p>
+                  </div>
+
                   <Button variant="destructive" className="w-full" onClick={handleDisconnectWhatsApp} disabled={waLoading}>
                     {waLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Disconnect
                   </Button>
