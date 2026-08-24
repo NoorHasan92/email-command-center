@@ -12,6 +12,13 @@ enum Role {
   ADMIN
 }
 
+enum Plan {
+  FREE
+  PRO
+  ULTRA
+  ADMIN
+}
+
 enum EmailCategory {
   SPAM
   NEWSLETTER
@@ -138,6 +145,7 @@ model User {
   image                 String?
   passwordHash          String?
   role                  Role      @default(USER)
+  plan                  Plan      @default(FREE)
   isDeleted             Boolean   @default(false)
   deletedAt             DateTime?
   deletedBy             String?

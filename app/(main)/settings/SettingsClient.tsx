@@ -157,7 +157,14 @@ export default function SettingsClient({
                               <h4 className="text-xl font-bold tracking-tight">{user?.name}</h4>
                               <p className="text-sm text-muted-foreground mb-2">{user?.email}</p>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] uppercase tracking-wider font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full">Free Plan</span>
+                                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${
+                                  user?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
+                                  user?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :
+                                  user?.plan === "PRO" ? "bg-blue-500/20 text-blue-400" :
+                                  "bg-primary/20 text-primary"
+                                }`}>
+                                  {user?.plan || "FREE"} PLAN
+                                </span>
                                 {hasGoogleLinked && (
                                   <span className="text-[10px] uppercase tracking-wider font-bold bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <CheckCircle2 className="w-3 h-3" /> Google Linked
@@ -225,7 +232,9 @@ export default function SettingsClient({
                           <div className="w-full h-px bg-border/50" />
                           <div>
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Plan</p>
-                            <p className="text-sm font-medium flex items-center gap-2">Free <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /></p>
+                            <p className="text-sm font-medium flex items-center gap-2 capitalize">
+                              {(user?.plan || "FREE").toLowerCase()} <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                            </p>
                           </div>
                           <div className="w-full h-px bg-border/50" />
                           <div>

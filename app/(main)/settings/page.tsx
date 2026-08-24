@@ -24,6 +24,7 @@ export default async function SettingsPage() {
       email: true, 
       image: true,
       passwordHash: true,
+      plan: true,
       accounts: { select: { provider: true } }
     }
   });

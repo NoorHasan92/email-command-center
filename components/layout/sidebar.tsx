@@ -105,6 +105,8 @@ export function Sidebar() {
         <div className="flex-1 overflow-x-hidden overflow-y-auto py-6 styled-scroll">
           <nav className="flex flex-col px-3 space-y-2">
             {NAVIGATION.map((item) => {
+              // Hide admin-only routes from regular users
+              if (item.adminOnly && (session?.user as any)?.role !== "ADMIN") return null;
               const isActive = pathname.startsWith(item.href);
               const navLink = (
                 <Link
@@ -205,7 +207,15 @@ export function Sidebar() {
                   <div className="h-[1px] w-full bg-border/40 my-1" />
                   <div className="flex items-center justify-between px-2 text-xs font-semibold text-muted-foreground">
                     <span className="uppercase tracking-wider">Plan</span>
-                    <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-full">Free</span>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] tracking-wide uppercase",
+                      (session?.user as any)?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
+                      (session?.user as any)?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :
+                      (session?.user as any)?.plan === "PRO" ? "bg-blue-500/20 text-blue-400" :
+                      "bg-primary/20 text-primary"
+                    )}>
+                      {(session?.user as any)?.plan || "FREE"}
+                    </span>
                   </div>
                   <button 
                     onClick={() => setShowLogout(true)}

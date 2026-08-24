@@ -142,7 +142,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         // @ts-expect-error - role is not typed
         token.role = user.role;
+        // @ts-expect-error - plan is not typed
+        token.plan = user.plan;
         token.image = user.image;
+
+        // Enforce ADMIN plan for ADMIN role
+        // @ts-expect-error
+        if (user.role === "ADMIN" && user.plan !== "ADMIN") {
+          await db.user.update({
+            where: { id: user.id },
+            data: { plan: "ADMIN" }
+          }).catch(err => console.error("Failed to upgrade admin plan:", err));
+          token.plan = "ADMIN";
+        }
       }
 
       // Sync Google picture when user signs in (account & profile are only passed on sign-in)
@@ -164,12 +176,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         // @ts-expect-error - role is not typed
         session.user.role = token.role as string;
+        // @ts-expect-error - plan is not typed
+        session.user.plan = token.plan as string;
         session.user.image = token.image as string | null | undefined;
       }
       return session;
     },
   },
   events: {
+    async signIn(message) {
+      if (message.user?.id) {
+        await db.user.update({
+          where: { id: message.user.id },
+          data: { lastLoginAt: new Date() }
+        }).catch(err => console.error("Failed to update last login:", err));
+      }
+    },
     async linkAccount(message) {
       // Triggered by NextAuth automatically after a successful linking operation in the adapter
       await logSecurityEvent("ACCOUNT_LINK_SUCCESS", message.user.id, { provider: message.account.provider });

@@ -2,9 +2,17 @@
 // Navigation links and routes configuration.
 
 import { ROUTES } from "./routes";
-import { LayoutDashboard, Settings, Mail, Bell, Filter, BarChart, Plug } from "lucide-react";
+import { LayoutDashboard, Settings, Mail, Bell, Filter, BarChart, Plug, ShieldAlert, LucideIcon } from "lucide-react";
 
-export const NAVIGATION = [
+export type NavItem = {
+  id: string;
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+};
+
+export const NAVIGATION: NavItem[] = [
   {
     id: "dashboard",
     title: "Dashboard",
@@ -47,4 +55,11 @@ export const NAVIGATION = [
     href: ROUTES.settings,
     icon: Settings,
   },
+  {
+    id: "admin",
+    title: "Admin Panel",
+    href: ROUTES.admin,
+    icon: ShieldAlert,
+    adminOnly: true,
+  }
 ];
