@@ -54,4 +54,61 @@ ${payload.explanation}`;
             throw error;
         }
     }
+
+    async dispatchDigest(payload: import("../../core/interfaces/INotificationProvider").DigestPayload): Promise<string> {
+        let sock = whatsappManager.getSocket(this.userId);
+        if (!sock || !sock.user) {
+            throw new Error("[BaileysAdapter] Socket missing or not fully connected for user");
+        }
+
+        const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
+
+        const text = `📬 *Your Inbox Sentinel Summary*
+━━━━━━━━━━━━━━
+*Today:*
+• ${payload.importantCount} important emails
+• ${payload.actionItemsCount} action items
+• ${payload.deadlinesCount} deadlines
+
+Open Inbox Sentinel to review.
+mail.tars.homes`;
+
+        try {
+            const result = await sock.sendMessage(to, { text });
+            if (!result?.key?.id) throw new Error("Message failed to send");
+            logger.info(`[BaileysAdapter] Sent digest to ${to}`);
+            return result.key.id;
+        } catch (error) {
+            logger.error(error, `[BaileysAdapter] Digest Dispatch Failed:`);
+            throw error;
+        }
+    }
+
+    async dispatchDeadlineReminder(payload: import("../../core/interfaces/INotificationProvider").DeadlineReminderPayload): Promise<string> {
+        let sock = whatsappManager.getSocket(this.userId);
+        if (!sock || !sock.user) {
+            throw new Error("[BaileysAdapter] Socket missing or not fully connected for user");
+        }
+
+        const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
+
+        const text = `🚨 *Reminder*
+━━━━━━━━━━━━━━
+${payload.actionItem}
+
+*Due:* ${payload.dueDate}
+
+Don't forget to complete this task.
+mail.tars.homes`;
+
+        try {
+            const result = await sock.sendMessage(to, { text });
+            if (!result?.key?.id) throw new Error("Message failed to send");
+            logger.info(`[BaileysAdapter] Sent deadline reminder to ${to}`);
+            return result.key.id;
+        } catch (error) {
+            logger.error(error, `[BaileysAdapter] Deadline Reminder Dispatch Failed:`);
+            throw error;
+        }
+    }
 }

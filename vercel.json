@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/gmail",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/digest",
+      "schedule": "30 17 * * *"
+    }
+  ]
+}

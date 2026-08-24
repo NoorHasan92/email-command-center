@@ -11,6 +11,19 @@ export interface NotificationPayload {
   destination: string; // Phone number or email address
 }
 
+export interface DigestPayload {
+  importantCount: number;
+  actionItemsCount: number;
+  deadlinesCount: number;
+  destination: string;
+}
+
+export interface DeadlineReminderPayload {
+  actionItem: string;
+  dueDate: string;
+  destination: string;
+}
+
 export interface INotificationProvider {
   /**
    * Dispatches a notification to the target channel.
@@ -18,4 +31,7 @@ export interface INotificationProvider {
    * @returns A string containing the provider message ID (e.g. wamid for WhatsApp)
    */
   dispatch(payload: NotificationPayload): Promise<string>;
+  
+  dispatchDigest?(payload: DigestPayload): Promise<string>;
+  dispatchDeadlineReminder?(payload: DeadlineReminderPayload): Promise<string>;
 }

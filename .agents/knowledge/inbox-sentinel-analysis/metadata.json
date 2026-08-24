@@ -1,0 +1,33 @@
+{
+  "title": "Inbox Sentinel — Full Architectural Analysis",
+  "summary": "Comprehensive analysis of the Inbox Sentinel AI email intelligence platform. Covers the 6-stage AI pipeline (Collector → Normalizer → Prefilter → Analyzer → Decision → Notifier), database schema (16 Prisma models, 12 enums), security architecture (AES encryption via Prisma extensions, Argon2, CSP, audit logging), integration patterns (Gmail OAuth + Pub/Sub, WhatsApp dual-engine Baileys/Meta, Telegram Bot API), interface-driven design (IAIProvider, IEmailProvider, INotificationProvider), and background jobs. Identifies critical bugs: Decision Engine field mismatch (score vs urgencyScore), double encryption in GmailAdapter.persistTokens(), PENDING status not in EmailStatus enum, OpenAI adapter interface incompatibility. Tech stack: Next.js 15, React 19, TypeScript 5, Tailwind v4, Prisma 5, PostgreSQL, Gemini AI with 7-model fallback chain, NextAuth v5.",
+  "createdAt": "2026-08-24T23:09:00Z",
+  "updatedAt": "2026-08-24T23:09:00Z",
+  "references": [
+    "core/pipeline/01-collector.ts",
+    "core/pipeline/02-normalizer.ts",
+    "core/pipeline/03-prefilter.ts",
+    "core/pipeline/04-analyzer.ts",
+    "core/pipeline/05-decision.ts",
+    "core/pipeline/06-notifier.ts",
+    "core/interfaces/IAIProvider.ts",
+    "core/interfaces/IEmailProvider.ts",
+    "core/interfaces/INotificationProvider.ts",
+    "services/ai/gemini.adapter.ts",
+    "services/ai/openai.adapter.ts",
+    "services/email/gmail.adapter.ts",
+    "services/email/email-ingestion.service.ts",
+    "services/whatsapp/whatsapp.provider.ts",
+    "services/whatsapp/whatsapp.adapter.ts",
+    "services/telegram/telegram.adapter.ts",
+    "server/repositories/db.ts",
+    "prisma/schema.prisma",
+    "config/auth.ts",
+    "jobs/email-processor.ts",
+    "jobs/webhook-processor.ts",
+    "jobs/watch-renewer.ts",
+    "middleware.ts",
+    "next.config.ts",
+    "package.json"
+  ]
+}

@@ -99,4 +99,121 @@ export class WhatsAppAdapter implements INotificationProvider {
       throw error;
     }
   }
+
+  async dispatchDigest(payload: import("../../core/interfaces/INotificationProvider").DigestPayload): Promise<string> {
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      throw new Error("[WHATSAPP_ADAPTER] Missing WhatsApp Cloud API credentials in environment.");
+    }
+
+    const to = payload.destination.replace(/\D/g, "");
+    const url = `https://graph.facebook.com/v19.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    const messageBody = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: "inbox_digest_v1",
+        language: {
+          code: "en_US",
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: payload.importantCount.toString() },
+              { type: "text", text: payload.actionItemsCount.toString() },
+              { type: "text", text: payload.deadlinesCount.toString() }
+            ]
+          }
+        ]
+      }
+    };
+
+    const sendRequest = async () => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageBody),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const err = new Error(`WhatsApp API Error: ${errData.error?.message || response.statusText}`);
+        (err as any).status = response.status;
+        throw err;
+      }
+      return response.json();
+    };
+
+    try {
+      const data = await withRetry(sendRequest);
+      if (data.messages && data.messages.length > 0) return data.messages[0].id;
+      throw new Error("No message ID returned from Meta");
+    } catch (error) {
+      logger.error({ err: error }, "[WHATSAPP_ADAPTER] Digest Dispatch Failed");
+      throw error;
+    }
+  }
+
+  async dispatchDeadlineReminder(payload: import("../../core/interfaces/INotificationProvider").DeadlineReminderPayload): Promise<string> {
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      throw new Error("[WHATSAPP_ADAPTER] Missing WhatsApp Cloud API credentials in environment.");
+    }
+
+    const to = payload.destination.replace(/\D/g, "");
+    const url = `https://graph.facebook.com/v19.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    const messageBody = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: "deadline_reminder_v1",
+        language: {
+          code: "en_US",
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: payload.actionItem.substring(0, 500) },
+              { type: "text", text: payload.dueDate.substring(0, 100) }
+            ]
+          }
+        ]
+      }
+    };
+
+    const sendRequest = async () => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageBody),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const err = new Error(`WhatsApp API Error: ${errData.error?.message || response.statusText}`);
+        (err as any).status = response.status;
+        throw err;
+      }
+      return response.json();
+    };
+
+    try {
+      const data = await withRetry(sendRequest);
+      if (data.messages && data.messages.length > 0) return data.messages[0].id;
+      throw new Error("No message ID returned from Meta");
+    } catch (error) {
+      logger.error({ err: error }, "[WHATSAPP_ADAPTER] Deadline Reminder Dispatch Failed");
+      throw error;
+    }
+  }
 }

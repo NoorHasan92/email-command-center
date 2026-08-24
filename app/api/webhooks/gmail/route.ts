@@ -58,6 +58,10 @@ export async function POST(req: NextRequest) {
       try {
         const mod = await import("@/jobs/webhook-processor");
         await mod.processWebhooks();
+        
+        // Secondary safety net for watch renewals
+        const renewMod = await import("@/jobs/watch-renewer");
+        await renewMod.renewWatches();
       } catch (err) {
         console.error("[WEBHOOK_GMAIL] Background processor failed:", err);
       }

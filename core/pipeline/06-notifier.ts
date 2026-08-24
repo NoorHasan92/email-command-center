@@ -122,5 +122,28 @@ export async function dispatchNotifications(
       });
       // Let orchestrator handle background retry if needed
     }
+
+    // 6. Deadline Reminder Dispatch (if applicable)
+    if (analysis.deadline && provider.dispatchDeadlineReminder) {
+      try {
+        const actionItem = (analysis.actionItems as any)?.[0] || email.subject || "Action Required";
+        const dueDateStr = analysis.deadline.toLocaleString("en-US", {
+          timeZone: "Asia/Kolkata",
+          dateStyle: "medium",
+          timeStyle: "short"
+        });
+
+        const deadlinePayload = {
+          actionItem: actionItem,
+          dueDate: dueDateStr,
+          destination: payload.destination
+        };
+
+        const deadlineMsgId = await provider.dispatchDeadlineReminder(deadlinePayload);
+        logger.info(`[STAGE 06 - NOTIFIER] [SUCCESS] [ID: ${email.id}] | Channel: ${channelName} | Deadline Reminder WAMID: ${deadlineMsgId}`);
+      } catch (error: any) {
+        logger.error(`[STAGE 06 - NOTIFIER] [FAILED] [ID: ${email.id}] | Channel: ${channelName} | Deadline Reminder error=${error.message}`);
+      }
+    }
   }
 }
