@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Temporarily Store Raw Webhook Event for Dead-Letter/Queue processing
-    await db.webhookEvent.create({
+    const webhookEvent = await db.webhookEvent.create({
       data: {
         provider: "gmail",
         payload: body,
@@ -51,23 +51,35 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    console.log(`[WEBHOOK_GMAIL] Payload successfully queued.`);
+    console.log(`[WEBHOOK_GMAIL] Payload successfully queued. Processing synchronously...`);
 
-    // Process the webhook in the background using Next.js 15 after()
+    // 4. Process SYNCHRONOUSLY before returning response.
+    // The after() approach is unreliable on Vercel serverless — functions can be
+    // killed before background work completes, causing webhooks to pile up as PENDING.
+    // Google Pub/Sub allows up to 30s for a response, which is plenty of time.
+    try {
+      const { processWebhooks } = await import("@/jobs/webhook-processor");
+      await processWebhooks();
+
+      const { processPendingEmails } = await import("@/jobs/email-processor");
+      await processPendingEmails();
+    } catch (processingErr) {
+      console.error("[WEBHOOK_GMAIL] Synchronous processing failed (will be retried by cron):", processingErr);
+      // Don't return an error — the webhook event is already saved in DB
+      // and will be picked up by the next cron sweep.
+    }
+
+    // 5. Secondary sweep in after() for watch renewals and any remaining items
     after(async () => {
       try {
-        const mod = await import("@/jobs/webhook-processor");
-        await mod.processWebhooks();
-        
-        // Secondary safety net for watch renewals
-        const renewMod = await import("@/jobs/watch-renewer");
-        await renewMod.renewWatches();
+        const { renewWatches } = await import("@/jobs/watch-renewer");
+        await renewWatches();
       } catch (err) {
-        console.error("[WEBHOOK_GMAIL] Background processor failed:", err);
+        console.error("[WEBHOOK_GMAIL] Background watch renewal failed:", err);
       }
     });
 
-    // 4. Acknowledge Receipt Immediately
+    // 6. Acknowledge Receipt
     return NextResponse.json({ success: true });
 
   } catch (error) {
