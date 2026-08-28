@@ -11,7 +11,7 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import * as Flags from 'country-flag-icons/react/3x2';
 import { toast } from "sonner";
-import { QRCode } from 'react-qrcode-logo';
+import WhatsAppShapedQR from "@/components/ui/whatsapp-shaped-qr";
 
 const CustomFlag = ({ country, countryName }: { country: string, countryName: string }) => {
   const Flag = Flags[country as keyof typeof Flags];
@@ -316,31 +316,11 @@ export default function IntegrationsClient({
                   
                   <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
                     {waQr ? (
-                      <div 
-                        className="relative flex items-center justify-center w-[220px] h-[220px] shadow-sm transition-all hover:scale-105"
-                        style={{
-                          backgroundColor: "#16a34a",
-                          WebkitMaskImage: "url('/whatsapp-mask.svg')",
-                          WebkitMaskSize: "contain",
-                          WebkitMaskRepeat: "no-repeat",
-                          WebkitMaskPosition: "center",
-                          maskImage: "url('/whatsapp-mask.svg')",
-                          maskSize: "contain",
-                          maskRepeat: "no-repeat",
-                          maskPosition: "center",
-                        }}
-                      >
-                        <QRCode
-                          value={waQr}
-                          qrStyle="dots"
-                          ecLevel="H"
-                          eyeRadius={[5, 5, 5] as any}
-                          fgColor="#ffffff"
-                          bgColor="transparent"
-                          size={140}
-                          quietZone={0}
-                        />
-                      </div>
+                      <WhatsAppShapedQR
+                        value={waQr}
+                        size={260}
+                        dotColor="#16a34a"
+                      />
                     ) : (
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
