@@ -316,18 +316,31 @@ export default function IntegrationsClient({
                   
                   <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
                     {waQr ? (
-                      <QRCode
-                        value={waQr}
-                        qrStyle="dots"
-                        eyeRadius={[10, 10, 10] as any}
-                        fgColor="#16a34a"
-                        bgColor="transparent"
-                        logoImage="/whatsapp.svg"
-                        logoWidth={40}
-                        logoHeight={40}
-                        size={200}
-                        removeQrCodeBehindLogo={true}
-                      />
+                      <div 
+                        className="relative flex items-center justify-center w-[220px] h-[220px] shadow-sm transition-all hover:scale-105"
+                        style={{
+                          backgroundColor: "#16a34a",
+                          WebkitMaskImage: "url('/whatsapp-mask.svg')",
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: "url('/whatsapp-mask.svg')",
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      >
+                        <QRCode
+                          value={waQr}
+                          qrStyle="dots"
+                          ecLevel="H"
+                          eyeRadius={[5, 5, 5] as any}
+                          fgColor="#ffffff"
+                          bgColor="transparent"
+                          size={140}
+                          quietZone={0}
+                        />
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
