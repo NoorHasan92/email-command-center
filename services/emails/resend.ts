@@ -52,3 +52,28 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     throw new Error(`Failed to send password reset email: ${error.message}`);
   }
 }
+
+export async function sendWhatsAppVerificationEmail(email: string, code: string) {
+  if (!resend) {
+    logger.info(`[MOCK EMAIL] WhatsApp Verification Email to ${email}. Code: ${code}`);
+    return;
+  }
+
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to: email,
+    subject: "WhatsApp Verification Code - Inbox Sentinel",
+    html: `
+      <h2>Verify your WhatsApp number</h2>
+      <p>Please enter the following code in Inbox Sentinel to verify your WhatsApp number:</p>
+      <h1 style="font-size: 32px; letter-spacing: 4px; padding: 10px; background-color: #f4f4f5; border-radius: 8px; display: inline-block;">${code}</h1>
+      <p>This code expires in 5 minutes.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `,
+  });
+
+  if (error) {
+    logger.error({ err: error, email }, "[RESEND] Failed to send WhatsApp verification email");
+    throw new Error(`Failed to send WhatsApp verification email: ${error.message}`);
+  }
+}

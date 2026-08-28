@@ -5,13 +5,14 @@ import { Plug, Plus, Check, Phone, Loader2, Mail, X, Send, Bell } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toggleWhatsAppAction, disconnectGmailAction, disconnectTelegramAction, updateNotifyChannelsAction } from "@/server/actions/integrations.actions";
+import { sendWhatsAppOTPAction, verifyWhatsAppOTPAction } from "@/server/actions/whatsapp-otp.actions";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import * as Flags from 'country-flag-icons/react/3x2';
 import { toast } from "sonner";
-import WhatsAppShapedQR from "@/components/ui/whatsapp-shaped-qr";
+import { QRCode } from 'react-qrcode-logo';
 
 const CustomFlag = ({ country, countryName }: { country: string, countryName: string }) => {
   const Flag = Flags[country as keyof typeof Flags];
@@ -55,6 +56,16 @@ export default function IntegrationsClient({
   const [waStatus, setWaStatus] = useState<"connecting" | "connected" | "logged_out" | "available">(whatsappOptIn ? "connected" : "available");
   const [waQr, setWaQr] = useState<string | null>(null);
   const [waMeta, setWaMeta] = useState<any>(null);
+
+  // WhatsApp OTP Flow State
+  const [waMethod, setWaMethod] = useState<"SELECT" | "QR" | "OTP">("SELECT");
+  const [otpPhone, setOtpPhone] = useState("");
+  const [otpStep, setOtpStep] = useState<"PHONE" | "VERIFY">("PHONE");
+  const [waCode, setWaCode] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [verificationId, setVerificationId] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
@@ -185,6 +196,49 @@ export default function IntegrationsClient({
     setTimeout(() => setChannelsSaved(false), 2000);
   };
 
+  const handleSendOTP = async () => {
+    if (!otpPhone || !isValidPhoneNumber(otpPhone)) {
+      setOtpError("Please enter a valid phone number.");
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError("");
+    const res = await sendWhatsAppOTPAction(otpPhone);
+    setOtpLoading(false);
+    
+    if (res.error) {
+      setOtpError(res.error);
+    } else if (res.success && res.verificationId) {
+      setVerificationId(res.verificationId);
+      setOtpStep("VERIFY");
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (waCode.length !== 6 || emailCode.length !== 6) {
+      setOtpError("Please enter both 6-digit verification codes.");
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError("");
+    const res = await verifyWhatsAppOTPAction(verificationId, waCode, emailCode);
+    setOtpLoading(false);
+    
+    if (res.error) {
+      setOtpError(res.error);
+    } else {
+      toast.success("WhatsApp connected successfully!");
+      setWaModalOpen(false);
+      // Reset state
+      setWaMethod("SELECT");
+      setOtpStep("PHONE");
+      setOtpPhone("");
+      setWaCode("");
+      setEmailCode("");
+      router.refresh();
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
       <div className="max-w-4xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
@@ -311,31 +365,157 @@ export default function IntegrationsClient({
             </div>
             <div className="p-6">
               {!whatsappOptIn ? (
-                <div className="space-y-4 flex flex-col items-center">
-                  <p className="text-sm text-muted-foreground mb-2 text-center">Scan the QR code with your WhatsApp app to link your device.</p>
-                  
-                  <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
-                    {waQr ? (
-                      <WhatsAppShapedQR
-                        value={waQr}
-                        size={260}
-                        dotColor="#16a34a"
-                      />
+                waMethod === "SELECT" ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground text-center mb-6">How would you like to connect?</p>
+                    
+                    <button 
+                      onClick={() => setWaMethod("QR")}
+                      className="w-full flex items-center p-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left gap-4"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                        <WhatsAppIcon className="w-6 h-6 text-green-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Scan QR Code</h4>
+                        <p className="text-sm text-muted-foreground">Best for desktop — scan with phone</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => setWaMethod("OTP")}
+                      className="w-full flex items-center p-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left gap-4"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Phone className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Verify with OTP</h4>
+                        <p className="text-sm text-muted-foreground">Best for mobile — enter your number</p>
+                      </div>
+                    </button>
+                  </div>
+                ) : waMethod === "QR" ? (
+                  <div className="space-y-4 flex flex-col items-center">
+                    <button 
+                      onClick={() => setWaMethod("SELECT")}
+                      className="text-xs text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mb-2"
+                    >
+                      ← Back
+                    </button>
+                    <p className="text-sm text-muted-foreground mb-2 text-center">Scan the QR code with your WhatsApp app to link your device.</p>
+                    
+                    <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
+                      {waQr ? (
+                        <QRCode
+                          value={waQr}
+                          qrStyle="dots"
+                          eyeRadius={[10, 10, 10] as any}
+                          fgColor="#16a34a"
+                          bgColor="transparent"
+                          logoImage="/whatsapp.svg"
+                          logoWidth={40}
+                          logoHeight={40}
+                          size={200}
+                          removeQrCodeBehindLogo={true}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-3">
+                          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Generating QR...</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <ol className="text-sm text-muted-foreground space-y-2 mt-4 text-left w-full pl-4 list-decimal">
+                      <li>Open WhatsApp on your phone</li>
+                      <li>Tap <strong>Settings</strong> and select <strong>Linked Devices</strong></li>
+                      <li>Tap on <strong>Link a device</strong></li>
+                      <li>Point your phone to this screen to capture the code</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => { setWaMethod("SELECT"); setOtpStep("PHONE"); setOtpError(""); }}
+                      className="text-xs text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mb-2"
+                    >
+                      ← Back
+                    </button>
+                    {otpStep === "PHONE" ? (
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Enter your WhatsApp phone number.</p>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Phone Number</label>
+                          <PhoneInput
+                            international
+                            countryCallingCodeEditable={false}
+                            defaultCountry="US"
+                            value={otpPhone}
+                            onChange={(val) => setOtpPhone(val as string)}
+                            flagComponent={CustomFlag}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                            numberInputProps={{
+                              className: "flex-1 bg-transparent outline-none ml-2",
+                              placeholder: "Enter phone number"
+                            }}
+                          />
+                        </div>
+                        {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
+                        <Button 
+                          className="w-full" 
+                          onClick={handleSendOTP} 
+                          disabled={otpLoading || !otpPhone}
+                        >
+                          {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Send Verification Code
+                        </Button>
+                      </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Generating QR...</span>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">A 6-digit code was sent to your WhatsApp and another to your Email.</p>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">WhatsApp Code</label>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={waCode}
+                            onChange={(e) => setWaCode(e.target.value.replace(/\D/g, ''))}
+                            placeholder="000000"
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Email Code</label>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={emailCode}
+                            onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ''))}
+                            placeholder="000000"
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
+                          />
+                        </div>
+                        {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
+                        <Button 
+                          className="w-full" 
+                          onClick={handleVerifyOTP} 
+                          disabled={otpLoading || waCode.length !== 6 || emailCode.length !== 6}
+                        >
+                          {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Verify & Connect
+                        </Button>
+                        <button 
+                          onClick={handleSendOTP}
+                          disabled={otpLoading}
+                          className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
+                        >
+                          Resend codes
+                        </button>
                       </div>
                     )}
                   </div>
-                  
-                  <ol className="text-sm text-muted-foreground space-y-2 mt-4 text-left w-full pl-4 list-decimal">
-                    <li>Open WhatsApp on your phone</li>
-                    <li>Tap <strong>Settings</strong> and select <strong>Linked Devices</strong></li>
-                    <li>Tap on <strong>Link a device</strong></li>
-                    <li>Point your phone to this screen to capture the code</li>
-                  </ol>
-                </div>
+                )
               ) : (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">

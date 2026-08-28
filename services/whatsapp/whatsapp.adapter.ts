@@ -216,4 +216,65 @@ export class WhatsAppAdapter implements INotificationProvider {
       throw error;
     }
   }
+
+  async sendOTP(phoneNumber: string, code: string): Promise<string> {
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      throw new Error("[WHATSAPP_ADAPTER] Missing WhatsApp Cloud API credentials in environment.");
+    }
+
+    const to = phoneNumber.replace(/\D/g, "");
+    const url = `https://graph.facebook.com/v19.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    // Repurposing inbox_alert_v1 for OTP. 
+    // Once an OTP template is approved, change the template name and parameters.
+    const messageBody = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: "inbox_alert_v1",
+        language: {
+          code: "en_US",
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: `Your verification code is: ${code}` },
+              { type: "text", text: "Verification" },
+              { type: "text", text: "Enter this code in Inbox Sentinel to verify your WhatsApp number. This code expires in 5 minutes." }
+            ]
+          }
+        ]
+      }
+    };
+
+    const sendRequest = async () => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageBody),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const err = new Error(`WhatsApp API Error: ${errData.error?.message || response.statusText}`);
+        (err as any).status = response.status;
+        throw err;
+      }
+      return response.json();
+    };
+
+    try {
+      const data = await withRetry(sendRequest);
+      if (data.messages && data.messages.length > 0) return data.messages[0].id;
+      throw new Error("No message ID returned from Meta");
+    } catch (error) {
+      logger.error({ err: error }, "[WHATSAPP_ADAPTER] OTP Dispatch Failed");
+      throw error;
+    }
+  }
 }

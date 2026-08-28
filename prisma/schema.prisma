@@ -183,6 +183,7 @@ model User {
   notificationRules     NotificationRule[]
   senderProfiles        SenderProfile[]
   learningRules         UserLearningRule[]
+  whatsappVerifications WhatsAppVerification[]
 }
 
 model Account {
@@ -414,6 +415,24 @@ model SenderProfile {
   
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, emailAddress])
+}
+
+model WhatsAppVerification {
+  id              String   @id @default(cuid())
+  userId          String
+  phoneNumber     String
+  whatsappCode    String   
+  emailCode       String   
+  whatsappVerified Boolean @default(false)
+  emailVerified    Boolean @default(false)
+  expiresAt       DateTime
+  attempts        Int      @default(0) 
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model UserLearningRule {
