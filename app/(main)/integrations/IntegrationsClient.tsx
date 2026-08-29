@@ -1,23 +1,97 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plug, Plus, Check, Phone, Loader2, Mail, X, Send, Bell } from "lucide-react";
+import { Plug, Plus, Check, Phone, Loader2, Mail, X, Send, Bell, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toggleWhatsAppAction, disconnectGmailAction, disconnectTelegramAction, updateNotifyChannelsAction } from "@/server/actions/integrations.actions";
 import { sendWhatsAppOTPAction, verifyWhatsAppOTPAction } from "@/server/actions/whatsapp-otp.actions";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import { toast } from "sonner";
+import PhoneInput, { isValidPhoneNumber, getCountries } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import * as Flags from 'country-flag-icons/react/3x2';
-import { toast } from "sonner";
-import { QRCode } from 'react-qrcode-logo';
 
 const CustomFlag = ({ country, countryName }: { country: string, countryName: string }) => {
   const Flag = Flags[country as keyof typeof Flags];
-  if (!Flag) return <div className="w-5 h-4 bg-muted rounded-sm border border-border" title={countryName} />;
-  return <Flag title={countryName} className="w-5 h-4 object-cover rounded-sm border border-border" />;
+  if (!Flag) return <div className="w-5 h-4 bg-muted rounded-sm border border-border shrink-0" title={countryName} />;
+  return <Flag title={countryName} className="w-5 h-4 object-cover rounded-sm border border-border shrink-0" />;
+};
+
+const CustomCountrySelect = ({ value, onChange, iconComponent: Icon }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+  const allCountries = getCountries().map(country => {
+    let label: string = country;
+    try {
+      label = regionNames.of(country) || country;
+    } catch (e) { }
+    return { value: country, label };
+  }).sort((a, b) => a.label.localeCompare(b.label));
+
+  const filteredOptions = allCountries.filter((option: any) =>
+    option.label?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="relative flex items-center">
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 h-full hover:bg-secondary/50 focus:outline-none transition-colors border-r border-input bg-muted/10"
+      >
+        <Icon country={value} label={value ? allCountries.find(c => c.value === value)?.label || "International" : "International"} />
+        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-[calc(100%+8px)] left-0 w-[300px] bg-zinc-950 text-foreground border border-zinc-800 rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-100">
+            <div className="border-b border-zinc-800 bg-zinc-900/50 p-2 shrink-0">
+              <div className="relative flex items-center bg-black/40 border border-zinc-700/50 rounded-md overflow-hidden focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                <Search className="w-4 h-4 absolute left-2.5 text-zinc-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search country..."
+                  className="w-full bg-transparent border-none text-sm pl-8 pr-3 py-2 focus:outline-none placeholder:text-zinc-500 text-zinc-100"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="p-1.5 overflow-y-auto max-h-[180px] flex-1 flex flex-col gap-0.5 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+              {filteredOptions.length === 0 ? (
+                <div className="p-4 text-sm text-center text-zinc-500">No countries found</div>
+              ) : (
+                filteredOptions.map((option: any) => (
+                  <button
+                    key={option.value || 'international'}
+                    type="button"
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors text-left ${value === option.value ? 'bg-primary/20 text-primary font-medium' : 'hover:bg-zinc-800 text-zinc-300 hover:text-white'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange(option.value);
+                      setIsOpen(false);
+                      setSearch("");
+                    }}
+                  >
+                    <Icon country={option.value} label={option.label} />
+                    <span className="truncate">{option.label}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -58,7 +132,7 @@ export default function IntegrationsClient({
   const [waMeta, setWaMeta] = useState<any>(null);
 
   // WhatsApp OTP Flow State
-  const [waMethod, setWaMethod] = useState<"SELECT" | "QR" | "OTP">("SELECT");
+  const [waMethod, setWaMethod] = useState<"OTP">("OTP");
   const [otpPhone, setOtpPhone] = useState("");
   const [otpStep, setOtpStep] = useState<"PHONE" | "VERIFY">("PHONE");
   const [waCode, setWaCode] = useState("");
@@ -66,6 +140,14 @@ export default function IntegrationsClient({
   const [verificationId, setVerificationId] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const [tgModalOpen, setTgModalOpen] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
@@ -81,50 +163,6 @@ export default function IntegrationsClient({
 
   const router = useRouter();
 
-  useEffect(() => {
-    let es: EventSource | null = null;
-    
-    if (waModalOpen && !whatsappOptIn) {
-      setWaStatus("connecting");
-      setWaQr(null);
-      es = new EventSource("/api/integrations/whatsapp/sse");
-      
-      es.addEventListener('qr', (event) => {
-        const data = JSON.parse(event.data);
-        setWaQr(data.qr);
-        setWaStatus("connecting");
-      });
-
-      es.addEventListener('status', (event) => {
-        const data = JSON.parse(event.data);
-          if (data.status === 'connected') {
-            setWaStatus("connected");
-            setWaMeta(data);
-            setWaQr(null);
-            toast.success("WhatsApp connected successfully", {
-              id: "wa-connected",
-              description: "Your device is now linked."
-            });
-            
-            setChannels(prev => {
-              const updated = [...new Set([...prev, "WHATSAPP"])];
-              return updated;
-            });
-            
-            // Do side-effects outside the state updater!
-            updateNotifyChannelsAction([...new Set([...channels, "WHATSAPP"])]).then(() => router.refresh());
-            setTimeout(() => setWaModalOpen(false), 2000);
-        } else if (data.status === 'logged_out') {
-          setWaStatus("available");
-          setWaQr(null);
-        }
-      });
-    }
-    
-    return () => {
-      if (es) es.close();
-    };
-  }, [waModalOpen, whatsappOptIn, router]);
 
   // Legacy fallback or just disabled
   const handleConnectWhatsApp = async (e: React.FormEvent) => {
@@ -205,12 +243,13 @@ export default function IntegrationsClient({
     setOtpError("");
     const res = await sendWhatsAppOTPAction(otpPhone);
     setOtpLoading(false);
-    
+
     if (res.error) {
       setOtpError(res.error);
     } else if (res.success && res.verificationId) {
       setVerificationId(res.verificationId);
       setOtpStep("VERIFY");
+      setResendCooldown(60);
     }
   };
 
@@ -223,14 +262,14 @@ export default function IntegrationsClient({
     setOtpError("");
     const res = await verifyWhatsAppOTPAction(verificationId, waCode, emailCode);
     setOtpLoading(false);
-    
+
     if (res.error) {
       setOtpError(res.error);
     } else {
       toast.success("WhatsApp connected successfully!");
       setWaModalOpen(false);
       // Reset state
-      setWaMethod("SELECT");
+      setWaMethod("OTP");
       setOtpStep("PHONE");
       setOtpPhone("");
       setWaCode("");
@@ -358,164 +397,109 @@ export default function IntegrationsClient({
       {/* WhatsApp Modal */}
       {waModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md flex flex-col">
             <div className="p-4 border-b border-border flex justify-between items-center">
               <h3 className="font-semibold text-lg flex items-center gap-2"><WhatsAppIcon className="w-5 h-5 text-green-500" /> WhatsApp Integration</h3>
               <button onClick={() => setWaModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-6">
               {!whatsappOptIn ? (
-                waMethod === "SELECT" ? (
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground text-center mb-6">How would you like to connect?</p>
-                    
-                    <button 
-                      onClick={() => setWaMethod("QR")}
-                      className="w-full flex items-center p-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left gap-4"
-                    >
-                      <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                        <WhatsAppIcon className="w-6 h-6 text-green-500" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground">Scan QR Code</h4>
-                        <p className="text-sm text-muted-foreground">Best for desktop — scan with phone</p>
-                      </div>
-                    </button>
-
-                    <button 
-                      onClick={() => setWaMethod("OTP")}
-                      className="w-full flex items-center p-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left gap-4"
-                    >
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Phone className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground">Verify with OTP</h4>
-                        <p className="text-sm text-muted-foreground">Best for mobile — enter your number</p>
-                      </div>
-                    </button>
-                  </div>
-                ) : waMethod === "QR" ? (
-                  <div className="space-y-4 flex flex-col items-center">
-                    <button 
-                      onClick={() => setWaMethod("SELECT")}
-                      className="text-xs text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mb-2"
-                    >
-                      ← Back
-                    </button>
-                    <p className="text-sm text-muted-foreground mb-2 text-center">Scan the QR code with your WhatsApp app to link your device.</p>
-                    
-                    <div className="bg-secondary/20 p-6 rounded-xl border border-border flex items-center justify-center min-h-[250px] w-full">
-                      {waQr ? (
-                        <QRCode
-                          value={waQr}
-                          qrStyle="dots"
-                          eyeRadius={[10, 10, 10] as any}
-                          fgColor="#16a34a"
-                          bgColor="transparent"
-                          logoImage="/whatsapp.svg"
-                          logoWidth={40}
-                          logoHeight={40}
-                          size={200}
-                          removeQrCodeBehindLogo={true}
+                <div className="space-y-4">
+                  {otpStep === "PHONE" ? (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">Enter your WhatsApp phone number.</p>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Phone Number</label>
+                        <PhoneInput
+                          international
+                          countryCallingCodeEditable={false}
+                          defaultCountry="US"
+                          value={otpPhone}
+                          onChange={(val) => setOtpPhone(val as string)}
+                          flagComponent={CustomFlag}
+                          countrySelectComponent={CustomCountrySelect}
+                          className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                          numberInputProps={{
+                            className: "flex-1 bg-transparent outline-none px-3 w-full h-full",
+                            placeholder: "Enter phone number",
+                            onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter' && !otpLoading && otpPhone) {
+                                e.preventDefault();
+                                handleSendOTP();
+                              }
+                            }
+                          }}
                         />
-                      ) : (
-                        <div className="flex flex-col items-center gap-3">
-                          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Generating QR...</span>
-                        </div>
-                      )}
+                      </div>
+                      {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
+                      <Button
+                        className="w-full"
+                        onClick={handleSendOTP}
+                        disabled={otpLoading || !otpPhone}
+                      >
+                        {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Send Verification Code
+                      </Button>
                     </div>
-                    
-                    <ol className="text-sm text-muted-foreground space-y-2 mt-4 text-left w-full pl-4 list-decimal">
-                      <li>Open WhatsApp on your phone</li>
-                      <li>Tap <strong>Settings</strong> and select <strong>Linked Devices</strong></li>
-                      <li>Tap on <strong>Link a device</strong></li>
-                      <li>Point your phone to this screen to capture the code</li>
-                    </ol>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <button 
-                      onClick={() => { setWaMethod("SELECT"); setOtpStep("PHONE"); setOtpError(""); }}
-                      className="text-xs text-muted-foreground hover:text-foreground self-start flex items-center gap-1 mb-2"
-                    >
-                      ← Back
-                    </button>
-                    {otpStep === "PHONE" ? (
-                      <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">Enter your WhatsApp phone number.</p>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Phone Number</label>
-                          <PhoneInput
-                            international
-                            countryCallingCodeEditable={false}
-                            defaultCountry="US"
-                            value={otpPhone}
-                            onChange={(val) => setOtpPhone(val as string)}
-                            flagComponent={CustomFlag}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                            numberInputProps={{
-                              className: "flex-1 bg-transparent outline-none ml-2",
-                              placeholder: "Enter phone number"
-                            }}
-                          />
-                        </div>
-                        {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
-                        <Button 
-                          className="w-full" 
-                          onClick={handleSendOTP} 
-                          disabled={otpLoading || !otpPhone}
-                        >
-                          {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Send Verification Code
-                        </Button>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">A 6-digit code was sent to your WhatsApp and another to your Email.</p>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">WhatsApp Code</label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={waCode}
+                          onChange={(e) => setWaCode(e.target.value.replace(/\D/g, ''))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !otpLoading && waCode.length === 6 && emailCode.length === 6) {
+                              e.preventDefault();
+                              handleVerifyOTP();
+                            }
+                          }}
+                          placeholder="______"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
+                        />
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">A 6-digit code was sent to your WhatsApp and another to your Email.</p>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">WhatsApp Code</label>
-                          <input
-                            type="text"
-                            maxLength={6}
-                            value={waCode}
-                            onChange={(e) => setWaCode(e.target.value.replace(/\D/g, ''))}
-                            placeholder="000000"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Email Code</label>
-                          <input
-                            type="text"
-                            maxLength={6}
-                            value={emailCode}
-                            onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ''))}
-                            placeholder="000000"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
-                          />
-                        </div>
-                        {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
-                        <Button 
-                          className="w-full" 
-                          onClick={handleVerifyOTP} 
-                          disabled={otpLoading || waCode.length !== 6 || emailCode.length !== 6}
-                        >
-                          {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Verify & Connect
-                        </Button>
-                        <button 
-                          onClick={handleSendOTP}
-                          disabled={otpLoading}
-                          className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
-                        >
-                          Resend codes
-                        </button>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Email Code</label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={emailCode}
+                          onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ''))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !otpLoading && waCode.length === 6 && emailCode.length === 6) {
+                              e.preventDefault();
+                              handleVerifyOTP();
+                            }
+                          }}
+                          placeholder="______"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xl text-center tracking-[0.5em] font-mono"
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                          Didn't receive the email? Please check your spam or junk folder.
+                        </p>
                       </div>
-                    )}
-                  </div>
-                )
+                      {otpError && <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{otpError}</p>}
+                      <Button
+                        className="w-full"
+                        onClick={handleVerifyOTP}
+                        disabled={otpLoading || waCode.length !== 6 || emailCode.length !== 6}
+                      >
+                        {otpLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Verify & Connect
+                      </Button>
+                      <button
+                        onClick={handleSendOTP}
+                        disabled={otpLoading || resendCooldown > 0}
+                        className={`w-full text-xs text-center transition-colors ${resendCooldown > 0 ? 'text-muted-foreground/50 cursor-not-allowed' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {resendCooldown > 0 ? `Resend codes in ${resendCooldown}s` : 'Resend codes'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">
@@ -525,7 +509,7 @@ export default function IntegrationsClient({
                       <p className="text-sm text-muted-foreground">{waMeta?.phoneNumber || phoneNumber}</p>
                     </div>
                   </div>
-                  
+
                   <div className="text-sm text-muted-foreground space-y-2">
                     <p><strong>Device:</strong> {waMeta?.deviceName || 'Personal Device'}</p>
                     <p><strong>Platform:</strong> {waMeta?.platform || 'Linked Device'}</p>
@@ -546,7 +530,7 @@ export default function IntegrationsClient({
       {/* Telegram Modal */}
       {tgModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md flex flex-col">
             <div className="p-4 border-b border-border flex justify-between items-center">
               <h3 className="font-semibold text-lg flex items-center gap-2"><TelegramIcon className="w-5 h-5 text-sky-500" /> Telegram Integration</h3>
               <button onClick={() => setTgModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
@@ -609,7 +593,7 @@ export default function IntegrationsClient({
       {/* Gmail Modal */}
       {gmailModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md flex flex-col">
             <div className="p-4 border-b border-border flex justify-between items-center">
               <h3 className="font-semibold text-lg flex items-center gap-2"><img src="/gmail.svg" alt="Gmail" className="w-5 h-5 object-contain" /> Gmail Integration</h3>
               <button onClick={() => setGmailModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
@@ -649,20 +633,20 @@ export default function IntegrationsClient({
   );
 }
 
-function IntegrationCard({ 
-  title, 
-  description, 
-  icon, 
-  status, 
-  onManage, 
+function IntegrationCard({
+  title,
+  description,
+  icon,
+  status,
+  onManage,
   onConnect,
   healthStats
-}: { 
-  title: string, 
-  description: string, 
-  icon: React.ReactNode, 
-  status: "connected" | "available" | "coming_soon" | "sandbox", 
-  onManage?: () => void, 
+}: {
+  title: string,
+  description: string,
+  icon: React.ReactNode,
+  status: "connected" | "available" | "coming_soon" | "sandbox",
+  onManage?: () => void,
   onConnect?: () => void,
   healthStats?: { sync: string, uptime: string }
 }) {

@@ -111,4 +111,58 @@ mail.tars.homes`;
             throw error;
         }
     }
+
+    async sendOTP(phoneNumber: string, code: string): Promise<string> {
+        let sock = whatsappManager.getSocket(this.userId);
+        
+        if (!sock || !sock.user) {
+            if (this.userId === 'SYSTEM_SENDER') {
+                logger.info("[BaileysAdapter] SYSTEM_SENDER socket missing. Attempting auto-reconnect...");
+                await whatsappManager.connect(this.userId);
+                
+                // Wait up to 8 seconds for the connection to fully establish
+                await new Promise<void>((resolve) => {
+                    const timeout = setTimeout(() => {
+                        whatsappManager.off(`status-${this.userId}`, onStatus);
+                        resolve();
+                    }, 8000);
+                    
+                    const onStatus = (data: any) => {
+                        if (data.status === 'connected') {
+                            clearTimeout(timeout);
+                            whatsappManager.off(`status-${this.userId}`, onStatus);
+                            resolve();
+                        }
+                    };
+                    
+                    whatsappManager.on(`status-${this.userId}`, onStatus);
+                });
+                
+                sock = whatsappManager.getSocket(this.userId);
+            }
+            
+            if (!sock || !sock.user) {
+                throw new Error("The system WhatsApp sender is currently reconnecting. Please try again in a few seconds.");
+            }
+        }
+
+        const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
+
+        const text = `🔐 *Inbox Sentinel Verification*
+━━━━━━━━━━━━━━
+Your verification code is: *${code}*
+
+_This code expires in 5 minutes._
+_If you didn't request this, please ignore this message._`;
+
+        try {
+            const result = await sock.sendMessage(to, { text });
+            if (!result?.key?.id) throw new Error("Message failed to send");
+            logger.info(`[BaileysAdapter] Sent OTP to ${to}`);
+            return result.key.id;
+        } catch (error) {
+            logger.error(error, `[BaileysAdapter] OTP Dispatch Failed:`);
+            throw error;
+        }
+    }
 }

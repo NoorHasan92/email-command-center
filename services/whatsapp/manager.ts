@@ -54,7 +54,13 @@ export class WhatsAppManager extends EventEmitter {
                 } else {
                     await store.clear();
                     this.emit(`status-${userId}`, { status: 'logged_out' });
-                    await db.user.update({ where: { id: userId }, data: { whatsappOptIn: false } });
+                    if (userId !== 'SYSTEM_SENDER') {
+                        try {
+                            await db.user.update({ where: { id: userId }, data: { whatsappOptIn: false } });
+                        } catch (e) {
+                            logger.warn(`[WhatsAppManager] Failed to update user opt-out: ${e}`);
+                        }
+                    }
                 }
             } else if (connection === 'open') {
                 logger.info(`[WhatsAppManager] Connection opened for ${userId}`);
@@ -69,10 +75,16 @@ export class WhatsAppManager extends EventEmitter {
                     const phoneNumber = jid.split(':')[0].split('@')[0];
                     const platform = jid.includes(':') ? 'Linked Device' : 'Primary Device';
                     
-                    await db.user.update({
-                        where: { id: userId },
-                        data: { phoneNumber: `+${phoneNumber}`, whatsappOptIn: true }
-                    });
+                    if (userId !== 'SYSTEM_SENDER') {
+                        try {
+                            await db.user.update({
+                                where: { id: userId },
+                                data: { phoneNumber: `+${phoneNumber}`, whatsappOptIn: true }
+                            });
+                        } catch (e) {
+                            logger.warn(`[WhatsAppManager] Failed to update user opt-in: ${e}`);
+                        }
+                    }
 
                     await store.saveMetadata({
                         phoneNumber: `+${phoneNumber}`,

@@ -88,11 +88,11 @@ export class WhatsAppAdapter implements INotificationProvider {
 
     try {
       const data = await withRetry(sendRequest);
-      
+
       if (data.messages && data.messages.length > 0) {
         return data.messages[0].id; // The wamid (providerMessageId)
       }
-      
+
       throw new Error("No message ID returned from Meta");
     } catch (error) {
       logger.error({ err: error }, "[WHATSAPP_ADAPTER] Dispatch Failed");

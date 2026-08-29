@@ -4,6 +4,7 @@ import { BaileysAdapter } from "./baileys.adapter";
 import { DatabaseStore } from "./session-store/DatabaseStore";
 import { logger } from "@/lib/logger";
 import { NotificationConfig } from "@/config/notifications";
+import { db } from "@/server/repositories/db";
 
 export class WhatsAppProvider implements INotificationProvider {
     constructor(private userId: string) {}
@@ -21,7 +22,13 @@ export class WhatsAppProvider implements INotificationProvider {
                         const adapter = new BaileysAdapter(this.userId);
                         return await adapter.dispatch(payload);
                     } else {
-                        throw new Error("Baileys not configured for this user");
+                        // Fallback to System Sender if they have a verified phone number
+                        const user = await db.user.findUnique({ where: { id: this.userId } });
+                        if (user?.phoneNumber && user?.whatsappOptIn) {
+                            const adapter = new BaileysAdapter('SYSTEM_SENDER');
+                            return await adapter.dispatch(payload);
+                        }
+                        throw new Error("Baileys not configured for this user and no verified phone number");
                     }
                 }
 
@@ -52,6 +59,11 @@ export class WhatsAppProvider implements INotificationProvider {
                         const adapter = new BaileysAdapter(this.userId);
                         return await adapter.dispatchDigest(payload);
                     } else {
+                        const user = await db.user.findUnique({ where: { id: this.userId } });
+                        if (user?.phoneNumber && user?.whatsappOptIn) {
+                            const adapter = new BaileysAdapter('SYSTEM_SENDER');
+                            return await adapter.dispatchDigest(payload);
+                        }
                         throw new Error("Baileys not configured for this user");
                     }
                 }
@@ -83,6 +95,11 @@ export class WhatsAppProvider implements INotificationProvider {
                         const adapter = new BaileysAdapter(this.userId);
                         return await adapter.dispatchDeadlineReminder(payload);
                     } else {
+                        const user = await db.user.findUnique({ where: { id: this.userId } });
+                        if (user?.phoneNumber && user?.whatsappOptIn) {
+                            const adapter = new BaileysAdapter('SYSTEM_SENDER');
+                            return await adapter.dispatchDeadlineReminder(payload);
+                        }
                         throw new Error("Baileys not configured for this user");
                     }
                 }

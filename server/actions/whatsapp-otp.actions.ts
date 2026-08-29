@@ -3,12 +3,12 @@
 import { db } from "@/server/repositories/db";
 import { auth } from "@/config/auth";
 import { logSecurityEvent } from "@/services/security/audit";
-import { WhatsAppAdapter } from "@/services/whatsapp/whatsapp.adapter";
+import { BaileysAdapter } from "@/services/whatsapp/baileys.adapter";
 import { sendWhatsAppVerificationEmail } from "@/services/emails/resend";
 import crypto from "crypto";
 
-// Max 3 requests per hour
-const MAX_REQUESTS = 3;
+// Max 15 requests per hour
+const MAX_REQUESTS = 15;
 const COOLDOWN_HOURS = 1;
 // 5 minutes expiry
 const EXPIRY_MINUTES = 5;
@@ -41,6 +41,19 @@ export async function sendWhatsAppOTPAction(phoneNumber: string) {
       return { error: "Too many requests. Please try again later." };
     }
 
+    // Check if phone number is already registered to ANOTHER user
+    const existingUser = await db.user.findFirst({
+      where: {
+        phoneNumber,
+        whatsappOptIn: true,
+        id: { not: userId }
+      }
+    });
+
+    if (existingUser) {
+      return { error: "This phone number is already connected to another account." };
+    }
+
     // Invalidate existing pending verifications
     await db.whatsAppVerification.updateMany({
       where: { userId, whatsappVerified: false, emailVerified: false },
@@ -65,7 +78,7 @@ export async function sendWhatsAppOTPAction(phoneNumber: string) {
 
     // Dispatch codes
     try {
-      const waAdapter = new WhatsAppAdapter();
+      const waAdapter = new BaileysAdapter('SYSTEM_SENDER');
       await waAdapter.sendOTP(phoneNumber, whatsappCode);
       
       await sendWhatsAppVerificationEmail(userEmail, emailCode);
