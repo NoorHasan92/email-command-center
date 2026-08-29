@@ -225,14 +225,14 @@ export class WhatsAppAdapter implements INotificationProvider {
     const to = phoneNumber.replace(/\D/g, "");
     const url = `https://graph.facebook.com/v19.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
-    // Repurposing inbox_alert_v1 for OTP. 
-    // Once an OTP template is approved, change the template name and parameters.
+    // Using Meta's prebuilt verify_code_1 authentication template.
+    // Template format: "{{1}} is your verification code."
     const messageBody = {
       messaging_product: "whatsapp",
       to: to,
       type: "template",
       template: {
-        name: "inbox_alert_v1",
+        name: "verify_code_1",
         language: {
           code: "en_US",
         },
@@ -240,9 +240,7 @@ export class WhatsAppAdapter implements INotificationProvider {
           {
             type: "body",
             parameters: [
-              { type: "text", text: `Your verification code is: ${code}` },
-              { type: "text", text: "Verification" },
-              { type: "text", text: "Enter this code in Inbox Sentinel to verify your WhatsApp number. This code expires in 5 minutes." }
+              { type: "text", text: code }
             ]
           }
         ]
