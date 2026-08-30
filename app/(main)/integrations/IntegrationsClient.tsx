@@ -40,7 +40,7 @@ const CustomCountrySelect = ({ value, onChange, iconComponent: Icon }: any) => {
 
   return (
     <div className="relative flex items-center">
-      <button 
+      <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 h-full hover:bg-secondary/50 focus:outline-none transition-colors border-r border-input bg-muted/10"
@@ -116,6 +116,8 @@ interface IntegrationsClientProps {
   telegramChatId: string | null;
   telegramUsername: string | null;
   notifyChannels: string[];
+  hasProScopes: boolean;
+  calendarAutomation: string;
 }
 
 export default function IntegrationsClient({
@@ -127,6 +129,8 @@ export default function IntegrationsClient({
   telegramChatId,
   telegramUsername,
   notifyChannels: initialChannels,
+  hasProScopes,
+  calendarAutomation,
 }: IntegrationsClientProps) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waLoading, setWaLoading] = useState(false);
@@ -338,18 +342,18 @@ export default function IntegrationsClient({
 
         {/* Integration Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <IntegrationCard
-          title="Gmail"
-          description="Connect your Gmail account to enable real-time AI scanning, threat detection, and automated smart drafting."
-          icon={<img src="/gmail.svg" alt="Gmail" className="w-8 h-8 object-contain" />}
-          status={gmailAccounts.length > 0 ? "connected" : "available"}
-          onManage={() => setGmailModalOpen(true)}
-          onConnect={() => window.location.href = "/api/integrations/gmail/connect"}
-          healthStats={gmailAccounts.length > 0 ? {
-            sync: gmailAccounts[0]?.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccounts[0].lastSyncedAt), { addSuffix: true }) : 'Unknown',
-            uptime: "100%"
-          } : undefined}
-        />
+          <IntegrationCard
+            title="Gmail"
+            description="Connect your Gmail account to enable real-time AI scanning, threat detection, and automated smart drafting."
+            icon={<img src="/gmail.svg" alt="Gmail" className="w-8 h-8 object-contain" />}
+            status={gmailAccounts.length > 0 ? "connected" : "available"}
+            onManage={() => setGmailModalOpen(true)}
+            onConnect={() => window.location.href = "/api/integrations/gmail/connect"}
+            healthStats={gmailAccounts.length > 0 ? {
+              sync: gmailAccounts[0]?.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccounts[0].lastSyncedAt), { addSuffix: true }) : 'Unknown',
+              uptime: "100%"
+            } : undefined}
+          />
           <IntegrationCard
             title="WhatsApp"
             description="Get pinged on WhatsApp for highly critical, time-sensitive emails."
@@ -371,8 +375,24 @@ export default function IntegrationsClient({
           <IntegrationCard
             title="Google Calendar"
             description="Automatically add detected deadlines and events to your calendar."
-            icon={<Plug className="w-6 h-6 text-blue-500" />}
-            status="coming_soon"
+            icon={<img src="/google-calendar.png" alt="Google Calendar" className="w-13 h-13 object-contain drop-shadow-sm" />}
+            status={hasProScopes && gmailAccounts.length > 0 ? "connected" : "available"}
+            onManage={() => router.push('/settings?tab=preferences')}
+            onConnect={() => {
+              if (gmailAccounts.length === 0) {
+                toast.error("Please connect a Gmail account first.");
+              } else if (userPlan !== "PRO" && userPlan !== "ULTRA" && userPlan !== "ADMIN") {
+                toast.error("Calendar integration requires a PRO or ULTRA plan.");
+              } else {
+                const hint = encodeURIComponent(gmailAccounts[0].emailAddress);
+                window.location.href = `/api/integrations/gmail/connect?proScopes=true&login_hint=${hint}`;
+              }
+            }}
+            isDisabled={calendarAutomation === "OFF"}
+            healthStats={hasProScopes && gmailAccounts.length > 0 ? {
+              sync: "Auto-sync active",
+              uptime: "100%"
+            } : undefined}
           />
           <IntegrationCard
             title="Slack"
@@ -664,7 +684,7 @@ export default function IntegrationsClient({
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex-1">
                           <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
-                            {account.emailAddress} 
+                            {account.emailAddress}
                             <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider">Active</span>
                           </h4>
                           <div className="text-xs text-muted-foreground mt-2 space-y-1">
@@ -687,11 +707,11 @@ export default function IntegrationsClient({
                 </div>
               )}
             </div>
-            
+
             <div className="p-6 border-t border-border bg-secondary/10">
-              <Button 
-                variant="default" 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+              <Button
+                variant="default"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={gmailAccounts.length >= 1 && userPlan !== "ULTRA" && userPlan !== "ADMIN"}
                 onClick={() => setAddSecondaryGmailModalOpen(true)}
               >
@@ -713,7 +733,7 @@ export default function IntegrationsClient({
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border/50 overflow-hidden relative">
             <div className="p-6 border-b border-border/50">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Plus className="w-5 h-5" /> 
+                <Plus className="w-5 h-5" />
                 {secondaryGmailStep === "EMAIL" && "Link Secondary Gmail"}
                 {secondaryGmailStep === "CODES" && "Verify Ownership"}
                 {secondaryGmailStep === "SUCCESS" && "Link Sent!"}
@@ -722,7 +742,7 @@ export default function IntegrationsClient({
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="p-6">
               {secondaryGmailStep === "EMAIL" && (
                 <form onSubmit={handleInitiateSecondaryLink} className="space-y-4">
@@ -731,7 +751,7 @@ export default function IntegrationsClient({
                   </p>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Secondary Gmail Address</label>
-                    <input 
+                    <input
                       type="email"
                       value={secondaryGmailTarget}
                       onChange={(e) => setSecondaryGmailTarget(e.target.value)}
@@ -754,7 +774,7 @@ export default function IntegrationsClient({
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Primary Verification Code</label>
-                      <input 
+                      <input
                         type="text"
                         value={primaryCode}
                         onChange={(e) => setPrimaryCode(e.target.value)}
@@ -766,7 +786,7 @@ export default function IntegrationsClient({
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Secondary Verification Code</label>
-                      <input 
+                      <input
                         type="text"
                         value={secondaryCode}
                         onChange={(e) => setSecondaryCode(e.target.value)}
@@ -790,7 +810,7 @@ export default function IntegrationsClient({
                   </div>
                   <h4 className="text-lg font-semibold">Verification Successful</h4>
                   <p className="text-sm text-muted-foreground">
-                    We have sent a final activation link to <strong>{secondaryGmailTarget}</strong>. 
+                    We have sent a final activation link to <strong>{secondaryGmailTarget}</strong>.
                     Please open that email on any device and click the link to authorize Inbox Sentinel.
                   </p>
                   <Button onClick={() => setAddSecondaryGmailModalOpen(false)} className="w-full" variant="outline">
@@ -814,7 +834,8 @@ function IntegrationCard({
   status,
   onManage,
   onConnect,
-  healthStats
+  healthStats,
+  isDisabled
 }: {
   title: string,
   description: string,
@@ -822,7 +843,8 @@ function IntegrationCard({
   status: "connected" | "available" | "coming_soon" | "sandbox",
   onManage?: () => void,
   onConnect?: () => void,
-  healthStats?: { sync: string, uptime: string }
+  healthStats?: { sync: string, uptime: string },
+  isDisabled?: boolean
 }) {
   const isConnected = status === 'connected' || status === 'sandbox';
 
@@ -836,7 +858,7 @@ function IntegrationCard({
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner border ${isConnected ? 'bg-primary/5 border-primary/20' : 'bg-secondary border-border/50'}`}>
             {icon}
           </div>
-          {status === "connected" && (
+          {status === "connected" && !isDisabled && (
             <div className="flex flex-col items-end">
               <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm">
                 <span className="relative flex h-2 w-2">
@@ -844,6 +866,13 @@ function IntegrationCard({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
                 Healthy
+              </span>
+            </div>
+          )}
+          {status === "connected" && isDisabled && (
+            <div className="flex flex-col items-end">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground bg-secondary px-2.5 py-1 rounded-md border border-border/50 shadow-sm" title="Calendar automation is disabled. Click 'Manage Settings' below to enable it.">
+                Disabled
               </span>
             </div>
           )}

@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: { tab?: string } }) {
   const { sessions, currentSessionId } = await getActiveSessions();
   const session = await auth();
   
@@ -31,6 +31,10 @@ export default async function SettingsPage() {
   });
 
   const hasGoogleLinked = user?.accounts?.some(acc => acc.provider === "google") ?? false;
+  
+  // Await searchParams before accessing properties (Next.js 15+ requirement)
+  const resolvedSearchParams = await searchParams;
+  const initialTab = resolvedSearchParams?.tab || "profile";
 
   return (
     <SettingsClient 
@@ -39,6 +43,7 @@ export default async function SettingsPage() {
       user={user} 
       hasPassword={!!user?.passwordHash} 
       hasGoogleLinked={hasGoogleLinked}
+      initialTab={initialTab}
     />
   );
 }

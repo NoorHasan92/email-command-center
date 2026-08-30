@@ -138,6 +138,20 @@ export async function GET(request: Request) {
 
         return account;
       });
+      
+      if (tokens.scope && tokens.scope.includes("calendar.events")) {
+        const appPrefs = activeUser?.appPreferences ? (typeof activeUser.appPreferences === 'object' ? activeUser.appPreferences : JSON.parse(activeUser.appPreferences as string)) : {};
+        await db.user.update({
+          where: { id: userId },
+          data: {
+            appPreferences: {
+              ...appPrefs,
+              hasCalendarScope: true
+            }
+          }
+        });
+      }
+
       await logSecurityEvent("GMAIL_CONNECTED", userId, { emailAddress: gmailAddress });
     } catch (e) {
       const error = e as Error;
@@ -207,10 +221,20 @@ export async function GET(request: Request) {
 
     // Determine redirect logic
     const totalAccounts = await db.emailAccount.count({ where: { userId } });
+    
+    // If we just granted calendar scopes, take them to the preferences tab to manage it
+    if (tokens.scope && tokens.scope.includes("calendar.events")) {
+      return NextResponse.redirect(new URL("/settings?tab=preferences", getBaseUrl()));
+    }
+
     if (totalAccounts === 1) {
       return NextResponse.redirect(new URL("/dashboard", getBaseUrl()));
     } else {
-      return NextResponse.redirect(new URL("/settings?tab=integrations", getBaseUrl()));
+      // It seems the user's codebase previously expected "integrations" but maybe "preferences" is better or they just go to /integrations.
+      // Wait, there is no "integrations" tab in SettingsClient. The tabs are: "profile", "preferences", "security", "appearance", "notifications".
+      // Let's redirect them to /integrations page instead if there's no such tab.
+      // Or just keep the existing behavior if it worked for them (but change to /integrations directly).
+      return NextResponse.redirect(new URL("/integrations", getBaseUrl()));
     }
 
   } catch (error) {

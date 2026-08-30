@@ -11,25 +11,29 @@ export default async function IntegrationsPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { 
-      whatsappOptIn: true, 
+    select: {
+      whatsappOptIn: true,
       phoneNumber: true,
       telegramOptIn: true,
       telegramChatId: true,
       telegramUsername: true,
       notifyChannels: true,
       plan: true,
+      appPreferences: true,
     }
   });
 
   const accounts = await db.emailAccount.findMany({
     where: { userId: session.user.id }
   });
-  
+
   const gmailAccounts = accounts.filter(a => a.provider === "gmail");
 
+  const appPrefs = user?.appPreferences ? (typeof user.appPreferences === 'object' ? user.appPreferences : JSON.parse(user.appPreferences as string)) : {};
+  const hasProScopes = !!appPrefs.hasCalendarScope;
+
   return (
-    <IntegrationsClient 
+    <IntegrationsClient
       gmailAccounts={JSON.parse(JSON.stringify(gmailAccounts))}
       userPlan={user?.plan || "FREE"}
       whatsappOptIn={user?.whatsappOptIn || false}
@@ -38,6 +42,8 @@ export default async function IntegrationsPage() {
       telegramChatId={user?.telegramChatId || null}
       telegramUsername={user?.telegramUsername || null}
       notifyChannels={Array.isArray(user?.notifyChannels) ? user.notifyChannels as string[] : []}
+      hasProScopes={hasProScopes}
+      calendarAutomation={appPrefs.calendarAutomation || "OFF"}
     />
   );
 }

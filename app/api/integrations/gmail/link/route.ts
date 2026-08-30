@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     }
 
     const request = await db.accountLinkRequest.findUnique({
-      where: { linkToken: token }
+      where: { linkToken: token },
+      include: { user: true }
     });
 
     if (!request || request.status !== "PENDING_OAUTH") {
@@ -34,9 +35,11 @@ export async function GET(req: NextRequest) {
       sameSite: "lax",
     });
 
+    const isPro = request.user.plan === "PRO" || request.user.plan === "ULTRA" || request.user.plan === "ADMIN";
+
     // Redirect to the normal Google OAuth flow
     // We append a query param just so the connect route knows it's a link flow (optional)
-    return NextResponse.redirect(`${getBaseUrl()}/api/integrations/gmail/connect?isLinkFlow=true`);
+    return NextResponse.redirect(`${getBaseUrl()}/api/integrations/gmail/connect?isLinkFlow=true&proScopes=${isPro}`);
   } catch (error) {
     console.error("Error in gmail link route:", error);
     return new NextResponse("Internal Server Error", { status: 500 });

@@ -73,7 +73,11 @@ async function createGoogleCalendarEvents(emailAccount: any, events: any[]) {
         }
       });
     } catch (err: any) {
-      logger.error(`[STAGE 05 - ACTIONS] [CALENDAR] Failed to create event '${ev.title}': ${err.message}`);
+      if (err.code === 403 || err.message?.toLowerCase().includes("insufficient permission")) {
+        logger.warn(`[STAGE 05 - ACTIONS] [CALENDAR] Missing Calendar Scope for event '${ev.title}'. User must re-authenticate with Pro scopes.`);
+      } else {
+        logger.error(`[STAGE 05 - ACTIONS] [CALENDAR] Failed to create event '${ev.title}': ${err.message}`);
+      }
     }
   }
 }
@@ -116,7 +120,11 @@ async function createGmailDraft(email: Email, emailAccount: any, draftText: stri
       }
     });
   } catch (err: any) {
-    logger.error(`[STAGE 05 - ACTIONS] [DRAFT] Failed to create draft: ${err.message}`);
+    if (err.code === 403 || err.message?.toLowerCase().includes("insufficient permission")) {
+      logger.warn(`[STAGE 05 - ACTIONS] [DRAFT] Missing Gmail Modify Scope. User must re-authenticate with Pro scopes.`);
+    } else {
+      logger.error(`[STAGE 05 - ACTIONS] [DRAFT] Failed to create draft: ${err.message}`);
+    }
   }
 }
 

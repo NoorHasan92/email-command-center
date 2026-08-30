@@ -47,20 +47,27 @@ export async function GET(req: NextRequest) {
 
     // Generate the URL
     // Requirement 2: Request minimum required scopes
+    const isProScopes = req.nextUrl.searchParams.get("proScopes") === "true";
+    const loginHint = req.nextUrl.searchParams.get("login_hint");
+    
     const scopes = [
       "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/gmail.modify", // To save smart drafts
-      "https://www.googleapis.com/auth/calendar.events", // To create calendar events
       "https://www.googleapis.com/auth/userinfo.email",
       "openid",
       "email",
     ];
+
+    if (isProScopes) {
+      scopes.push("https://www.googleapis.com/auth/gmail.modify"); // To save smart drafts
+      scopes.push("https://www.googleapis.com/auth/calendar.events"); // To create calendar events
+    }
 
     const authorizationUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       prompt: "consent", // Force consent to ensure a refresh token is provided
       scope: scopes,
       state: state,
+      ...(loginHint && { login_hint: loginHint }),
     });
 
     return NextResponse.redirect(authorizationUrl);

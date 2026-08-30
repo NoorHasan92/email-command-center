@@ -187,6 +187,7 @@ model User {
   senderProfiles        SenderProfile[]
   learningRules         UserLearningRule[]
   whatsappVerifications WhatsAppVerification[]
+  accountLinkRequests   AccountLinkRequest[]
 }
 
 model Account {
@@ -537,4 +538,6 @@ model AccountLinkRequest {
   expiresAt     DateTime
   status        String   @default("PENDING_CODES") // PENDING_CODES, PENDING_OAUTH, LINKED
   createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

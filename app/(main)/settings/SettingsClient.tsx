@@ -18,15 +18,17 @@ export default function SettingsClient({
   currentSessionId,
   user,
   hasPassword,
-  hasGoogleLinked
+  hasGoogleLinked,
+  initialTab = "profile"
 }: { 
   sessions: any[];
   currentSessionId: string | null;
   user: any;
   hasPassword: boolean;
   hasGoogleLinked: boolean;
+  initialTab?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "security" | "appearance" | "notifications">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "security" | "appearance" | "notifications">(initialTab as any);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -294,46 +296,72 @@ export default function SettingsClient({
                       
                       <div className="p-6 space-y-8">
                         {/* Calendar Automation */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-bold text-foreground">Calendar Automation</h4>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Allow AI to automatically schedule detected meetings, deadlines, and events into your Google Calendar.
-                            </p>
-                            <div className="flex items-center gap-2 mt-3">
-                              <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
+                        <div className="flex flex-col gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="text-sm font-bold text-foreground">Calendar Automation</h4>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Allow AI to automatically schedule detected meetings, deadlines, and events into your Google Calendar.
+                              </p>
+                              <div className="flex items-center gap-2 mt-3">
+                                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <label className={`relative inline-flex items-center ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                                <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  disabled={user?.plan === "FREE"}
+                                  checked={(user?.appPreferences as any)?.calendarAutomation !== "OFF" && !!(user?.appPreferences as any)?.calendarAutomation}
+                                  onChange={async (e) => {
+                                    const checked = e.target.checked;
+                                    const newMode = checked ? "ASK" : "OFF";
+                                    await updateAppPreferencesAction({ calendarAutomation: newMode });
+                                    if (checked) {
+                                      toast.success("Calendar automation enabled");
+                                    } else {
+                                      toast.error("Calendar automation disabled");
+                                    }
+                                  }}
+                                />
+                                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                              </label>
                             </div>
                           </div>
-                          <div className="shrink-0 flex items-center bg-black/20 rounded-xl p-1 border border-border/30">
-                            <button
-                              disabled={user?.plan === "FREE"}
-                              onClick={async () => {
-                                const newMode = (user?.appPreferences as any)?.calendarAutomation === "AUTO" ? "ASK" : "AUTO";
-                                await updateAppPreferencesAction({ calendarAutomation: newMode });
-                                toast.success(`Calendar automation set to ${newMode === "AUTO" ? "Automatic" : "Ask Permission"}`);
-                              }}
-                              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                                (user?.appPreferences as any)?.calendarAutomation === "AUTO" 
-                                  ? "bg-primary text-primary-foreground shadow-md" 
-                                  : "text-muted-foreground hover:text-foreground"
-                              } ${user?.plan === "FREE" ? "opacity-50 cursor-not-allowed" : ""}`}
-                            >
-                              Auto-Manage
-                            </button>
-                            <button
-                              disabled={user?.plan === "FREE"}
-                              onClick={async () => {
-                                await updateAppPreferencesAction({ calendarAutomation: "ASK" });
-                                toast.success("Calendar automation set to Ask Permission");
-                              }}
-                              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                                (user?.appPreferences as any)?.calendarAutomation !== "AUTO" 
-                                  ? "bg-primary text-primary-foreground shadow-md" 
-                                  : "text-muted-foreground hover:text-foreground"
-                              } ${user?.plan === "FREE" ? "opacity-50 cursor-not-allowed" : ""}`}
-                            >
-                              Ask First
-                            </button>
+                          
+                          <div className="flex items-center justify-between border-t border-border/50 pt-4 mt-2">
+                            <div className="text-xs font-semibold text-muted-foreground">Automation Mode</div>
+                            <div className={`shrink-0 flex items-center bg-black/20 rounded-xl p-1 border border-border/30 transition-opacity ${((user?.appPreferences as any)?.calendarAutomation === "OFF" || !(user?.appPreferences as any)?.calendarAutomation) ? 'opacity-50 pointer-events-none' : ''}`}>
+                              <button
+                                disabled={user?.plan === "FREE"}
+                                onClick={async () => {
+                                  await updateAppPreferencesAction({ calendarAutomation: "AUTO" });
+                                  toast.success("Calendar automation set to Automatic");
+                                }}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                                  (user?.appPreferences as any)?.calendarAutomation === "AUTO" 
+                                    ? "bg-primary text-primary-foreground shadow-md" 
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                Auto-Manage
+                              </button>
+                              <button
+                                disabled={user?.plan === "FREE"}
+                                onClick={async () => {
+                                  await updateAppPreferencesAction({ calendarAutomation: "ASK" });
+                                  toast.success("Calendar automation set to Ask Permission");
+                                }}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                                  (user?.appPreferences as any)?.calendarAutomation === "ASK" 
+                                    ? "bg-primary text-primary-foreground shadow-md" 
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                Ask First
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -349,7 +377,7 @@ export default function SettingsClient({
                             </div>
                           </div>
                           
-                          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <label className={`relative inline-flex items-center shrink-0 ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
                             <input 
                               type="checkbox" 
                               className="sr-only peer" 
@@ -358,7 +386,11 @@ export default function SettingsClient({
                               onChange={async (e) => {
                                 const checked = e.target.checked;
                                 await updateAppPreferencesAction({ smartDrafts: checked });
-                                toast.success(`Smart Drafts ${checked ? "enabled" : "disabled"}`);
+                                if (checked) {
+                                  toast.success("Smart Drafts enabled");
+                                } else {
+                                  toast.error("Smart Drafts disabled");
+                                }
                               }}
                             />
                             <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
