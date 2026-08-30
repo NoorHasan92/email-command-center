@@ -73,13 +73,13 @@ export default function DashboardClient({
 
   return (
     <div className="h-full w-full bg-transparent overflow-auto">
-      <div className="p-6 pb-24 max-w-6xl mx-auto w-full space-y-8 z-10 relative">
+        <div className="p-4 md:p-6 pb-24 max-w-6xl mx-auto w-full space-y-6 md:space-y-8 z-10 relative">
         
         {/* Personalized Hero */}
         <section className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
           <div className="space-y-4 flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-              <h1 className="text-4xl font-bold tracking-tight">
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
                 {greeting()}, {session?.user?.name?.split(' ')[0] || "User"} <span className="inline-block hover:animate-wiggle cursor-default">👋</span>
               </h1>
             </div>
@@ -89,14 +89,14 @@ export default function DashboardClient({
                 <ShieldCheck className="h-4 w-4 text-emerald-500" />
                 <span className="font-medium text-foreground">Inbox Protected</span>
               </div>
-              <Separator orientation="vertical" className="h-4" />
+              <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
                 <span>Monitoring: <span className="text-foreground font-medium">
                   {selectedAccountId && emailAccounts ? emailAccounts.find(a => a.id === selectedAccountId)?.emailAddress : (emailAccounts && emailAccounts.length > 1 ? "All Accounts" : session?.user?.email || "Connected Account")}
                 </span></span>
               </div>
-              <Separator orientation="vertical" className="h-4" />
+              <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 <span>Last Sync: <span className="text-foreground font-medium">{healthData.lastSync ? formatDistanceToNow(new Date(healthData.lastSync), { addSuffix: true }) : "Just now"}</span></span>
@@ -151,7 +151,7 @@ export default function DashboardClient({
                 </h3>
               </div>
               <div className="mt-auto">
-                <div className="text-6xl font-black tracking-tighter mb-2">{healthScore}<span className="text-3xl text-muted-foreground">%</span></div>
+                <div className="text-5xl md:text-6xl font-black tracking-tighter mb-2">{healthScore}<span className="text-2xl md:text-3xl text-muted-foreground">%</span></div>
                 <p className="text-muted-foreground">
                   {healthScore >= 90 ? "Everything looks safe today." : healthScore >= 70 ? "Some items require attention." : "Critical attention needed."}
                 </p>
@@ -254,7 +254,7 @@ export default function DashboardClient({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Opportunities Panel */}
-          <section className="bg-card/90 backdrop-blur border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col h-[420px]">
+          <section className="bg-card/90 backdrop-blur border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm flex flex-col h-[320px] md:h-[420px]">
             <div className="flex items-center justify-between mb-6 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
@@ -294,7 +294,7 @@ export default function DashboardClient({
           </section>
 
           {/* Upcoming Deadlines Panel */}
-          <section className="bg-card/90 backdrop-blur border border-border/50 rounded-2xl p-6 shadow-sm flex flex-col h-[420px]">
+          <section className="bg-card/90 backdrop-blur border border-border/50 rounded-2xl p-4 md:p-6 shadow-sm flex flex-col h-[320px] md:h-[420px]">
             <div className="flex items-center justify-between mb-6 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">

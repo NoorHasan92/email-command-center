@@ -156,32 +156,32 @@ export function AdminClient({
   };
 
   return (
-    <div className="w-full flex flex-col flex-1 p-6 md:p-10 space-y-8 bg-gradient-to-br from-background via-background to-indigo-950/20">
+    <div className="w-full flex flex-col flex-1 p-4 md:p-10 space-y-6 md:space-y-8 bg-gradient-to-br from-background via-background to-indigo-950/20">
 
       {/* Admin Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
         <div>
-          <h1 className="text-4xl font-black tracking-tighter flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
-            <ShieldAlert className="w-10 h-10 text-indigo-500" />
+          <h1 className="text-2xl md:text-4xl font-black tracking-tighter flex items-center gap-2 md:gap-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
+            <ShieldAlert className="w-7 h-7 md:w-10 md:h-10 text-indigo-500" />
             Command Center
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">System administration and AI evaluation dashboard.</p>
+          <p className="text-muted-foreground mt-1 md:mt-2 font-medium text-sm md:text-base">System administration and AI evaluation dashboard.</p>
         </div>
       </div>
 
       <Tabs defaultValue="users" className="w-full flex flex-col">
-        <TabsList className="w-full md:w-auto self-start bg-black/40 border border-white/5 backdrop-blur-md">
-          <TabsTrigger value="users" className="data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300">
-            User Management
+        <TabsList className="w-full md:w-auto self-start bg-black/40 border border-white/5 backdrop-blur-md overflow-x-auto no-scrollbar flex-nowrap">
+          <TabsTrigger value="users" className="data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 shrink-0 text-xs md:text-sm">
+            Users
           </TabsTrigger>
-          <TabsTrigger value="ai-eval" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            AI Evaluation Suite
+          <TabsTrigger value="ai-eval" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 shrink-0 text-xs md:text-sm">
+            AI Eval
           </TabsTrigger>
-          <TabsTrigger value="system-integrations" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300">
-            System Integrations
+          <TabsTrigger value="system-integrations" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 shrink-0 text-xs md:text-sm">
+            Integrations
           </TabsTrigger>
-          <TabsTrigger value="ai-operations" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300">
-            AI Operations
+          <TabsTrigger value="ai-operations" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300 shrink-0 text-xs md:text-sm">
+            AI Ops
           </TabsTrigger>
         </TabsList>
 

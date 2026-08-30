@@ -218,7 +218,7 @@ export default function SettingsClient({
           className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/50 pb-6"
         >
           <div>
-            <h1 className="text-3xl font-black tracking-tight mb-2">Welcome back, {user?.name || "User"}</h1>
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-2">Welcome back, {user?.name || "User"}</h1>
             <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">
               Manage your account, workspace preferences, security, and AI experience.
             </p>
@@ -239,11 +239,7 @@ export default function SettingsClient({
                 <button 
                   key={tab.id}
                   onClick={() => {
-                    if ('href' in tab) {
-                      router.push(tab.href);
-                    } else {
-                      setActiveTab(tab.id as any);
-                    }
+                    setActiveTab(tab.id as any);
                   }}
                   className={`group relative flex items-center gap-2 md:gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden shrink-0 ${
                     isActive ? 'text-primary' : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
