@@ -19,6 +19,19 @@ enum Plan {
   ADMIN
 }
 
+enum AIProcessingMode {
+  PLATFORM
+  PERSONAL
+  HYBRID
+}
+
+enum AIConnectionStatus {
+  ACTIVE
+  INVALID
+  REVOKED
+  DISABLED
+}
+
 enum EmailCategory {
   SPAM
   NEWSLETTER
@@ -160,6 +173,9 @@ model User {
   telegramOptIn         Boolean   @default(false)
   telegramLinkToken     String?   @unique // Temporary token for linking
 
+  // Add-ons
+  byokEnabled           Boolean   @default(false)
+
   // Notification Preferences — JSON array of enabled channels e.g. ["WHATSAPP", "TELEGRAM"]
   notifyChannels        Json      @default("[]")
 
@@ -188,6 +204,30 @@ model User {
   learningRules         UserLearningRule[]
   whatsappVerifications WhatsAppVerification[]
   accountLinkRequests   AccountLinkRequest[]
+  aiConnection          UserAIConnection?
+}
+
+model UserAIConnection {
+  id                    String              @id @default(cuid())
+  userId                String              @unique
+  provider              String              @default("GEMINI")
+  encryptedApiKey       String              @db.Text
+  keyLastFour           String
+  status                AIConnectionStatus  @default(ACTIVE)
+  selectedModel         String              @default("gemini-2.5-flash")
+  processingMode        AIProcessingMode    @default(HYBRID)
+  allowPlatformFallback Boolean             @default(true)
+  lastVerifiedAt        DateTime?
+  lastErrorCode         String?
+  
+  // Usage Tracking
+  personalRequestCount  Int                 @default(0)
+  fallbackRequestCount  Int                 @default(0)
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {

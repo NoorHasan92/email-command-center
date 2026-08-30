@@ -26,6 +26,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: { t
       passwordHash: true,
       plan: true,
       appPreferences: true,
+      byokEnabled: true,
+      aiConnection: {
+        select: {
+          id: true,
+          provider: true,
+          keyLastFour: true,
+          status: true,
+          selectedModel: true,
+          processingMode: true,
+          allowPlatformFallback: true,
+          lastVerifiedAt: true,
+          personalRequestCount: true,
+          fallbackRequestCount: true,
+        }
+      },
       accounts: { select: { provider: true } }
     }
   });

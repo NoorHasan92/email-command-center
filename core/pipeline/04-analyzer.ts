@@ -74,7 +74,7 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider) {
           finishReason: analysis.finishReason,
           
           // Versioning
-          aiProvider: "GEMINI",
+          aiProvider: (analysis as any)._source || "PLATFORM",
           promptVersion: "1.0",
           modelVersion: analysis.model,
         }

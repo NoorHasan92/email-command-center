@@ -2,10 +2,8 @@ import { db } from "@/server/repositories/db";
 import { normalizeEmail } from "@/core/pipeline/02-normalizer";
 import { prefilterEmail } from "@/core/pipeline/03-prefilter";
 import { analyzeEmail } from "@/core/pipeline/04-analyzer";
-import { GeminiAdapter } from "@/services/ai/gemini.adapter";
+import { resolveAIProvider } from "@/services/ai/ai-router";
 import { logger } from "@/lib/logger";
-
-const aiProvider = new GeminiAdapter();
 
 let isProcessing = false;
 
@@ -59,9 +57,21 @@ export async function processPendingEmails() {
         continue;
       }
 
-      // 4. Analyzer (Gemini)
+      // 4. Analyzer (Gemini/BYOK)
       stageStart = performance.now();
+      
+      const accountOwner = await db.emailAccount.findUnique({ 
+        where: { id: email.emailAccountId }, 
+        select: { userId: true } 
+      });
+      
+      if (!accountOwner) {
+        throw new Error(`Email account ${email.emailAccountId} not found.`);
+      }
+
+      const aiProvider = await resolveAIProvider(accountOwner.userId);
       await analyzeEmail(normalizedEmail, aiProvider);
+      
       metrics.analyzer = Math.round(performance.now() - stageStart);
 
       // 5. Pro Actions (Calendar, Drafts)

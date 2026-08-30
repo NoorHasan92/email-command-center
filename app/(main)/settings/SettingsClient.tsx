@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
 import { updateAppPreferencesAction } from "@/server/actions/preferences.actions";
+import { connectAIKeyAction, disconnectAIKeyAction, updateAIProcessingModeAction, verifyAIKeyAction } from "@/server/actions/byok.actions";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders } from "lucide-react";
+import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
@@ -28,10 +29,13 @@ export default function SettingsClient({
   hasGoogleLinked: boolean;
   initialTab?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "security" | "appearance" | "notifications">(initialTab as any);
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "ai" | "security" | "appearance" | "notifications">(initialTab as any);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiKeyInput, setAiKeyInput] = useState("");
   
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -72,10 +76,59 @@ export default function SettingsClient({
     }
   };
 
+  const handleConnectAIKey = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAiLoading(true);
+    const res = await connectAIKeyAction(aiKeyInput);
+    setAiLoading(false);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("AI Key connected successfully");
+      setAiKeyInput("");
+      router.refresh();
+    }
+  };
+
+  const handleDisconnectAIKey = async () => {
+    setAiLoading(true);
+    const res = await disconnectAIKeyAction();
+    setAiLoading(false);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("AI Key disconnected");
+      router.refresh();
+    }
+  };
+
+  const handleVerifyAIKey = async () => {
+    setAiLoading(true);
+    const res = await verifyAIKeyAction();
+    setAiLoading(false);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("AI Key verified successfully");
+      router.refresh();
+    }
+  };
+
+  const handleAIProcessingModeChange = async (mode: any, allowFallback: boolean) => {
+    const res = await updateAIProcessingModeAction(mode, allowFallback);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("AI Processing Mode updated");
+      router.refresh();
+    }
+  };
+
   // UI Components
   const TABS = [
     { id: "profile", label: "Profile", icon: User },
     { id: "preferences", label: "App Settings", icon: Sliders },
+    { id: "ai", label: "AI Provider", icon: Brain },
     { id: "security", label: "Security", icon: Shield },
     { id: "appearance", label: "Appearance", icon: Monitor },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -397,6 +450,167 @@ export default function SettingsClient({
                           </label>
                         </div>
 
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* AI PROVIDER TAB */}
+                {activeTab === "ai" && (
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur text-card-foreground shadow-xl overflow-hidden hover:shadow-2xl hover:border-border transition-all duration-300">
+                      <div className="p-6 border-b border-border/50 bg-secondary/10 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold flex items-center gap-2"><Brain className="w-5 h-5 text-primary" /> AI Engine Settings</h3>
+                          <p className="text-sm text-muted-foreground mt-1">Connect your own Gemini API key or use the platform default.</p>
+                        </div>
+                        <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
+                          <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                            <Database className="w-3 h-3" /> BYOK Add-on
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6">
+                        {!user?.byokEnabled && user?.plan !== "ADMIN" ? (
+                          <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center border border-border/50">
+                              <Lock className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold">Connect Your Own AI (BYOK)</h4>
+                              <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
+                                Bring your own Gemini API key for unlimited personal usage. This is a premium add-on available for all plans.
+                              </p>
+                            </div>
+                            <Button className="mt-4 rounded-xl">Purchase BYOK Add-on</Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-8">
+                            
+                            {/* API Key Connection Status */}
+                            {user?.aiConnection && user.aiConnection.status === "ACTIVE" ? (
+                              <div className="p-5 rounded-xl border border-green-500/20 bg-green-500/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                  <Cpu className="w-24 h-24 text-green-500" />
+                                </div>
+                                <div className="relative z-10">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-foreground">API Key Connected</h4>
+                                      <p className="text-xs text-muted-foreground">Provider: {user.aiConnection.provider}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="bg-background/50 rounded-lg p-3 border border-border/50 font-mono text-sm mb-4 inline-flex items-center gap-3">
+                                    <span className="text-muted-foreground">AIza•••••••••••••••••••••••••••••••••{user.aiConnection.keyLastFour}</span>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-3">
+                                    <Button variant="outline" size="sm" onClick={handleVerifyAIKey} disabled={aiLoading} className="rounded-lg text-xs h-8">
+                                      {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />} Verify
+                                    </Button>
+                                    <Button variant="destructive" size="sm" onClick={handleDisconnectAIKey} disabled={aiLoading} className="rounded-lg text-xs h-8">
+                                      {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Unlink className="w-4 h-4 mr-2" />} Disconnect Key
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-5 rounded-xl border border-border/50 bg-secondary/10">
+                                <h4 className="font-bold text-foreground mb-2 flex items-center gap-2"><Key className="w-4 h-4" /> Connect Gemini Key</h4>
+                                <p className="text-xs text-muted-foreground mb-4 max-w-lg">
+                                  Your API key is securely encrypted (AES-256-GCM) in our database and decrypted only at request time.
+                                </p>
+                                <form onSubmit={handleConnectAIKey} className="flex items-center gap-3">
+                                  <div className="relative flex-1 max-w-md">
+                                    <input 
+                                      type="password" 
+                                      placeholder="AIzaSy..." 
+                                      value={aiKeyInput}
+                                      onChange={(e) => setAiKeyInput(e.target.value)}
+                                      required
+                                      className="w-full bg-background border border-border/50 focus:border-primary rounded-xl pl-4 pr-10 h-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono" 
+                                    />
+                                  </div>
+                                  <Button type="submit" disabled={aiLoading || !aiKeyInput} className="rounded-xl h-10 shadow-md hover:shadow-lg transition-all">
+                                    {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Link className="w-4 h-4 mr-2" />} Connect
+                                  </Button>
+                                </form>
+                                
+                                <div className="mt-6 pt-4 border-t border-border/30">
+                                  <div className="flex items-start gap-3">
+                                    <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                                    <div>
+                                      <h5 className="text-sm font-bold">How to get a Gemini API Key</h5>
+                                      <ol className="list-decimal pl-4 mt-2 space-y-1 text-xs text-muted-foreground">
+                                        <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Google AI Studio</a>.</li>
+                                        <li>Sign in with your Google account.</li>
+                                        <li>Click <strong>Create API key</strong> and copy the generated key.</li>
+                                        <li>Ensure billing is enabled if you expect high usage.</li>
+                                      </ol>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Processing Mode Selection */}
+                            {user?.aiConnection && user.aiConnection.status === "ACTIVE" && (
+                              <div className="space-y-4">
+                                <h4 className="text-sm font-bold text-foreground border-b border-border/30 pb-2">AI Processing Mode</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Platform */}
+                                  <div 
+                                    onClick={() => handleAIProcessingModeChange("PLATFORM", true)}
+                                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${user.aiConnection.processingMode === "PLATFORM" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h5 className="font-bold text-sm">Platform AI</h5>
+                                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${user.aiConnection.processingMode === "PLATFORM" ? "border-primary" : "border-muted"}`}>
+                                        {user.aiConnection.processingMode === "PLATFORM" && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Uses Inbox Sentinel's shared AI quota. Limited by your plan limits.</p>
+                                  </div>
+
+                                  {/* Hybrid */}
+                                  <div 
+                                    onClick={() => handleAIProcessingModeChange("HYBRID", true)}
+                                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${user.aiConnection.processingMode === "HYBRID" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h5 className="font-bold text-sm flex items-center gap-1.5">Smart Hybrid <span className="bg-primary/20 text-primary text-[9px] uppercase px-1.5 py-0.5 rounded-full">Recommended</span></h5>
+                                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${user.aiConnection.processingMode === "HYBRID" ? "border-primary" : "border-muted"}`}>
+                                        {user.aiConnection.processingMode === "HYBRID" && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Uses your personal key first, falling back to Platform AI if your key fails or is rate-limited.</p>
+                                  </div>
+                                  
+                                  {/* Personal Only */}
+                                  <div 
+                                    onClick={() => handleAIProcessingModeChange("PERSONAL", false)}
+                                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all md:col-span-2 ${user.aiConnection.processingMode === "PERSONAL" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h5 className="font-bold text-sm">Strict Personal (No Fallback)</h5>
+                                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${user.aiConnection.processingMode === "PERSONAL" ? "border-primary" : "border-muted"}`}>
+                                        {user.aiConnection.processingMode === "PERSONAL" && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Never uses Platform AI. If your API key fails, email analysis will halt and wait for retry.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
