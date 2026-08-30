@@ -5,10 +5,12 @@ import type { NextConfig } from "next";
 
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://*.googleusercontent.com https://*.githubusercontent.com;
-    font-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://*.razorpay.com;
+    style-src 'self' 'unsafe-inline' https://*.razorpay.com;
+    img-src 'self' blob: data: https://*.googleusercontent.com https://*.githubusercontent.com https://*.razorpay.com;
+    font-src 'self' https://*.razorpay.com;
+    connect-src 'self' https://api.razorpay.com https://*.razorpay.com;
+    frame-src 'self' https://api.razorpay.com https://*.razorpay.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';

@@ -4,13 +4,30 @@ import { db } from "@/server/repositories/db";
 import { auth } from "@/config/auth";
 import { EmailStatus } from "@prisma/client";
 
-export async function getInboxEmailsAction(cursor: string | null, take: number = 10) {
+export async function getInboxEmailsAction(cursor: string | null, take: number = 10, filterType: string = "all", searchQuery: string = "") {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized", data: [] };
 
   try {
+    const whereClause: any = { emailAccount: { userId: session.user.id } };
+
+    if (searchQuery) {
+      whereClause.OR = [
+        { subject: { contains: searchQuery, mode: "insensitive" } },
+        { from: { contains: searchQuery, mode: "insensitive" } }
+      ];
+    }
+
+    if (filterType === "critical") {
+      whereClause.analysis = { is: { urgencyScore: { gte: 90 } } };
+    } else if (filterType === "action_req") {
+      whereClause.analysis = { is: { requiresAction: true } };
+    } else if (filterType === "deadlines") {
+      whereClause.analysis = { is: { deadline: { not: null } } };
+    }
+
     const emails = await db.email.findMany({
-      where: { emailAccount: { userId: session.user.id } },
+      where: whereClause,
       orderBy: { date: "desc" },
       take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -52,5 +69,31 @@ export async function markEmailReviewedAction(emailId: string) {
   } catch (error) {
     console.error("Failed to mark email as reviewed:", error);
     return { error: "Failed to mark email as reviewed" };
+  }
+}
+
+export async function markEmailUnreviewedAction(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    const email = await db.email.findUnique({
+      where: { id: emailId },
+      include: { emailAccount: true }
+    });
+
+    if (!email || email.emailAccount.userId !== session.user.id) {
+      return { error: "Not found or unauthorized" };
+    }
+
+    await db.email.update({
+      where: { id: emailId },
+      data: { status: EmailStatus.AI_COMPLETE }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to mark email as unreviewed:", error);
+    return { error: "Failed to mark email as unreviewed" };
   }
 }

@@ -7,6 +7,7 @@ export const ROUTES = {
   settings: "/settings",
   inbox: "/inbox",
   alerts: "/alerts",
+  billing: "/billing",
   admin: "/admin",
   rules: "/rules",
   analytics: "/analytics",

@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Email, EmailAnalysis } from "@prisma/client";
 import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff, Mail } from "lucide-react";
 import { submitAIFeedbackAction } from "@/server/actions/training.actions";
-import { markEmailReviewedAction, getInboxEmailsAction } from "@/server/actions/inbox.actions";
+import { markEmailReviewedAction, markEmailUnreviewedAction, getInboxEmailsAction } from "@/server/actions/inbox.actions";
 import { cleanEmailText } from "@/lib/utils";
 
 export type EmailWithAnalysis = Email & {
@@ -53,8 +53,22 @@ export default function InboxClient({
       next.add(emailId);
       return next;
     });
+    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: 'NOTIFIED' } : e));
     startTransition(async () => {
       const result = await markEmailReviewedAction(emailId);
+      if (result.error) toast.error(result.error);
+    });
+  }, []);
+
+  const handleMarkUnreviewed = useCallback((emailId: string) => {
+    setReviewedEmails(prev => {
+      const next = new Set(prev);
+      next.delete(emailId);
+      return next;
+    });
+    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: 'AI_COMPLETE' } : e));
+    startTransition(async () => {
+      const result = await markEmailUnreviewedAction(emailId);
       if (result.error) toast.error(result.error);
     });
   }, []);
@@ -99,7 +113,7 @@ export default function InboxClient({
     if (isLoadingMore || !hasMore || emails.length === 0) return;
     setIsLoadingMore(true);
     const lastCursor = emails[emails.length - 1].id;
-    const res = await getInboxEmailsAction(lastCursor, 10);
+    const res = await getInboxEmailsAction(lastCursor, 10, filterType, searchQuery);
     if (res.success && res.data) {
       setEmails(prev => [...prev, ...(res.data as EmailWithAnalysis[])]);
       if (res.data.length < 10) {
@@ -111,17 +125,25 @@ export default function InboxClient({
     setIsLoadingMore(false);
   };
 
-  // Filtered emails
-  const filteredEmails = emails.filter(e => {
-    const matchesSearch = (e.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (e.from || "").toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
+  const [isFetchingFiltered, setIsFetchingFiltered] = useState(false);
 
-    if (filterType === "critical") return e.analysis?.urgencyScore && e.analysis.urgencyScore >= 90;
-    if (filterType === "action_req") return e.analysis?.requiresAction;
-    if (filterType === "deadlines") return !!e.analysis?.deadline;
-    return true;
-  });
+  // Debounced server-side filtering
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      setIsFetchingFiltered(true);
+      const res = await getInboxEmailsAction(null, 10, filterType, searchQuery);
+      if (res.success && res.data) {
+        setEmails(res.data as EmailWithAnalysis[]);
+        setHasMore(res.data.length >= 10);
+        setSelectedIndex(0); // Reset selection on new filter
+      }
+      setIsFetchingFiltered(false);
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(handler);
+  }, [filterType, searchQuery]);
+
+  const filteredEmails = emails; // We already filtered on the server
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -137,7 +159,11 @@ export default function InboxClient({
         if (selectedEmail) {
           setSelectedEmail(null); // Toggle close
         } else if (filteredEmails[selectedIndex]) {
-          setSelectedEmail(filteredEmails[selectedIndex]); // Toggle open
+          const emailToOpen = filteredEmails[selectedIndex];
+          setSelectedEmail(emailToOpen); // Toggle open
+          if (!reviewedEmails.has(emailToOpen.id) && emailToOpen.status !== 'NOTIFIED') {
+            handleMarkReviewed(emailToOpen.id);
+          }
         }
       } else if (e.key === "r") {
         if (selectedEmail) {
@@ -211,7 +237,12 @@ export default function InboxClient({
               </div>
               
               <div className="bg-transparent overflow-hidden">
-                {filteredEmails.length === 0 ? (
+                {isFetchingFiltered ? (
+                  <div className="p-12 border border-border/50 rounded-xl bg-card/50 text-center text-muted-foreground flex flex-col items-center">
+                    <Activity className="w-12 h-12 mb-4 opacity-20 animate-spin" />
+                    <p>Searching inbox...</p>
+                  </div>
+                ) : filteredEmails.length === 0 ? (
                   <div className="p-12 border border-border/50 rounded-xl bg-card/50 text-center text-muted-foreground flex flex-col items-center">
                     <Inbox className="w-12 h-12 mb-4 opacity-20" />
                     <p>No emails found matching your criteria.</p>
@@ -227,10 +258,18 @@ export default function InboxClient({
                         onClick={() => {
                           setSelectedIndex(idx);
                           setSelectedEmail(email);
+                          if (!reviewedEmails.has(email.id) && email.status !== 'NOTIFIED') {
+                            handleMarkReviewed(email.id);
+                          }
+                        }}
+                        onAction={(action) => {
+                          if (action === 'review') handleMarkReviewed(email.id);
+                          if (action === 'snooze') handleSnooze(email.id);
+                          if (action === 'unreview') handleMarkUnreviewed(email.id);
                         }}
                       />
                     ))}
-                    {hasMore && !searchQuery && (
+                    {hasMore && (
                       <div className="p-4 flex justify-center mt-4">
                         <button 
                           onClick={handleLoadMore} 
@@ -285,7 +324,7 @@ function HealthCard({ title, value, icon, trend }: { title: string, value: strin
   );
 }
 
-function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWithAnalysis, isSelected: boolean, isReviewed?: boolean, onClick: () => void }) {
+function EmailRow({ email, isSelected, isReviewed, onClick, onAction }: { email: EmailWithAnalysis, isSelected: boolean, isReviewed?: boolean, onClick: () => void, onAction: (action: 'review'|'snooze'|'unreview') => void }) {
   const analysis = email.analysis;
   const score = analysis?.urgencyScore || 0;
   
@@ -335,7 +374,13 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
       
       <div className="mt-3 pl-[60px] pr-2">
         <span className="line-clamp-2 text-xs text-muted-foreground/80 leading-relaxed font-medium">
-          {analysis?.summary || (email.status === 'SKIPPED' ? "Skipped (Not Important)" : email.status === 'AI_FAILED' ? "Analysis Failed" : "Analyzing...")}
+          {analysis?.summary || (
+            email.status === 'SKIPPED' ? "Skipped (Not Important)" : 
+            email.status === 'AI_FAILED' ? "Analysis Failed" : 
+            email.status === 'PENDING_QUOTA' ? "Waiting for AI Quota..." :
+            email.status === 'NOTIFIED' ? "(No Summary Available)" :
+            "Analyzing..."
+          )}
         </span>
         
         {/* Insights Row */}
@@ -362,9 +407,9 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
            )}
            
            <div className={`ml-auto flex items-center gap-1 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}>
-              <ActionButton icon={<Check className="w-4 h-4" />} title="Mark Reviewed (R)" />
-              <ActionButton icon={<Clock3 className="w-4 h-4" />} title="Snooze (S)" />
-              <ActionButton icon={<EyeOff className="w-4 h-4" />} title="Ignore Sender" />
+              <ActionButton icon={<Check className="w-4 h-4" />} title="Mark Reviewed (R)" onClick={(e) => { e.stopPropagation(); onAction('review'); }} />
+              <ActionButton icon={<Clock3 className="w-4 h-4" />} title="Snooze (S)" onClick={(e) => { e.stopPropagation(); onAction('snooze'); }} />
+              <ActionButton icon={<EyeOff className="w-4 h-4" />} title="Mark Unreviewed" onClick={(e) => { e.stopPropagation(); onAction('unreview'); }} />
            </div>
         </div>
       </div>
@@ -372,9 +417,9 @@ function EmailRow({ email, isSelected, isReviewed, onClick }: { email: EmailWith
   );
 }
 
-function ActionButton({ icon, title }: { icon: React.ReactNode, title: string }) {
+function ActionButton({ icon, title, onClick }: { icon: React.ReactNode, title: string, onClick?: (e: React.MouseEvent) => void }) {
   return (
-    <button title={title} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors">
+    <button title={title} onClick={onClick} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors">
       {icon}
     </button>
   );

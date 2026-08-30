@@ -1,6 +1,6 @@
 export const PLAN_AI_LIMITS = {
-  FREE: 500,
-  PRO: 2000,
-  ULTRA: 5000,
+  FREE: 50,
+  PRO: 200,
+  ULTRA: 500,
   ADMIN: 1000000, // Effectively unlimited
 };

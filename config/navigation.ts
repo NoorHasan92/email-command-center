@@ -2,7 +2,7 @@
 // Navigation links and routes configuration.
 
 import { ROUTES } from "./routes";
-import { LayoutDashboard, Settings, Mail, Bell, Filter, BarChart, Plug, ShieldAlert, LucideIcon } from "lucide-react";
+import { LayoutDashboard, Settings, Mail, Bell, Filter, BarChart, Plug, ShieldAlert, LucideIcon, CreditCard } from "lucide-react";
 
 export type NavItem = {
   id: string;
@@ -54,6 +54,12 @@ export const NAVIGATION: NavItem[] = [
     title: "Settings",
     href: ROUTES.settings,
     icon: Settings,
+  },
+  {
+    id: "billing",
+    title: "Billing",
+    href: ROUTES.billing,
+    icon: CreditCard,
   },
   {
     id: "admin",

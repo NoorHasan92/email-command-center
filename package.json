@@ -41,6 +41,7 @@
     "pino": "^10.3.1",
     "prisma": "^5.22.0",
     "qrcode": "^1.5.4",
+    "razorpay": "^2.9.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-phone-number-input": "^3.4.17",

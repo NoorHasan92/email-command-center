@@ -6,13 +6,22 @@ import { signIn } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
 import { updateAppPreferencesAction } from "@/server/actions/preferences.actions";
 import { connectAIKeyAction, disconnectAIKeyAction, updateAIProcessingModeAction, verifyAIKeyAction } from "@/server/actions/byok.actions";
+import { createRazorpayByokOrderAction, verifyRazorpayByokSignatureAction } from "@/server/actions/billing.actions";
+import { loadRazorpayScript } from "@/lib/razorpay";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info } from "lucide-react";
+import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import Script from "next/script";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function SettingsClient({ 
   sessions, 
@@ -36,6 +45,7 @@ export default function SettingsClient({
   
   const [aiLoading, setAiLoading] = useState(false);
   const [aiKeyInput, setAiKeyInput] = useState("");
+  const [isPurchasingByok, setIsPurchasingByok] = useState(false);
   
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -124,11 +134,75 @@ export default function SettingsClient({
     }
   };
 
+  const handlePurchaseByok = async () => {
+    setIsPurchasingByok(true);
+    
+    // 1. Create Order
+    const orderRes = await createRazorpayByokOrderAction();
+    if (!orderRes.success || !orderRes.orderId) {
+      toast.error(orderRes.error || "Failed to initiate payment");
+      setIsPurchasingByok(false);
+      return;
+    }
+
+    // 1.5 Load Razorpay Script
+    const isLoaded = await loadRazorpayScript();
+    if (!isLoaded) {
+      toast.error("Failed to load Razorpay SDK. Please disable any adblockers and try again.");
+      setIsPurchasingByok(false);
+      return;
+    }
+
+    // 2. Open Razorpay Checkout
+    const options = {
+      key: orderRes.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: orderRes.amount,
+      currency: orderRes.currency,
+      name: "Inbox Sentinel",
+      description: "Purchase BYOK Add-on",
+      order_id: orderRes.orderId,
+      handler: async function (response: any) {
+        // 3. Verify Signature
+        const verifyRes = await verifyRazorpayByokSignatureAction(
+          response.razorpay_payment_id,
+          response.razorpay_order_id,
+          response.razorpay_signature
+        );
+        
+        if (verifyRes.success) {
+          toast.success("BYOK Add-on purchased successfully!");
+          router.refresh();
+        } else {
+          toast.error(verifyRes.error || "Payment verification failed");
+        }
+        setIsPurchasingByok(false);
+      },
+      theme: {
+        color: "#6366f1"
+      },
+      modal: {
+        ondismiss: function () {
+          setIsPurchasingByok(false);
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    
+    rzp.on("payment.failed", function () {
+      toast.error("Payment failed or cancelled.");
+      setIsPurchasingByok(false);
+    });
+
+    rzp.open();
+  };
+
   // UI Components
   const TABS = [
     { id: "profile", label: "Profile", icon: User },
     { id: "preferences", label: "App Settings", icon: Sliders },
     { id: "ai", label: "AI Provider", icon: Brain },
+    { id: "billing", label: "Billing", icon: CreditCard, href: "/settings/billing" },
     { id: "security", label: "Security", icon: Shield },
     { id: "appearance", label: "Appearance", icon: Monitor },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -165,7 +239,13 @@ export default function SettingsClient({
               return (
                 <button 
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => {
+                    if ('href' in tab) {
+                      router.push(tab.href);
+                    } else {
+                      setActiveTab(tab.id as any);
+                    }
+                  }}
                   className={`group relative flex items-center gap-2 md:gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden shrink-0 ${
                     isActive ? 'text-primary' : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
                   }`}
@@ -472,18 +552,23 @@ export default function SettingsClient({
                       </div>
                       
                       <div className="p-6">
-                        {!user?.byokEnabled && user?.plan !== "ADMIN" ? (
+                        {user?.plan === "FREE" ? (
                           <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
                             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center border border-border/50">
                               <Lock className="w-8 h-8 text-muted-foreground" />
                             </div>
                             <div>
-                              <h4 className="text-lg font-bold">Connect Your Own AI (BYOK)</h4>
+                              <h4 className="text-lg font-bold">Bring Your Own Key (BYOK)</h4>
                               <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
-                                Bring your own Gemini API key to use your own quota. This is a premium add-on available for all plans.
+                                Connect your own Gemini API key to use your own quota. This feature is exclusively available for Pro and Ultra plans.
                               </p>
                             </div>
-                            <Button className="mt-4 rounded-xl">Purchase BYOK Add-on</Button>
+                            <Button 
+                              onClick={() => router.push('/billing')} 
+                              className="mt-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-8"
+                            >
+                              Upgrade to Pro to Unlock
+                            </Button>
                           </div>
                         ) : (
                           <div className="space-y-8">
