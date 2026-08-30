@@ -1,23 +1,24 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Brain, Loader2 } from "lucide-react";
 
 export default function Loading() {
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent p-6 lg:p-10 space-y-8 animate-in fade-in duration-700">
-      <div className="max-w-6xl mx-auto w-full space-y-8">
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-[250px] bg-secondary/50 rounded-xl" />
-          <Skeleton className="h-5 w-[350px] bg-secondary/30 rounded-lg" />
+    <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[60vh] bg-transparent">
+      <div className="relative flex flex-col items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-500">
+        {/* Glow effect */}
+        <div className="absolute inset-0 bg-primary/20 blur-[50px] rounded-full animate-pulse" />
+        
+        <div className="relative flex items-center justify-center w-20 h-20 bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10">
+          <Loader2 className="w-8 h-8 text-primary animate-spin absolute" />
+          <Brain className="w-4 h-4 text-primary/80 animate-pulse" />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Skeleton className="h-32 bg-secondary/20 rounded-2xl" />
-          <Skeleton className="h-32 bg-secondary/20 rounded-2xl" />
-          <Skeleton className="h-32 bg-secondary/20 rounded-2xl" />
-          <Skeleton className="h-32 bg-secondary/20 rounded-2xl" />
-        </div>
-
-        <div className="space-y-4">
-          <Skeleton className="h-[400px] bg-secondary/10 rounded-3xl" />
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <h3 className="font-bold text-lg tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+            Loading Workspace
+          </h3>
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">
+            Gathering AI insights...
+          </p>
         </div>
       </div>
     </div>
