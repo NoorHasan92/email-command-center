@@ -72,6 +72,17 @@ export class TelegramAdapter implements INotificationProvider {
       explanation,
     ];
 
+    if (payload.actionItems && payload.actionItems.length > 0) {
+      message.push(``, `🎯 *Action Required*`);
+      payload.actionItems.forEach(item => {
+        message.push(`• ${escapeMarkdownV2(item)}`);
+      });
+    }
+
+    if (payload.deadline) {
+      message.push(``, `⏳ *Due:* ${escapeMarkdownV2(payload.deadline)}`);
+    }
+
     if (payload.smartDraftGenerated) {
       message.push(``, `📝 *A Smart Draft reply has been automatically saved to your Gmail Drafts folder\\.*`);
     }

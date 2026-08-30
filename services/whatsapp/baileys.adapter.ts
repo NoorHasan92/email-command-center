@@ -41,6 +41,17 @@ ${payload.subject}
 *Summary*
 ${payload.explanation}`;
 
+        if (payload.actionItems && payload.actionItems.length > 0) {
+            text += `\n\n🎯 *Action Required*`;
+            payload.actionItems.forEach(item => {
+                text += `\n• ${item}`;
+            });
+        }
+
+        if (payload.deadline) {
+            text += `\n\n⏳ *Due:* ${payload.deadline}`;
+        }
+
         if (payload.smartDraftGenerated) {
             text += `\n\n📝 *A Smart Draft reply has been automatically saved to your Gmail Drafts folder.*`;
         }
@@ -67,15 +78,32 @@ ${payload.explanation}`;
 
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
 
-        const text = `📬 *Your Inbox Sentinel Summary*
+        let text = `📬 *Your Inbox Sentinel Summary*
 ━━━━━━━━━━━━━━
-*Today:*
+*Today's Activity:*
 • ${payload.importantCount} important emails
 • ${payload.actionItemsCount} action items
-• ${payload.deadlinesCount} deadlines
+• ${payload.deadlinesCount} deadlines`;
 
-Open Inbox Sentinel to review.
-mail.tars.homes`;
+        if (payload.deadlinesList && payload.deadlinesList.length > 0) {
+            text += `\n\n⏳ *Upcoming Deadlines:*`;
+            payload.deadlinesList.forEach(d => {
+                text += `\n• ${d.task} (Due: ${d.due})`;
+            });
+        }
+
+        if (payload.actionItemsList && payload.actionItemsList.length > 0) {
+            text += `\n\n🎯 *Pending Actions:*`;
+            const items = payload.actionItemsList.slice(0, 5);
+            items.forEach(a => {
+                text += `\n• ${a}`;
+            });
+            if (payload.actionItemsList.length > 5) {
+                text += `\n• ...and ${payload.actionItemsList.length - 5} more.`;
+            }
+        }
+
+        text += `\n\nOpen Inbox Sentinel to review.\nmail.tars.homes`;
 
         try {
             const result = await sock.sendMessage(to, { text });

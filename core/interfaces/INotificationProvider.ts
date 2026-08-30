@@ -10,6 +10,8 @@ export interface NotificationPayload {
   actionRequired: boolean;
   destination: string; // Phone number or email address
   smartDraftGenerated?: boolean;
+  actionItems?: string[];
+  deadline?: string;
 }
 
 export interface DigestPayload {
@@ -17,6 +19,8 @@ export interface DigestPayload {
   actionItemsCount: number;
   deadlinesCount: number;
   destination: string;
+  actionItemsList?: string[];
+  deadlinesList?: { task: string; due: string }[];
 }
 
 export interface DeadlineReminderPayload {

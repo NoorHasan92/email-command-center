@@ -37,18 +37,36 @@ export async function sendDailyDigests() {
       let importantCount = 0;
       let actionItemsCount = 0;
       let deadlinesCount = 0;
+      const actionItemsList: string[] = [];
+      const deadlinesList: { task: string; due: string }[] = [];
 
       for (const record of analysisRecords) {
         if (record.urgencyScore >= 70) importantCount++;
-        if (record.requiresAction) actionItemsCount++;
-        if (record.deadline) deadlinesCount++;
+        if (record.requiresAction) {
+          actionItemsCount++;
+          if (Array.isArray(record.actionItems)) {
+            actionItemsList.push(...(record.actionItems as string[]));
+          }
+        }
+        if (record.deadline) {
+          deadlinesCount++;
+          const task = (Array.isArray(record.actionItems) && record.actionItems[0]) || record.summary?.substring(0, 50) || "Action Required";
+          const due = record.deadline.toLocaleString("en-US", {
+            timeZone: "Asia/Kolkata",
+            dateStyle: "medium",
+            timeStyle: "short"
+          });
+          deadlinesList.push({ task: String(task), due });
+        }
       }
 
       const payload = {
         importantCount,
         actionItemsCount,
         deadlinesCount,
-        destination: user.phoneNumber
+        destination: user.phoneNumber,
+        actionItemsList,
+        deadlinesList
       };
 
       try {

@@ -30,7 +30,7 @@ export default async function AlertsPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-10 z-10 relative styled-scroll">
       <div className="max-w-4xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/50">
           <div className="flex items-center gap-4 flex-1">
@@ -79,7 +79,7 @@ export default async function AlertsPage() {
                     <div className="flex-1 bg-card/80 backdrop-blur border border-border/50 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md hover:border-border/80 group">
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
                             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary/80 border border-border/50 text-xs font-bold tracking-wider text-muted-foreground uppercase shadow-sm">
                               <ChannelIcon className="w-3.5 h-3.5" /> {log.channel}
                             </div>

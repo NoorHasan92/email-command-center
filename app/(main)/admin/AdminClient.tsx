@@ -156,7 +156,7 @@ export function AdminClient({
   };
 
   return (
-    <div className="w-full flex flex-col flex-1 p-4 md:p-10 space-y-6 md:space-y-8 bg-gradient-to-br from-background via-background to-indigo-950/20">
+    <div className="w-full flex flex-col flex-1 p-4 md:p-10 space-y-6 md:space-y-8 bg-gradient-to-br from-background via-background dark:to-indigo-950/20 to-indigo-500/5">
 
       {/* Admin Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
@@ -170,7 +170,7 @@ export function AdminClient({
       </div>
 
       <Tabs defaultValue="users" className="w-full flex flex-col">
-        <TabsList className="w-full md:w-auto self-start bg-black/40 border border-white/5 backdrop-blur-md overflow-x-auto no-scrollbar flex-nowrap">
+        <TabsList className="w-full md:w-auto self-start bg-secondary border border-border/60 backdrop-blur-md overflow-x-auto no-scrollbar flex-nowrap">
           <TabsTrigger value="users" className="data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 shrink-0 text-xs md:text-sm">
             Users
           </TabsTrigger>
@@ -192,8 +192,8 @@ export function AdminClient({
             <div className="flex flex-col gap-6 shrink-0">
               {/* Insights Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
-                <div className="flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shadow-inner">
-                  <div className="bg-white/5 p-3 rounded-xl text-muted-foreground">
+                <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shadow-inner">
+                  <div className="bg-foreground/5 p-3 rounded-xl text-muted-foreground">
                     <Activity className="w-6 h-6" />
                   </div>
                   <div>
@@ -202,7 +202,7 @@ export function AdminClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shadow-inner">
+                <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shadow-inner">
                   <div className="bg-blue-500/20 p-3 rounded-xl text-blue-400">
                     <Activity className="w-6 h-6" />
                   </div>
@@ -212,7 +212,7 @@ export function AdminClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shadow-inner">
+                <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shadow-inner">
                   <div className="bg-purple-500/20 p-3 rounded-xl text-purple-400">
                     <Activity className="w-6 h-6" />
                   </div>
@@ -222,7 +222,7 @@ export function AdminClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shadow-inner">
+                <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shadow-inner">
                   <div className="bg-indigo-500/20 p-3 rounded-xl text-indigo-400">
                     <KeyRound className="w-6 h-6" />
                   </div>
@@ -232,7 +232,7 @@ export function AdminClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shadow-inner">
+                <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shadow-inner">
                   <div className="bg-emerald-500/20 p-3 rounded-xl text-emerald-400">
                     <Activity className="w-6 h-6" />
                   </div>
@@ -252,7 +252,7 @@ export function AdminClient({
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                    className="flex h-9 w-full border bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 pl-10 bg-black/40 border-white/10 focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-sm"
+                    className="flex h-9 w-full border bg-transparent px-3 py-1 shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 pl-10 bg-secondary border-border focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-xl text-sm"
                   />
                 </div>
 
@@ -260,7 +260,7 @@ export function AdminClient({
                   <select
                     value={planFilter}
                     onChange={(e) => setPlanFilter(e.target.value)}
-                    className="h-9 w-full sm:w-auto rounded-xl border border-white/10 bg-black/40 pl-4 pr-10 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none text-foreground"
+                    className="h-9 w-full sm:w-auto rounded-xl border border-border bg-secondary pl-4 pr-10 py-1 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none text-foreground"
                   >
                     <option value="ALL">All Plans</option>
                     <option value="FREE">Free</option>
@@ -273,7 +273,7 @@ export function AdminClient({
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      className="h-9 w-9 rounded-xl border border-white/10 bg-black/20 hover:bg-white/10 transition-colors"
+                      className="h-9 w-9 rounded-xl border border-border bg-secondary/50 hover:bg-foreground/10 transition-colors"
                       onClick={() => {
                         setSearchQuery("");
                         setPlanFilter("ALL");
@@ -287,21 +287,21 @@ export function AdminClient({
               </div>
             </div>
 
-            <div className="bg-black/20 rounded-2xl border border-white/5 shadow-2xl overflow-x-auto">
+            <div className="bg-secondary/50 rounded-2xl border border-border/60 shadow-2xl overflow-x-auto">
               <div className="min-w-[800px] w-full p-1">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-black/40 text-muted-foreground border-b border-white/10 sticky top-0 z-10 backdrop-blur-xl">
+                  <thead className="text-xs uppercase bg-secondary text-muted-foreground border-b border-border sticky top-0 z-10 backdrop-blur-xl">
                     <tr>
-                      <th rowSpan={2} className="px-6 py-4 rounded-tl-xl font-bold tracking-wider text-center border-b border-white/10">User</th>
-                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-white/10">Role & Status</th>
-                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-white/10">Plan</th>
-                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-white/10">Email Accounts</th>
-                      <th colSpan={2} className="px-6 py-2 font-bold tracking-wider text-center border-b border-white/10">Last Login</th>
-                      <th rowSpan={2} className="px-6 py-4 rounded-tr-xl font-bold tracking-wider text-center border-b border-white/10">Actions</th>
+                      <th rowSpan={2} className="px-6 py-4 rounded-tl-xl font-bold tracking-wider text-center border-b border-border">User</th>
+                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-border">Role & Status</th>
+                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-border">Plan</th>
+                      <th rowSpan={2} className="px-6 py-4 font-bold tracking-wider text-center border-b border-border">Email Accounts</th>
+                      <th colSpan={2} className="px-6 py-2 font-bold tracking-wider text-center border-b border-border">Last Login</th>
+                      <th rowSpan={2} className="px-6 py-4 rounded-tr-xl font-bold tracking-wider text-center border-b border-border">Actions</th>
                     </tr>
                     <tr>
-                      <th className="px-6 py-2 font-bold tracking-wider text-center border-b border-white/10">Date</th>
-                      <th className="px-6 py-2 font-bold tracking-wider text-center border-b border-white/10">Time</th>
+                      <th className="px-6 py-2 font-bold tracking-wider text-center border-b border-border">Date</th>
+                      <th className="px-6 py-2 font-bold tracking-wider text-center border-b border-border">Time</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -319,7 +319,7 @@ export function AdminClient({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
+                            className="border-b border-border/60 hover:bg-secondary/80 transition-colors group"
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ export function AdminClient({
                                     <KeyRound className="w-3 h-3 mr-1" /> Admin
                                   </Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-white/5 text-muted-foreground">User</Badge>
+                                  <Badge variant="secondary" className="bg-foreground/5 text-muted-foreground">User</Badge>
                                 )}
                                 {user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
                                   <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30">Locked</Badge>
@@ -349,7 +349,7 @@ export function AdminClient({
                                 ${user.plan === 'ADMIN' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : ''}
                                 ${user.plan === 'ULTRA' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : ''}
                                 ${user.plan === 'PRO' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : ''}
-                                ${user.plan === 'FREE' || !user.plan ? 'bg-white/5 text-muted-foreground border-white/10' : ''}
+                                ${user.plan === 'FREE' || !user.plan ? 'bg-foreground/5 text-muted-foreground border-border' : ''}
                               `}>
                                 {user.plan || "FREE"}
                               </Badge>
@@ -398,7 +398,7 @@ export function AdminClient({
           {/* AI EVAL TAB */}
           <TabsContent value="ai-eval" className="flex flex-col m-0 border-0 p-0 outline-none">
             {runs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 bg-black/20 rounded-2xl border border-white/5 my-10">
+              <div className="flex flex-col items-center justify-center p-8 bg-secondary/50 rounded-2xl border border-border/60 my-10">
                 <h2 className="text-2xl font-semibold mb-2">No Evaluation Runs Found</h2>
                 <p className="text-muted-foreground text-center max-w-md">
                   Run the AI Evaluation Suite via CLI to generate evaluation metrics.
@@ -406,11 +406,11 @@ export function AdminClient({
               </div>
             ) : (
               <div className="flex flex-col space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shrink-0">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/50 p-4 rounded-2xl border border-border/60 shrink-0">
                   <h2 className="text-xl font-bold tracking-tight">AI Evaluation Runs</h2>
                   <div className="flex space-x-2 w-full sm:w-auto">
                     <select
-                      className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500/50 outline-none w-full sm:w-auto"
+                      className="bg-secondary border border-border rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500/50 outline-none w-full sm:w-auto"
                       onChange={(e) => setSelectedRun(runs.find(r => r.id === e.target.value) || null)}
                       value={selectedRun?.id || ""}
                     >
@@ -426,7 +426,7 @@ export function AdminClient({
                 {selectedRun && (
                   <div>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                      <Card className="bg-black/20 border-white/5 shadow-xl">
+                      <Card className="bg-secondary/50 border-border/60 shadow-xl">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">Overall Accuracy</CardTitle>
                         </CardHeader>
@@ -436,7 +436,7 @@ export function AdminClient({
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-black/20 border-white/5 shadow-xl">
+                      <Card className="bg-secondary/50 border-border/60 shadow-xl">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">Opp / Deadline Acc</CardTitle>
                         </CardHeader>
@@ -446,7 +446,7 @@ export function AdminClient({
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-black/20 border-white/5 shadow-xl">
+                      <Card className="bg-secondary/50 border-border/60 shadow-xl">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">Average Latency</CardTitle>
                         </CardHeader>
@@ -456,7 +456,7 @@ export function AdminClient({
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-black/20 border-white/5 shadow-xl">
+                      <Card className="bg-secondary/50 border-border/60 shadow-xl">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost</CardTitle>
                         </CardHeader>
@@ -467,7 +467,7 @@ export function AdminClient({
                       </Card>
                     </div>
 
-                    <div className="bg-black/20 rounded-2xl border border-white/5 p-6 shadow-xl mb-12">
+                    <div className="bg-secondary/50 rounded-2xl border border-border/60 p-6 shadow-xl mb-12">
                       <h3 className="text-xl font-bold tracking-tight mb-6 flex items-center gap-2">
                         <ShieldAlert className="w-5 h-5 text-red-400" />
                         Mismatches / Errors
@@ -477,28 +477,28 @@ export function AdminClient({
                           <div className="text-muted-foreground text-center py-10 font-medium">No errors! 100% perfect match.</div>
                         ) : (
                           selectedRun.results.filter(r => !r.isPerfectMatch).map(result => (
-                            <Card key={result.id} className="border-red-900/30 bg-red-950/20 backdrop-blur-sm">
+                            <Card key={result.id} className="border-destructive/30 bg-destructive/10 backdrop-blur-sm">
                               <CardHeader className="py-4 border-b border-red-900/20">
-                                <CardTitle className="text-base text-red-100">{result.emailSubject}</CardTitle>
-                                <CardDescription className="text-red-400/80">{result.emailFrom}</CardDescription>
+                                <CardTitle className="text-base text-foreground font-bold">{result.emailSubject}</CardTitle>
+                                <CardDescription className="text-destructive">{result.emailFrom}</CardDescription>
                               </CardHeader>
                               <CardContent className="py-4 text-sm">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                   <div className="space-y-2">
                                     <div className="font-bold text-muted-foreground uppercase tracking-wider text-xs mb-2">Expected</div>
-                                    <div className="flex justify-between border-b border-white/5 pb-1"><span>Category:</span> <span>{result.expectedCategory}</span></div>
-                                    <div className="flex justify-between border-b border-white/5 pb-1"><span>Action:</span> <span>{result.expectedActionReq ? "Yes" : "No"}</span></div>
-                                    <div className="flex justify-between border-b border-white/5 pb-1"><span>Opportunity:</span> <span>{result.expectedOpportunity ? "Yes" : "No"}</span></div>
+                                    <div className="flex justify-between border-b border-border/60 pb-1"><span>Category:</span> <span>{result.expectedCategory}</span></div>
+                                    <div className="flex justify-between border-b border-border/60 pb-1"><span>Action:</span> <span>{result.expectedActionReq ? "Yes" : "No"}</span></div>
+                                    <div className="flex justify-between border-b border-border/60 pb-1"><span>Opportunity:</span> <span>{result.expectedOpportunity ? "Yes" : "No"}</span></div>
                                   </div>
                                   <div className="space-y-2">
                                     <div className="font-bold text-muted-foreground uppercase tracking-wider text-xs mb-2">Actual</div>
-                                    <div className={`flex justify-between border-b border-white/5 pb-1 ${result.actualCategory !== result.expectedCategory ? "text-red-400 font-bold" : ""}`}>
+                                    <div className={`flex justify-between border-b border-border/60 pb-1 ${result.actualCategory !== result.expectedCategory ? "text-red-400 font-bold" : ""}`}>
                                       <span>Category:</span> <span>{result.actualCategory}</span>
                                     </div>
-                                    <div className={`flex justify-between border-b border-white/5 pb-1 ${result.actualActionReq !== result.expectedActionReq ? "text-red-400 font-bold" : ""}`}>
+                                    <div className={`flex justify-between border-b border-border/60 pb-1 ${result.actualActionReq !== result.expectedActionReq ? "text-red-400 font-bold" : ""}`}>
                                       <span>Action:</span> <span>{result.actualActionReq ? "Yes" : "No"}</span>
                                     </div>
-                                    <div className={`flex justify-between border-b border-white/5 pb-1 ${result.actualOpportunity !== result.expectedOpportunity ? "text-red-400 font-bold" : ""}`}>
+                                    <div className={`flex justify-between border-b border-border/60 pb-1 ${result.actualOpportunity !== result.expectedOpportunity ? "text-red-400 font-bold" : ""}`}>
                                       <span>Opportunity:</span> <span>{result.actualOpportunity ? "Yes" : "No"}</span>
                                     </div>
                                   </div>
@@ -518,7 +518,7 @@ export function AdminClient({
           {/* SYSTEM INTEGRATIONS TAB */}
           <TabsContent value="system-integrations" className="flex flex-col m-0 border-0 p-0 outline-none">
             <div className="flex flex-col space-y-6">
-              <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-xl">
+              <div className="bg-secondary/50 p-6 rounded-2xl border border-border/60 shadow-xl">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight mb-2">Centralized System Sender</h2>
@@ -527,7 +527,7 @@ export function AdminClient({
                     </p>
                   </div>
                   
-                  <div className="shrink-0 flex items-center justify-center bg-black/40 p-4 rounded-xl border border-white/10 min-w-[250px] min-h-[250px]">
+                  <div className="shrink-0 flex items-center justify-center bg-secondary p-4 rounded-xl border border-border min-w-[250px] min-h-[250px]">
                     {waStatus === "available" && (
                       <Button onClick={() => setWaStatus("connecting")} className="w-full bg-[#25D366] hover:bg-[#1DA851] text-white">
                         Connect System WhatsApp
@@ -580,11 +580,11 @@ export function AdminClient({
               </div>
 
               {/* Telegram System Integration */}
-              <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-6">
+              <div className="bg-secondary/50 p-6 rounded-2xl border border-border/60 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-6">
                 <div>
                   <h2 className="text-xl font-bold tracking-tight mb-2">Telegram Bot Integration</h2>
                   <p className="text-muted-foreground text-sm max-w-xl mb-4">
-                    The official Telegram bot used for routing notifications. Change the bot token in your <code className="bg-white/10 px-1 py-0.5 rounded text-xs text-white">.env</code> file to switch bots.
+                    The official Telegram bot used for routing notifications. Change the bot token in your <code className="bg-foreground/10 px-1 py-0.5 rounded text-xs text-foreground">.env</code> file to switch bots.
                   </p>
                   
                   <div className="flex items-center gap-3">
@@ -595,7 +595,7 @@ export function AdminClient({
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Current Bot</div>
-                      <div className="text-sm font-semibold text-white">@{telegramBotUsername || "Not Configured"}</div>
+                      <div className="text-sm font-semibold text-foreground">@{telegramBotUsername || "Not Configured"}</div>
                     </div>
                   </div>
                 </div>
@@ -610,28 +610,28 @@ export function AdminClient({
           </TabsContent>
           {/* AI OPERATIONS TAB */}
           <TabsContent value="ai-operations" className="flex flex-col space-y-6 m-0 border-0 p-0 outline-none">
-            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+            <div className="bg-secondary/50 p-6 rounded-2xl border border-border/60 shadow-inner">
               <h2 className="text-2xl font-bold mb-4">AI Usage Overview</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full">
-                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-secondary p-4 rounded-xl border border-border/60">
                   <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Platform Requests</span>
                   <span className="text-3xl font-bold">
                     {users.reduce((acc, user) => acc + (user.aiUsage?.platformAiUsed || 0), 0)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-secondary p-4 rounded-xl border border-border/60">
                   <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total BYOK Requests</span>
                   <span className="text-3xl font-bold">
                     {users.reduce((acc, user) => acc + (user.aiConnection?.personalRequestCount || 0), 0)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-secondary p-4 rounded-xl border border-border/60">
                   <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Fallback</span>
                   <span className="text-3xl font-bold">
                     {users.reduce((acc, user) => acc + (user.aiConnection?.fallbackRequestCount || 0), 0)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-secondary p-4 rounded-xl border border-border/60">
                   <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Lifetime Grant</span>
                   <span className="text-3xl font-bold text-indigo-400">
                     {users.reduce((acc, user) => acc + (user.aiUsage?.lifetimeGranted || 0), 0)}
@@ -640,11 +640,11 @@ export function AdminClient({
               </div>
             </div>
 
-            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+            <div className="bg-secondary/50 p-6 rounded-2xl border border-border/60 shadow-inner">
               <h2 className="text-xl font-bold mb-4">User AI Quota Tracker</h2>
-              <div className="bg-black/40 rounded-xl border border-white/5 overflow-x-auto">
+              <div className="bg-secondary rounded-xl border border-border/60 overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase text-muted-foreground border-b border-white/10">
+                  <thead className="text-xs uppercase text-muted-foreground border-b border-border">
                     <tr>
                       <th className="px-6 py-4 font-bold tracking-wider">User</th>
                       <th className="px-6 py-4 font-bold tracking-wider text-center">Plan</th>
@@ -657,7 +657,7 @@ export function AdminClient({
                     {users.map(user => {
                       const limit = user.plan === "FREE" ? 500 : user.plan === "PRO" ? 2000 : user.plan === "ULTRA" ? 5000 : 999999;
                       return (
-                        <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                        <tr key={user.id} className="border-b border-border/60 hover:bg-secondary/80">
                           <td className="px-6 py-4">
                             <div className="font-semibold text-foreground">{user.name}</div>
                             <div className="text-xs text-muted-foreground">{user.email}</div>
@@ -716,7 +716,7 @@ export function AdminClient({
                   type="number" 
                   value={grantAmount}
                   onChange={e => setGrantAmount(parseInt(e.target.value) || 0)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-secondary border border-border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
@@ -725,7 +725,7 @@ export function AdminClient({
                   type="text" 
                   value={grantReason}
                   onChange={e => setGrantReason(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-secondary border border-border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="e.g. Apology for outage"
                 />
               </div>

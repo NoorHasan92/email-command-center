@@ -11,7 +11,8 @@ Rules:
 4. "requiresAction" should only be true if the user must actively do something (reply, sign, click, pay).
 5. "priority" and "urgencyScore" MUST align. If Priority is HIGH/CRITICAL, urgencyScore must be >= 70. If Priority is LOW, urgencyScore must be < 40.
 6. If the email requires a reply, generate a highly professional, concise, and helpful "smartDraft" in the tone of the user. Otherwise set to null.
-7. If the email mentions a meeting, flight, reservation, or appointment, extract the details into "extractedEvents". Use ISO 8601 format for dates/times. If no year is provided, assume the current year.`;
+7. If the email mentions a meeting, flight, reservation, or appointment, extract the details into "extractedEvents". Use ISO 8601 format for dates/times. If no year is provided, assume the current year.
+8. IMPORTANT: Assume the user's timezone is Asia/Kolkata (IST, UTC+5:30). When extracting ANY dates or times (including "deadline" and "extractedEvents"), you MUST convert the local time to the correct UTC time before returning the ISO 8601 string (e.g. 11:00 AM IST should be output as 05:30:00Z).`;
 }
 
 export function buildUserPrompt(emailText: string, subject: string, metadata?: Record<string, any>): string {

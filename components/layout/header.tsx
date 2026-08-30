@@ -71,7 +71,7 @@ export function Header({ emailAccounts = [], selectedAccountId = "all" }: Header
     : emailAccounts.find(a => a.id === selectedAccountId)?.emailAddress || "All Accounts";
 
   return (
-    <header className="sticky top-0 md:top-4 z-40 flex h-14 md:h-[60px] items-center gap-4 md:rounded-2xl border-b md:border border-border/50 bg-background/80 md:bg-background/40 px-4 backdrop-blur-md lg:px-6 md:mx-8 md:mt-4 shadow-sm shrink-0">
+    <header className="sticky top-0 md:top-4 z-40 flex h-14 md:h-[60px] items-center gap-2 md:gap-4 md:rounded-2xl border-b md:border border-border/50 bg-background/80 md:bg-background/40 px-2 md:px-4 backdrop-blur-md lg:px-6 md:mx-8 md:mt-4 shadow-sm shrink-0">
       <div className="flex flex-1 items-center gap-2 md:gap-4">
         <button
           onClick={toggle}
@@ -81,13 +81,13 @@ export function Header({ emailAccounts = [], selectedAccountId = "all" }: Header
         </button>
         <h1 className="text-lg md:text-xl font-bold tracking-tight capitalize truncate">{title}</h1>
       </div>
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-1 md:gap-3 shrink-0">
         {/* Global Account Switcher */}
         {emailAccounts.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger disabled={isPending} className="flex items-center gap-2 h-9 px-3 rounded-full border border-border/50 bg-muted/30 hover:bg-secondary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium max-w-[120px] md:max-w-[180px] truncate">
+              <span className="text-sm font-medium max-w-[60px] sm:max-w-[120px] md:max-w-[180px] truncate hidden sm:inline-block">
                 {selectedAccountLabel}
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground opacity-50" />

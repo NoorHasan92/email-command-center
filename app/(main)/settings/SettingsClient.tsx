@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
@@ -9,13 +9,13 @@ import { connectAIKeyAction, disconnectAIKeyAction, updateAIProcessingModeAction
 import { createRazorpayByokOrderAction, verifyRazorpayByokSignatureAction } from "@/server/actions/billing.actions";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info, CreditCard } from "lucide-react";
+import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info, CreditCard, Type } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
-import Image from "next/image";
-import Script from "next/script";
+import { useFont } from "@/providers/font-provider";
+
 
 declare global {
   interface Window {
@@ -23,14 +23,14 @@ declare global {
   }
 }
 
-export default function SettingsClient({ 
-  sessions, 
+export default function SettingsClient({
+  sessions,
   currentSessionId,
   user,
   hasPassword,
   hasGoogleLinked,
   initialTab = "profile"
-}: { 
+}: {
   sessions: any[];
   currentSessionId: string | null;
   user: any;
@@ -42,13 +42,41 @@ export default function SettingsClient({
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
-  
+
   const [aiLoading, setAiLoading] = useState(false);
   const [aiKeyInput, setAiKeyInput] = useState("");
   const [isPurchasingByok, setIsPurchasingByok] = useState(false);
-  
+
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { font, setFont } = useFont();
+  const [draftFont, setDraftFont] = useState<string | null>(null);
+
+  const handleFontChange = async (newFont: string) => {
+    setFont(newFont);
+    await updateAppPreferencesAction({ font: newFont });
+    setDraftFont(null);
+    toast.success("Typography updated");
+  };
+
+  const activeFontSelection = draftFont || font;
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      const allFonts = [
+        "font-geist", "font-inter", "font-outfit", "font-playfair",
+        "font-roboto", "font-jakarta", "font-fira", "font-lora",
+        "font-poppins", "font-montserrat", "font-nunito", "font-merriweather"
+      ];
+      root.classList.remove(...allFonts);
+      if (draftFont) {
+        root.classList.add(draftFont);
+      } else if (font) {
+        root.classList.add(font);
+      }
+    }
+  }, [draftFont, font]);
 
   const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -136,7 +164,7 @@ export default function SettingsClient({
 
   const handlePurchaseByok = async () => {
     setIsPurchasingByok(true);
-    
+
     // 1. Create Order
     const orderRes = await createRazorpayByokOrderAction();
     if (!orderRes.success || !orderRes.orderId) {
@@ -168,7 +196,7 @@ export default function SettingsClient({
           response.razorpay_order_id,
           response.razorpay_signature
         );
-        
+
         if (verifyRes.success) {
           toast.success("BYOK Add-on purchased successfully!");
           router.refresh();
@@ -188,7 +216,7 @@ export default function SettingsClient({
     };
 
     const rzp = new window.Razorpay(options);
-    
+
     rzp.on("payment.failed", function () {
       toast.error("Payment failed or cancelled.");
       setIsPurchasingByok(false);
@@ -210,9 +238,9 @@ export default function SettingsClient({
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-10 z-10 relative styled-scroll">
       <div className="max-w-[1000px] mx-auto w-full space-y-6 md:space-y-8 pb-24">
-        
+
         {/* Premium Hero Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/50 pb-6"
@@ -230,29 +258,28 @@ export default function SettingsClient({
         </motion.div>
 
         <div className="flex flex-col md:flex-row gap-8">
-          
+
           {/* Better Sidebar Navigation */}
           <nav className="w-full md:w-56 shrink-0 flex flex-row overflow-x-auto md:flex-col gap-2 pb-2 md:pb-0 no-scrollbar">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
-                <button 
+                <button
                   key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id as any);
                   }}
-                  className={`group relative flex items-center gap-2 md:gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden shrink-0 ${
-                    isActive ? 'text-primary' : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
-                  }`}
+                  className={`group relative flex items-center gap-2 md:gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 overflow-hidden shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
+                    }`}
                 >
                   {isActive && (
-                    <motion.div 
+                    <motion.div
                       layoutId="settings-tab-active"
                       className="absolute inset-0 bg-primary/10 rounded-xl border border-primary/20"
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     />
                   )}
-                  <tab.icon className={`w-4 h-4 relative z-10 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} /> 
+                  <tab.icon className={`w-4 h-4 relative z-10 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
                   <span className="relative z-10">{tab.label}</span>
                 </button>
               );
@@ -270,7 +297,7 @@ export default function SettingsClient({
                 transition={{ duration: 0.2 }}
                 className="w-full"
               >
-                
+
                 {/* PROFILE TAB */}
                 {activeTab === "profile" && (
                   <div className="flex flex-col lg:flex-row gap-6">
@@ -289,17 +316,16 @@ export default function SettingsClient({
                               <h4 className="text-xl font-bold tracking-tight">{user?.name}</h4>
                               <p className="text-sm text-muted-foreground mb-2">{user?.email}</p>
                               <div className="flex items-center gap-2">
-                                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${
-                                  user?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
-                                  user?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :
-                                  user?.plan === "PRO" ? "bg-blue-500/20 text-blue-400" :
-                                  "bg-primary/20 text-primary"
-                                }`}>
+                                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${user?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
+                                    user?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :
+                                      user?.plan === "PRO" ? "bg-blue-500/20 text-blue-400" :
+                                        "bg-primary/20 text-primary"
+                                  }`}>
                                   {user?.plan || "FREE"} PLAN
                                 </span>
                                 {hasGoogleLinked && (
-                                  <span className="text-[10px] uppercase tracking-wider font-bold bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> Google Linked
+                                  <span className="whitespace-nowrap shrink-0 text-[10px] uppercase tracking-wider font-bold bg-green-500/10 text-green-500 px-2.5 py-0.5 rounded-full flex items-center gap-1 w-fit border border-green-500/20">
+                                    <CheckCircle2 className="w-3 h-3 shrink-0" /> Google Linked
                                   </span>
                                 )}
                               </div>
@@ -311,12 +337,12 @@ export default function SettingsClient({
                               <label className="text-sm font-semibold text-foreground">Display Name</label>
                               <div className="relative">
                                 <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input 
-                                  name="name" 
-                                  type="text" 
-                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200" 
-                                  defaultValue={user?.name || ""} 
-                                  required 
+                                <input
+                                  name="name"
+                                  type="text"
+                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
+                                  defaultValue={user?.name || ""}
+                                  required
                                 />
                               </div>
                             </div>
@@ -324,11 +350,11 @@ export default function SettingsClient({
                               <label className="text-sm font-semibold text-foreground">Email Address</label>
                               <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input 
-                                  type="email" 
-                                  disabled 
-                                  className="w-full bg-secondary/10 border border-border/30 rounded-xl pl-10 pr-4 h-12 text-sm text-muted-foreground cursor-not-allowed" 
-                                  defaultValue={user?.email || ""} 
+                                <input
+                                  type="email"
+                                  disabled
+                                  className="w-full bg-secondary/10 border border-border/30 rounded-xl pl-10 pr-4 h-12 text-sm text-muted-foreground cursor-not-allowed"
+                                  defaultValue={user?.email || ""}
                                 />
                               </div>
                               <p className="text-xs text-muted-foreground mt-1.5">
@@ -336,8 +362,8 @@ export default function SettingsClient({
                               </p>
                             </div>
                             <div className="pt-4">
-                              <Button 
-                                type="submit" 
+                              <Button
+                                type="submit"
                                 disabled={profileLoading}
                                 className="h-11 rounded-xl px-6 font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 active:scale-95 active:translate-y-0"
                               >
@@ -421,7 +447,7 @@ export default function SettingsClient({
                         <h3 className="text-lg font-bold flex items-center gap-2"><Sliders className="w-5 h-5 text-primary" /> App Settings</h3>
                         <p className="text-sm text-muted-foreground mt-1">Configure your AI automations and workflow preferences.</p>
                       </div>
-                      
+
                       <div className="p-6 space-y-8">
                         {/* Calendar Automation */}
                         <div className="flex flex-col gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors">
@@ -437,9 +463,9 @@ export default function SettingsClient({
                             </div>
                             <div className="shrink-0">
                               <label className={`relative inline-flex items-center ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
-                                <input 
-                                  type="checkbox" 
-                                  className="sr-only peer" 
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
                                   disabled={user?.plan === "FREE"}
                                   checked={(user?.appPreferences as any)?.calendarAutomation !== "OFF" && !!(user?.appPreferences as any)?.calendarAutomation}
                                   onChange={async (e) => {
@@ -457,7 +483,7 @@ export default function SettingsClient({
                               </label>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center justify-between border-t border-border/50 pt-4 mt-2">
                             <div className="text-xs font-semibold text-muted-foreground">Automation Mode</div>
                             <div className={`shrink-0 flex items-center bg-black/20 rounded-xl p-1 border border-border/30 transition-opacity ${((user?.appPreferences as any)?.calendarAutomation === "OFF" || !(user?.appPreferences as any)?.calendarAutomation) ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -467,11 +493,10 @@ export default function SettingsClient({
                                   await updateAppPreferencesAction({ calendarAutomation: "AUTO" });
                                   toast.success("Calendar automation set to Automatic");
                                 }}
-                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                                  (user?.appPreferences as any)?.calendarAutomation === "AUTO" 
-                                    ? "bg-primary text-primary-foreground shadow-md" 
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${(user?.appPreferences as any)?.calendarAutomation === "AUTO"
+                                    ? "bg-primary text-primary-foreground shadow-md"
                                     : "text-muted-foreground hover:text-foreground"
-                                }`}
+                                  }`}
                               >
                                 Auto-Manage
                               </button>
@@ -481,11 +506,10 @@ export default function SettingsClient({
                                   await updateAppPreferencesAction({ calendarAutomation: "ASK" });
                                   toast.success("Calendar automation set to Ask Permission");
                                 }}
-                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                                  (user?.appPreferences as any)?.calendarAutomation === "ASK" 
-                                    ? "bg-primary text-primary-foreground shadow-md" 
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${(user?.appPreferences as any)?.calendarAutomation === "ASK"
+                                    ? "bg-primary text-primary-foreground shadow-md"
                                     : "text-muted-foreground hover:text-foreground"
-                                }`}
+                                  }`}
                               >
                                 Ask First
                               </button>
@@ -504,11 +528,11 @@ export default function SettingsClient({
                               <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
                             </div>
                           </div>
-                          
+
                           <label className={`relative inline-flex items-center shrink-0 ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
-                            <input 
-                              type="checkbox" 
-                              className="sr-only peer" 
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
                               disabled={user?.plan === "FREE"}
                               checked={(user?.appPreferences as any)?.smartDrafts === true}
                               onChange={async (e) => {
@@ -545,7 +569,7 @@ export default function SettingsClient({
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="p-6">
                         {user?.plan === "FREE" ? (
                           <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
@@ -558,8 +582,8 @@ export default function SettingsClient({
                                 Connect your own Gemini API key to use your own quota. This feature is exclusively available for Pro and Ultra plans.
                               </p>
                             </div>
-                            <Button 
-                              onClick={() => router.push('/billing')} 
+                            <Button
+                              onClick={() => router.push('/billing')}
                               className="mt-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-8"
                             >
                               Upgrade to Pro to Unlock
@@ -567,7 +591,7 @@ export default function SettingsClient({
                           </div>
                         ) : (
                           <div className="space-y-8">
-                            
+
                             {/* API Key Connection Status */}
                             {user?.aiConnection && user.aiConnection.status === "ACTIVE" ? (
                               <div className="p-5 rounded-xl border border-green-500/20 bg-green-500/5 relative overflow-hidden group">
@@ -584,11 +608,11 @@ export default function SettingsClient({
                                       <p className="text-xs text-muted-foreground">Provider: {user.aiConnection.provider}</p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="bg-background/50 rounded-lg p-3 border border-border/50 font-mono text-sm mb-4 inline-flex items-center gap-3">
                                     <span className="text-muted-foreground">AIza•••••••••••••••••••••••••••••••••{user.aiConnection.keyLastFour}</span>
                                   </div>
-                                  
+
                                   <div className="flex items-center gap-3">
                                     <Button variant="outline" size="sm" onClick={handleVerifyAIKey} disabled={aiLoading} className="rounded-lg text-xs h-8">
                                       {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />} Verify
@@ -607,20 +631,20 @@ export default function SettingsClient({
                                 </p>
                                 <form onSubmit={handleConnectAIKey} className="flex items-center gap-3">
                                   <div className="relative flex-1 max-w-md">
-                                    <input 
-                                      type="password" 
-                                      placeholder="AIzaSy..." 
+                                    <input
+                                      type="password"
+                                      placeholder="AIzaSy..."
                                       value={aiKeyInput}
                                       onChange={(e) => setAiKeyInput(e.target.value)}
                                       required
-                                      className="w-full bg-background border border-border/50 focus:border-primary rounded-xl pl-4 pr-10 h-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono" 
+                                      className="w-full bg-background border border-border/50 focus:border-primary rounded-xl pl-4 pr-10 h-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
                                     />
                                   </div>
                                   <Button type="submit" disabled={aiLoading || !aiKeyInput} className="rounded-xl h-10 shadow-md hover:shadow-lg transition-all">
                                     {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Link className="w-4 h-4 mr-2" />} Connect
                                   </Button>
                                 </form>
-                                
+
                                 <div className="mt-6 pt-4 border-t border-border/30">
                                   <div className="flex items-start gap-3">
                                     <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
@@ -642,10 +666,10 @@ export default function SettingsClient({
                             {user?.aiConnection && user.aiConnection.status === "ACTIVE" && (
                               <div className="space-y-4">
                                 <h4 className="text-sm font-bold text-foreground border-b border-border/30 pb-2">AI Processing Mode</h4>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Platform */}
-                                  <div 
+                                  <div
                                     onClick={() => handleAIProcessingModeChange("PLATFORM", true)}
                                     className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${user.aiConnection.processingMode === "PLATFORM" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
                                   >
@@ -659,7 +683,7 @@ export default function SettingsClient({
                                   </div>
 
                                   {/* Hybrid */}
-                                  <div 
+                                  <div
                                     onClick={() => handleAIProcessingModeChange("HYBRID", true)}
                                     className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${user.aiConnection.processingMode === "HYBRID" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
                                   >
@@ -671,9 +695,9 @@ export default function SettingsClient({
                                     </div>
                                     <p className="text-xs text-muted-foreground">Uses your personal key first, falling back to Platform AI if your key fails or is rate-limited.</p>
                                   </div>
-                                  
+
                                   {/* Personal Only */}
-                                  <div 
+                                  <div
                                     onClick={() => handleAIProcessingModeChange("PERSONAL", false)}
                                     className={`cursor-pointer p-4 rounded-xl border-2 transition-all md:col-span-2 ${user.aiConnection.processingMode === "PERSONAL" ? "border-primary bg-primary/5" : "border-border/50 hover:border-border hover:bg-secondary/30"}`}
                                   >
@@ -688,7 +712,7 @@ export default function SettingsClient({
                                 </div>
                               </div>
                             )}
-                            
+
                           </div>
                         )}
                       </div>
@@ -719,11 +743,11 @@ export default function SettingsClient({
                               <label className="text-sm font-semibold">Current Password</label>
                               <div className="relative">
                                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input 
-                                  name="currentPassword" 
-                                  type="password" 
-                                  required 
-                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200" 
+                                <input
+                                  name="currentPassword"
+                                  type="password"
+                                  required
+                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
                                 />
                               </div>
                             </div>
@@ -731,26 +755,26 @@ export default function SettingsClient({
                               <label className="text-sm font-semibold">New Password</label>
                               <div className="relative">
                                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input 
-                                  name="newPassword" 
-                                  type="password" 
-                                  required 
-                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200" 
-                                  minLength={8} 
+                                <input
+                                  name="newPassword"
+                                  type="password"
+                                  required
+                                  className="w-full bg-secondary/30 border border-border/50 hover:border-border rounded-xl pl-10 pr-4 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
+                                  minLength={8}
                                 />
                               </div>
                             </div>
-                            
+
                             {passwordError && (
                               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-2 text-sm text-destructive animate-in fade-in slide-in-from-top-1">
                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                                 <p>{passwordError}</p>
                               </div>
                             )}
-                            
+
                             <div className="pt-2">
-                              <Button 
-                                type="submit" 
+                              <Button
+                                type="submit"
                                 disabled={passwordLoading}
                                 className="h-11 rounded-xl px-6 font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 active:scale-95 active:translate-y-0"
                               >
@@ -773,10 +797,10 @@ export default function SettingsClient({
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-border/10">
                             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                             </svg>
                           </div>
                           <div>
@@ -792,8 +816,8 @@ export default function SettingsClient({
                               <CheckCircle2 className="w-4 h-4" /> Connected
                             </span>
                           ) : (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               onClick={() => signIn("google", { callbackUrl: "/settings" })}
                               className="h-11 rounded-xl px-6 font-semibold"
                             >
@@ -830,7 +854,7 @@ export default function SettingsClient({
                               </div>
                               <div>
                                 <p className="font-semibold text-foreground flex items-center gap-2 text-sm">
-                                  {session.os || "Unknown OS"} - {session.browser || "Unknown Browser"} 
+                                  {session.os || "Unknown OS"} - {session.browser || "Unknown Browser"}
                                   {session.id === currentSessionId && (
                                     <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Current Device</span>
                                   )}
@@ -864,7 +888,7 @@ export default function SettingsClient({
                       <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           {/* Dark Theme Card */}
-                          <button 
+                          <button
                             onClick={() => setTheme("dark")}
                             className={`group relative flex flex-col gap-3 p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${theme === 'dark' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
                           >
@@ -878,7 +902,7 @@ export default function SettingsClient({
                           </button>
 
                           {/* Light Theme Card */}
-                          <button 
+                          <button
                             onClick={() => setTheme("light")}
                             className={`group relative flex flex-col gap-3 p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${theme === 'light' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
                           >
@@ -892,7 +916,7 @@ export default function SettingsClient({
                           </button>
 
                           {/* System Theme Card */}
-                          <button 
+                          <button
                             onClick={() => setTheme("system")}
                             className={`group relative flex flex-col gap-3 p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${theme === 'system' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
                           >
@@ -906,6 +930,172 @@ export default function SettingsClient({
                             </div>
                           </button>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur text-card-foreground shadow-xl overflow-hidden hover:shadow-2xl hover:border-border transition-all duration-300 mt-6">
+                      <div className="p-6 border-b border-border/50 bg-secondary/10">
+                        <h3 className="text-lg font-bold">Typography Preferences</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Select your preferred font style for the workspace.</p>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <button
+                            onClick={() => setDraftFont("font-geist")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-geist' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-sans text-xl font-bold mb-1">Geist Sans</span>
+                            <span className="text-sm text-muted-foreground mb-4">The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Default</span>
+                              {activeFontSelection === 'font-geist' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-inter")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-inter' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-inter text-xl font-bold mb-1" style={{ fontFamily: "var(--font-inter)" }}>Inter</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-inter)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Modern</span>
+                              {activeFontSelection === 'font-inter' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-outfit")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-outfit' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-outfit text-xl font-bold mb-1" style={{ fontFamily: "var(--font-outfit)" }}>Outfit</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-outfit)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Friendly</span>
+                              {activeFontSelection === 'font-outfit' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-playfair")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-playfair' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-playfair text-xl font-bold mb-1" style={{ fontFamily: "var(--font-playfair)" }}>Playfair</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-playfair)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Classic</span>
+                              {activeFontSelection === 'font-playfair' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-roboto")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-roboto' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-roboto text-xl font-bold mb-1" style={{ fontFamily: "var(--font-roboto)" }}>Roboto</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-roboto)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Standard</span>
+                              {activeFontSelection === 'font-roboto' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-jakarta")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-jakarta' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-jakarta text-xl font-bold mb-1" style={{ fontFamily: "var(--font-jakarta)" }}>Plus Jakarta</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-jakarta)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Geometric</span>
+                              {activeFontSelection === 'font-jakarta' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-fira")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-fira' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-fira text-xl font-bold mb-1" style={{ fontFamily: "var(--font-fira)" }}>Fira Code</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-fira)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Monospace</span>
+                              {activeFontSelection === 'font-fira' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-lora")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-lora' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-lora text-xl font-bold mb-1" style={{ fontFamily: "var(--font-lora)" }}>Lora</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-lora)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Elegant</span>
+                              {activeFontSelection === 'font-lora' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-poppins")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-poppins' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-poppins text-xl font-bold mb-1" style={{ fontFamily: "var(--font-poppins)" }}>Poppins</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-poppins)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Playful</span>
+                              {activeFontSelection === 'font-poppins' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-montserrat")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-montserrat' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-montserrat text-xl font-bold mb-1" style={{ fontFamily: "var(--font-montserrat)" }}>Montserrat</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-montserrat)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Clean</span>
+                              {activeFontSelection === 'font-montserrat' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-nunito")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-nunito' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-nunito text-xl font-bold mb-1" style={{ fontFamily: "var(--font-nunito)" }}>Nunito</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-nunito)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Rounded</span>
+                              {activeFontSelection === 'font-nunito' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => setDraftFont("font-merriweather")}
+                            className={`group relative flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left overflow-hidden ${activeFontSelection === 'font-merriweather' ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/50'}`}
+                          >
+                            <span className="font-merriweather text-xl font-bold mb-1" style={{ fontFamily: "var(--font-merriweather)" }}>Merriweather</span>
+                            <span className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "var(--font-merriweather)" }}>The quick brown fox</span>
+                            <div className="flex items-center justify-between w-full mt-auto">
+                              <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Readable</span>
+                              {activeFontSelection === 'font-merriweather' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                            </div>
+                          </button>
+                        </div>
+
+                        {/* Save/Cancel Action Bar */}
+                        {draftFont && draftFont !== font && (
+                          <div className="mt-6 flex justify-end gap-3 p-4 bg-secondary/20 rounded-xl border border-border/50 animate-in slide-in-from-bottom-2 fade-in duration-300">
+                            <Button variant="ghost" onClick={() => setDraftFont(null)}>
+                              Cancel
+                            </Button>
+                            <Button onClick={() => handleFontChange(draftFont)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                              Save Preferences
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -925,7 +1115,7 @@ export default function SettingsClient({
                     </div>
                   </div>
                 )}
-                
+
               </motion.div>
             </AnimatePresence>
           </div>

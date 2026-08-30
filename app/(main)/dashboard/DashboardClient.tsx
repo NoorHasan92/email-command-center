@@ -60,13 +60,11 @@ export default function DashboardClient({
   }, [initialEmails]);
 
   const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
+    return "Welcome back";
   };
 
-  const healthScore = Math.max(0, 100 - (healthData.criticalCount * 15) - (healthData.actionRequiredCount * 5));
+  // Adjusted penalty: -5 per critical, -2 per action required to prevent score dropping to 0 too quickly
+  const healthScore = Math.max(0, 100 - (healthData.criticalCount * 5) - (healthData.actionRequiredCount * 2));
   
   const opportunities = emails.filter(e => e.analysis?.category === 'Opportunity').slice(0, 4);
   const deadlines = emails.filter(e => e.analysis?.deadline).slice(0, 4);
@@ -106,7 +104,7 @@ export default function DashboardClient({
           <div className="bg-secondary/30 border border-border/50 px-4 py-3 rounded-xl flex items-start gap-3 max-w-sm w-full md:w-auto shrink-0">
             <Sparkles className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium">AI analyzed {initialEmails.length || 13} emails today.</p>
+              <p className="font-medium">AI analyzed {emails.length} emails today.</p>
               {healthData.actionRequiredCount > 0 ? (
                 <p className="text-muted-foreground">{healthData.actionRequiredCount} emails need your attention.</p>
               ) : healthData.criticalCount > 0 ? (
