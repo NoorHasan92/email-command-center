@@ -15,8 +15,8 @@ const getRazorpayInstance = () => {
 };
 
 const PLAN_PRICES = {
-  PRO: 120000, // 1200 INR in paise
-  ULTRA: 290000, // 2900 INR in paise
+  PRO: 114500, // 1145 INR in paise (approx $11.99)
+  ULTRA: 238500, // 2385 INR in paise (approx $24.99)
 };
 
 export async function createRazorpayOrderAction(planType: "PRO" | "ULTRA") {

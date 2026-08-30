@@ -11,7 +11,7 @@ import { createRazorpayOrderAction, verifyRazorpaySignatureAction } from "@/serv
 import { loadRazorpayScript } from "@/lib/razorpay";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import Script from "next/script";
+import { useRouter } from "next/navigation";
 
 declare global {
   interface Window {
@@ -29,7 +29,8 @@ export default function BillingClient({
   bonusAvailable: number
 }) {
   const [isPending, startTransition] = useTransition();
-  const [upgradingTo, setUpgradingTo] = useState<string | null>(null);
+  const [upgradingTo, setUpgradingTo] = useState<"PRO" | "ULTRA" | null>(null);
+  const router = useRouter();
 
   const handleUpgrade = async (newPlan: "PRO" | "ULTRA") => {
     setUpgradingTo(newPlan);
@@ -52,7 +53,7 @@ export default function BillingClient({
 
     // 2. Open Razorpay Checkout
     const options = {
-      key: orderRes.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      key: orderRes.keyId,
       amount: orderRes.amount,
       currency: orderRes.currency,
       name: "Inbox Sentinel",
@@ -70,6 +71,7 @@ export default function BillingClient({
 
           if (verifyRes.success) {
             toast.success(`Successfully upgraded to ${newPlan}!`);
+            router.refresh();
           } else {
             toast.error(verifyRes.error || "Payment verification failed");
           }
@@ -151,7 +153,7 @@ export default function BillingClient({
               {/* FREE Plan */}
               <PricingCard
                 title="Free"
-                price="₹0"
+                price="$0"
                 description="Perfect for casual users."
                 features={[
                   `${PLAN_AI_LIMITS.FREE} AI Analyses / month`,
@@ -169,8 +171,8 @@ export default function BillingClient({
               {/* PRO Plan */}
               <PricingCard
                 title="Pro"
-                price="₹1,200"
-                description="For professionals who need more power."
+                price="$11.99"
+                description="For professionals who need more power. (Billed as ₹1,145)"
                 features={[
                   `${PLAN_AI_LIMITS.PRO} AI Analyses / month`,
                   "Smart AI Email Drafts",
@@ -190,8 +192,8 @@ export default function BillingClient({
               {/* ULTRA Plan */}
               <PricingCard
                 title="Ultra"
-                price="₹2,900"
-                description="Maximum capacity for power users."
+                price="$24.99"
+                description="Maximum capacity for power users. (Billed as ₹2,385)"
                 features={[
                   `${PLAN_AI_LIMITS.ULTRA} AI Analyses / month`,
                   "Everything in Pro",
@@ -223,8 +225,8 @@ function PricingCard({
 }) {
   return (
     <Card className={`relative flex flex-col overflow-hidden transition-all ${highlight
-        ? "border-primary/50 shadow-lg shadow-primary/5 bg-primary/5"
-        : "bg-card/50 border-border hover:border-border/80 hover:bg-card/80"
+      ? "border-primary/50 shadow-lg shadow-primary/5 bg-primary/5"
+      : "bg-card/50 border-border hover:border-border/80 hover:bg-card/80"
       } ${isActive ? "ring-2 ring-primary border-transparent" : ""}`}>
       {highlight && (
         <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
@@ -255,10 +257,10 @@ function PricingCard({
           onClick={onAction}
           disabled={disabled || isLoading}
           className={`w-full flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${isCurrent
-              ? "bg-secondary text-secondary-foreground cursor-default"
-              : highlight
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-                : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+            ? "bg-secondary text-secondary-foreground cursor-default"
+            : highlight
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+              : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
             } ${disabled && !isCurrent ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           {isLoading ? "Processing..." : buttonText}

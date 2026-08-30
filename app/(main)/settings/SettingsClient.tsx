@@ -202,7 +202,6 @@ export default function SettingsClient({
     { id: "profile", label: "Profile", icon: User },
     { id: "preferences", label: "App Settings", icon: Sliders },
     { id: "ai", label: "AI Provider", icon: Brain },
-    { id: "billing", label: "Billing", icon: CreditCard, href: "/settings/billing" },
     { id: "security", label: "Security", icon: Shield },
     { id: "appearance", label: "Appearance", icon: Monitor },
     { id: "notifications", label: "Notifications", icon: Bell },
