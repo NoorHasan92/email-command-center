@@ -196,7 +196,7 @@ export default function InboxClient({
       <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${selectedEmail ? 'md:pr-[400px] xl:pr-[500px]' : ''}`}>
         
         {/* Top Header & Search */}
-        <header className="h-14 border-b border-border flex items-center px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-4">
+        <header className="h-14 border-b border-border flex items-center px-3 md:px-6 shrink-0 bg-background/95 backdrop-blur z-10 gap-2 md:gap-4">
           <div className="relative flex-1 max-w-md flex items-center group">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 transition-colors group-focus-within:text-primary" />
             <input 
@@ -224,13 +224,13 @@ export default function InboxClient({
         </header>
 
         <ScrollArea className="flex-1 min-h-0">
-          <div className="p-6 pb-20 max-w-6xl mx-auto space-y-8">
+          <div className="p-4 md:p-6 pb-20 max-w-6xl mx-auto space-y-8">
             
             {/* Email List */}
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold tracking-tight">Recent Activity</h2>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground hidden md:block">
                   <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono border border-border">J/K</kbd> Navigate</span>
                   <span className="inline-flex items-center gap-1 ml-3"><kbd className="px-1.5 py-0.5 bg-secondary rounded text-[10px] font-mono border border-border">E</kbd> Expand</span>
                 </div>
@@ -372,7 +372,7 @@ function EmailRow({ email, isSelected, isReviewed, onClick, onAction }: { email:
         </div>
       </div>
       
-      <div className="mt-3 pl-[60px] pr-2">
+      <div className="mt-3 pl-0 md:pl-[60px] pr-2">
         <span className="line-clamp-2 text-xs text-muted-foreground/80 leading-relaxed font-medium">
           {analysis?.summary || (
             email.status === 'SKIPPED' ? "Skipped (Not Important)" : 

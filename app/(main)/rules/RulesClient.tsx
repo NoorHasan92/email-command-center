@@ -67,7 +67,7 @@ export default function RulesClient({ initialRules, emailAccounts }: { initialRu
       <div className="max-w-5xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div className="flex items-center justify-between pb-6 border-b border-border/50">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">Rules Engine</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Rules Engine</h1>
             <p className="text-muted-foreground">Visually construct AI routing logic for your alerts.</p>
           </div>
           <Button onClick={handleOpenNew} className="rounded-full shadow-sm">

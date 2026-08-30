@@ -31,7 +31,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
           <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center border border-primary/10 shadow-inner">
             <Inbox className="w-12 h-12 text-primary opacity-50" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Gathering Insights</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Gathering Insights</h1>
           <p className="text-muted-foreground max-w-md">
             Your AI Chief of Staff is monitoring your inbox. Check back later once we have processed enough emails to generate meaningful, story-driven analytics about your workflow.
           </p>
@@ -51,7 +51,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
       <div className="max-w-6xl mx-auto w-full space-y-6 md:space-y-8 pb-24">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">AI Insights</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">AI Insights</h1>
           <p className="text-muted-foreground">Discover how your AI Chief of Staff is optimizing your daily workflow.</p>
         </div>
 
@@ -80,7 +80,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="h-[320px] w-full">
+              <div className="h-[240px] md:h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={activityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <defs>
@@ -191,7 +191,7 @@ function InsightCard({ title, metric, narrative, icon, accentColor }: { title: s
         </div>
         <div className="flex flex-col">
           <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">{title}</p>
-          <span className="text-4xl font-black tracking-tight mb-3 text-foreground">{metric}</span>
+          <span className="text-3xl md:text-4xl font-black tracking-tight mb-3 text-foreground">{metric}</span>
           <p className="text-sm text-muted-foreground/90 leading-relaxed font-medium">
             {narrative}
           </p>

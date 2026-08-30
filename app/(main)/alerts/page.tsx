@@ -38,7 +38,7 @@ export default async function AlertsPage() {
               <Bell className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-1">Alerts Timeline</h1>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">Alerts Timeline</h1>
               <p className="text-muted-foreground">A chronological history of AI-triggered notifications.</p>
             </div>
           </div>
