@@ -15,6 +15,8 @@ import { useSession } from "next-auth/react";
 
 import { Email, EmailAnalysis } from "@prisma/client";
 
+import { useRouter, useSearchParams } from "next/navigation";
+
 export type EmailWithAnalysis = Email & {
   analysis: EmailAnalysis | null;
   emailAccount?: {
@@ -34,14 +36,23 @@ interface HealthData {
 export default function DashboardClient({ 
   initialEmails, 
   healthData,
-  recentNotifications
+  recentNotifications,
+  emailAccounts,
+  selectedAccountId
 }: { 
   initialEmails: EmailWithAnalysis[];
   healthData: HealthData;
   recentNotifications?: any[];
+  emailAccounts?: { id: string; emailAddress: string }[];
+  selectedAccountId?: string | null;
 }) {
   const [emails, setEmails] = useState(initialEmails);
   const { data: session } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    setEmails(initialEmails);
+  }, [initialEmails]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -61,10 +72,13 @@ export default function DashboardClient({
         
         {/* Personalized Hero */}
         <section className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
-          <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight">
-              {greeting()}, {session?.user?.name?.split(' ')[0] || "User"} <span className="inline-block hover:animate-wiggle cursor-default">👋</span>
-            </h1>
+          <div className="space-y-4 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+              <h1 className="text-4xl font-bold tracking-tight">
+                {greeting()}, {session?.user?.name?.split(' ')[0] || "User"} <span className="inline-block hover:animate-wiggle cursor-default">👋</span>
+              </h1>
+            </div>
+            
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-500" />
@@ -73,7 +87,9 @@ export default function DashboardClient({
               <Separator orientation="vertical" className="h-4" />
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                <span>Monitoring: <span className="text-foreground font-medium">{session?.user?.email || "Connected Account"}</span></span>
+                <span>Monitoring: <span className="text-foreground font-medium">
+                  {selectedAccountId && emailAccounts ? emailAccounts.find(a => a.id === selectedAccountId)?.emailAddress : (emailAccounts && emailAccounts.length > 1 ? "All Accounts" : session?.user?.email || "Connected Account")}
+                </span></span>
               </div>
               <Separator orientation="vertical" className="h-4" />
               <div className="flex items-center gap-2">
@@ -82,7 +98,7 @@ export default function DashboardClient({
               </div>
             </div>
           </div>
-          <div className="bg-secondary/30 border border-border/50 px-4 py-3 rounded-xl flex items-start gap-3 max-w-sm w-full md:w-auto">
+          <div className="bg-secondary/30 border border-border/50 px-4 py-3 rounded-xl flex items-start gap-3 max-w-sm w-full md:w-auto shrink-0">
             <Sparkles className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-medium">AI analyzed {initialEmails.length || 13} emails today.</p>

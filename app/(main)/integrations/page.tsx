@@ -18,6 +18,7 @@ export default async function IntegrationsPage() {
       telegramChatId: true,
       telegramUsername: true,
       notifyChannels: true,
+      plan: true,
     }
   });
 
@@ -25,11 +26,12 @@ export default async function IntegrationsPage() {
     where: { userId: session.user.id }
   });
   
-  const gmailAccount = accounts.find(a => a.provider === "gmail");
+  const gmailAccounts = accounts.filter(a => a.provider === "gmail");
 
   return (
     <IntegrationsClient 
-      gmailAccount={gmailAccount ? JSON.parse(JSON.stringify(gmailAccount)) : undefined}
+      gmailAccounts={JSON.parse(JSON.stringify(gmailAccounts))}
+      userPlan={user?.plan || "FREE"}
       whatsappOptIn={user?.whatsappOptIn || false}
       phoneNumber={user?.phoneNumber || null}
       telegramOptIn={user?.telegramOptIn || false}

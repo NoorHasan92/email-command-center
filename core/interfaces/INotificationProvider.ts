@@ -9,6 +9,7 @@ export interface NotificationPayload {
   explanation: string;
   actionRequired: boolean;
   destination: string; // Phone number or email address
+  smartDraftGenerated?: boolean;
 }
 
 export interface DigestPayload {

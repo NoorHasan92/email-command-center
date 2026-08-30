@@ -8,6 +8,7 @@ import { toggleWhatsAppAction, disconnectGmailAction, disconnectTelegramAction, 
 import { sendWhatsAppOTPAction, verifyWhatsAppOTPAction } from "@/server/actions/whatsapp-otp.actions";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import { initiateAccountLinkAction, verifyLinkCodesAction } from "@/server/actions/link-account.actions";
 import { toast } from "sonner";
 import PhoneInput, { isValidPhoneNumber, getCountries } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
@@ -107,7 +108,8 @@ const TelegramIcon = ({ className }: { className?: string }) => (
 );
 
 interface IntegrationsClientProps {
-  gmailAccount: any;
+  gmailAccounts: any[];
+  userPlan: string;
   whatsappOptIn: boolean;
   phoneNumber: string | null;
   telegramOptIn: boolean;
@@ -117,7 +119,8 @@ interface IntegrationsClientProps {
 }
 
 export default function IntegrationsClient({
-  gmailAccount,
+  gmailAccounts,
+  userPlan,
   whatsappOptIn,
   phoneNumber,
   telegramOptIn,
@@ -155,6 +158,15 @@ export default function IntegrationsClient({
 
   const [gmailModalOpen, setGmailModalOpen] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
+
+  // Secondary Gmail Linking State
+  const [addSecondaryGmailModalOpen, setAddSecondaryGmailModalOpen] = useState(false);
+  const [secondaryGmailTarget, setSecondaryGmailTarget] = useState("");
+  const [secondaryGmailRequestId, setSecondaryGmailRequestId] = useState("");
+  const [primaryCode, setPrimaryCode] = useState("");
+  const [secondaryCode, setSecondaryCode] = useState("");
+  const [secondaryGmailStep, setSecondaryGmailStep] = useState<"EMAIL" | "CODES" | "SUCCESS">("EMAIL");
+  const [secondaryGmailLoading, setSecondaryGmailLoading] = useState(false);
 
   // Notification channel preferences
   const [channels, setChannels] = useState<string[]>(initialChannels);
@@ -211,14 +223,52 @@ export default function IntegrationsClient({
     }
   };
 
-  const handleDisconnectGmail = async () => {
-    if (!gmailAccount?.id) return;
+  const handleDisconnectGmail = async (id: string) => {
     setGmailLoading(true);
-    const res = await disconnectGmailAction(gmailAccount.id);
+    const res = await disconnectGmailAction(id);
     setGmailLoading(false);
     if (res.success) {
-      setGmailModalOpen(false);
+      if (gmailAccounts.length === 1) {
+        setGmailModalOpen(false);
+      }
       router.refresh();
+    }
+  };
+
+  const handleInitiateSecondaryLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!secondaryGmailTarget) {
+      toast.error("Please enter a valid Gmail address.");
+      return;
+    }
+    setSecondaryGmailLoading(true);
+    const res = await initiateAccountLinkAction(secondaryGmailTarget);
+    setSecondaryGmailLoading(false);
+
+    if (res.error) {
+      toast.error(res.error);
+    } else if (res.success && res.requestId) {
+      setSecondaryGmailRequestId(res.requestId);
+      setSecondaryGmailStep("CODES");
+      toast.success("Verification codes sent to both emails!");
+    }
+  };
+
+  const handleVerifySecondaryCodes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!primaryCode || !secondaryCode) {
+      toast.error("Please enter both verification codes.");
+      return;
+    }
+    setSecondaryGmailLoading(true);
+    const res = await verifyLinkCodesAction(secondaryGmailRequestId, primaryCode, secondaryCode);
+    setSecondaryGmailLoading(false);
+
+    if (res.error) {
+      toast.error(res.error);
+    } else if (res.success) {
+      setSecondaryGmailStep("SUCCESS");
+      toast.success("Verification successful!");
     }
   };
 
@@ -288,15 +338,18 @@ export default function IntegrationsClient({
 
         {/* Integration Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <IntegrationCard
-            title="Gmail"
-            description="Sync your inbox, extract deadlines, and manage emails automatically."
-            icon={<img src="/gmail.svg" alt="Gmail" className="w-6 h-6 object-contain" />}
-            status={gmailAccount ? "connected" : "available"}
-            onManage={() => setGmailModalOpen(true)}
-            onConnect={() => { window.location.href = "/api/integrations/gmail/connect"; }}
-            healthStats={gmailAccount ? { sync: gmailAccount.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccount.lastSyncedAt), { addSuffix: true }) : "Unknown", uptime: "99.9%" } : undefined}
-          />
+        <IntegrationCard
+          title="Gmail"
+          description="Connect your Gmail account to enable real-time AI scanning, threat detection, and automated smart drafting."
+          icon={<img src="/gmail.svg" alt="Gmail" className="w-8 h-8 object-contain" />}
+          status={gmailAccounts.length > 0 ? "connected" : "available"}
+          onManage={() => setGmailModalOpen(true)}
+          onConnect={() => window.location.href = "/api/integrations/gmail/connect"}
+          healthStats={gmailAccounts.length > 0 ? {
+            sync: gmailAccounts[0]?.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccounts[0].lastSyncedAt), { addSuffix: true }) : 'Unknown',
+            uptime: "100%"
+          } : undefined}
+        />
           <IntegrationCard
             title="WhatsApp"
             description="Get pinged on WhatsApp for highly critical, time-sensitive emails."
@@ -593,37 +646,158 @@ export default function IntegrationsClient({
       {/* Gmail Modal */}
       {gmailModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md flex flex-col">
+          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
             <div className="p-4 border-b border-border flex justify-between items-center">
-              <h3 className="font-semibold text-lg flex items-center gap-2"><img src="/gmail.svg" alt="Gmail" className="w-5 h-5 object-contain" /> Gmail Integration</h3>
+              <h3 className="font-semibold text-lg flex items-center gap-2"><img src="/gmail.svg" alt="Gmail" className="w-5 h-5 object-contain" /> Connected Gmail Accounts</h3>
               <button onClick={() => setGmailModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-4 bg-secondary/30 p-4 rounded-lg border border-border">
-                <Check className="w-6 h-6 text-green-500" />
-                <div>
-                  <p className="font-medium">Connected</p>
-                  <p className="text-sm text-muted-foreground">{gmailAccount?.emailAddress}</p>
+            <div className="p-6 space-y-4 overflow-y-auto styled-scroll">
+              {gmailAccounts.length === 0 ? (
+                <div className="text-center p-6 text-muted-foreground">
+                  No Gmail accounts connected.
                 </div>
-              </div>
-
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>Status:</strong> {gmailAccount?.syncStatus}</p>
-                <p><strong>Last Sync:</strong> {gmailAccount?.lastSyncedAt ? formatDistanceToNow(new Date(gmailAccount.lastSyncedAt), { addSuffix: true }) : 'Unknown'}</p>
-                <p><strong>Emails Synced:</strong> {gmailAccount?.totalEmailsSynced}</p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button variant="outline" className="w-full" onClick={() => router.push("/onboarding")}>
-                  Reconnect
-                </Button>
-                <Button variant="destructive" className="w-full" onClick={handleDisconnectGmail} disabled={gmailLoading}>
-                  {gmailLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Disconnect
-                </Button>
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  Warning: Disconnecting will pause syncing. If this is your only account, you will be redirected to onboarding.
+              ) : (
+                <div className="space-y-4">
+                  {gmailAccounts.map((account: any) => (
+                    <div key={account.id} className="p-4 bg-secondary/30 rounded-xl border border-border/50 relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                            {account.emailAddress} 
+                            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider">Active</span>
+                          </h4>
+                          <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                            <p><strong>Status:</strong> {account.syncStatus}</p>
+                            <p><strong>Last Sync:</strong> {account.lastSyncedAt ? formatDistanceToNow(new Date(account.lastSyncedAt), { addSuffix: true }) : 'Unknown'}</p>
+                            <p><strong>Emails Synced:</strong> {account.totalEmailsSynced}</p>
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => router.push("/onboarding")}>
+                            Reconnect
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDisconnectGmail(account.id)} disabled={gmailLoading}>
+                            {gmailLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Disconnect"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-border bg-secondary/10">
+              <Button 
+                variant="default" 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+                disabled={gmailAccounts.length >= 1 && userPlan !== "ULTRA" && userPlan !== "ADMIN"}
+                onClick={() => setAddSecondaryGmailModalOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" /> Connect Another Gmail Account
+              </Button>
+              {gmailAccounts.length >= 1 && userPlan !== "ULTRA" && userPlan !== "ADMIN" && (
+                <p className="text-[10px] text-center text-yellow-500 font-bold uppercase tracking-wider mt-3">
+                  Ultra Plan Required to connect multiple accounts
                 </p>
-              </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Secondary Gmail Modal */}
+      {addSecondaryGmailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border/50 overflow-hidden relative">
+            <div className="p-6 border-b border-border/50">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Plus className="w-5 h-5" /> 
+                {secondaryGmailStep === "EMAIL" && "Link Secondary Gmail"}
+                {secondaryGmailStep === "CODES" && "Verify Ownership"}
+                {secondaryGmailStep === "SUCCESS" && "Link Sent!"}
+              </h3>
+              <button onClick={() => setAddSecondaryGmailModalOpen(false)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {secondaryGmailStep === "EMAIL" && (
+                <form onSubmit={handleInitiateSecondaryLink} className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Enter the Gmail address you want to link. We will send verification codes to both your current email and this new email to ensure you own both.
+                  </p>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Secondary Gmail Address</label>
+                    <input 
+                      type="email"
+                      value={secondaryGmailTarget}
+                      onChange={(e) => setSecondaryGmailTarget(e.target.value)}
+                      placeholder="e.g. your-other-email@gmail.com"
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full mt-2" disabled={secondaryGmailLoading}>
+                    {secondaryGmailLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Send Codes"}
+                  </Button>
+                </form>
+              )}
+
+              {secondaryGmailStep === "CODES" && (
+                <form onSubmit={handleVerifySecondaryCodes} className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    Check your inboxes! Enter the codes sent to your primary email and <strong>{secondaryGmailTarget}</strong>.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Primary Verification Code</label>
+                      <input 
+                        type="text"
+                        value={primaryCode}
+                        onChange={(e) => setPrimaryCode(e.target.value)}
+                        placeholder="6-character code"
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        maxLength={6}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Secondary Verification Code</label>
+                      <input 
+                        type="text"
+                        value={secondaryCode}
+                        onChange={(e) => setSecondaryCode(e.target.value)}
+                        placeholder="6-character code"
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        maxLength={6}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={secondaryGmailLoading}>
+                    {secondaryGmailLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Verify Codes"}
+                  </Button>
+                </form>
+              )}
+
+              {secondaryGmailStep === "SUCCESS" && (
+                <div className="space-y-6 text-center py-4">
+                  <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-lg font-semibold">Verification Successful</h4>
+                  <p className="text-sm text-muted-foreground">
+                    We have sent a final activation link to <strong>{secondaryGmailTarget}</strong>. 
+                    Please open that email on any device and click the link to authorize Inbox Sentinel.
+                  </p>
+                  <Button onClick={() => setAddSecondaryGmailModalOpen(false)} className="w-full" variant="outline">
+                    Close
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -713,7 +887,7 @@ function IntegrationCard({
         )}
         {status === "coming_soon" && (
           <Button variant="outline" disabled className="w-full rounded-xl opacity-50">
-            Join Waitlist
+            Coming Soon
           </Button>
         )}
       </CardContent>

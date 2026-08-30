@@ -42,6 +42,11 @@ export default function InboxClient({
   const [reviewedEmails, setReviewedEmails] = useState<Set<string>>(new Set());
   const [feedbackStates, setFeedbackStates] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    setEmails(initialEmails);
+    setHasMore(initialEmails.length >= 10);
+  }, [initialEmails]);
+
   const handleMarkReviewed = useCallback((emailId: string) => {
     setReviewedEmails(prev => {
       const next = new Set(prev);

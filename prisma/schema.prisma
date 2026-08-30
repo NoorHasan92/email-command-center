@@ -163,6 +163,9 @@ model User {
   // Notification Preferences — JSON array of enabled channels e.g. ["WHATSAPP", "TELEGRAM"]
   notifyChannels        Json      @default("[]")
 
+  // App Preferences — Calendar automation, smart drafts, etc.
+  appPreferences        Json      @default("{}")
+
   // Account Lockout
   failedLoginAttempts   Int       @default(0)
   lockedUntil           DateTime?
@@ -343,6 +346,8 @@ model EmailAnalysis {
   urgencyScore         Int      @default(0)
   estimatedReadingTime Int?
   suggestedNotification Boolean @default(false)
+  smartDraft           String?  @db.Text
+  extractedEvents      Json?
   
   // AI Cost & Performance Tracking
   model              String?
@@ -369,6 +374,7 @@ model EmailAnalysis {
 model NotificationRule {
   id                String              @id @default(cuid())
   userId            String
+  appliedAccounts   String[]            @default([])
   minScoreThreshold Int                 @default(50)
   channel           NotificationChannel @default(WHATSAPP)
   isActive          Boolean             @default(true)
@@ -517,4 +523,18 @@ model WhatsAppSession {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, sessionId, category, key])
+}
+
+model AccountLinkRequest {
+  id            String   @id @default(cuid())
+  userId        String   // The primary user initiating the request
+  targetEmail   String   // The secondary email they want to link
+  
+  primaryCode   String   // Alphanumeric code sent to primary email
+  secondaryCode String   // Alphanumeric code sent to secondary email
+  linkToken     String   @unique // Secure token for the final OAuth link
+  
+  expiresAt     DateTime
+  status        String   @default("PENDING_CODES") // PENDING_CODES, PENDING_OAUTH, LINKED
+  createdAt     DateTime @default(now())
 }

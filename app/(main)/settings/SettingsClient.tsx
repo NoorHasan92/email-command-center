@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
+import { updateAppPreferencesAction } from "@/server/actions/preferences.actions";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon } from "lucide-react";
+import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ export default function SettingsClient({
   hasPassword: boolean;
   hasGoogleLinked: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance" | "notifications">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "security" | "appearance" | "notifications">("profile");
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -72,6 +73,7 @@ export default function SettingsClient({
   // UI Components
   const TABS = [
     { id: "profile", label: "Profile", icon: User },
+    { id: "preferences", label: "App Settings", icon: Sliders },
     { id: "security", label: "Security", icon: Shield },
     { id: "appearance", label: "Appearance", icon: Monitor },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -276,6 +278,93 @@ export default function SettingsClient({
                             <p className="text-[10px] text-muted-foreground text-center uppercase tracking-wider font-semibold">Last Sync: 15 minutes ago</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* APP SETTINGS (PREFERENCES) TAB */}
+                {activeTab === "preferences" && (
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur text-card-foreground shadow-xl overflow-hidden hover:shadow-2xl hover:border-border transition-all duration-300">
+                      <div className="p-6 border-b border-border/50 bg-secondary/10">
+                        <h3 className="text-lg font-bold flex items-center gap-2"><Sliders className="w-5 h-5 text-primary" /> App Settings</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Configure your AI automations and workflow preferences.</p>
+                      </div>
+                      
+                      <div className="p-6 space-y-8">
+                        {/* Calendar Automation */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-bold text-foreground">Calendar Automation</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Allow AI to automatically schedule detected meetings, deadlines, and events into your Google Calendar.
+                            </p>
+                            <div className="flex items-center gap-2 mt-3">
+                              <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center bg-black/20 rounded-xl p-1 border border-border/30">
+                            <button
+                              disabled={user?.plan === "FREE"}
+                              onClick={async () => {
+                                const newMode = (user?.appPreferences as any)?.calendarAutomation === "AUTO" ? "ASK" : "AUTO";
+                                await updateAppPreferencesAction({ calendarAutomation: newMode });
+                                toast.success(`Calendar automation set to ${newMode === "AUTO" ? "Automatic" : "Ask Permission"}`);
+                              }}
+                              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                                (user?.appPreferences as any)?.calendarAutomation === "AUTO" 
+                                  ? "bg-primary text-primary-foreground shadow-md" 
+                                  : "text-muted-foreground hover:text-foreground"
+                              } ${user?.plan === "FREE" ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              Auto-Manage
+                            </button>
+                            <button
+                              disabled={user?.plan === "FREE"}
+                              onClick={async () => {
+                                await updateAppPreferencesAction({ calendarAutomation: "ASK" });
+                                toast.success("Calendar automation set to Ask Permission");
+                              }}
+                              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                                (user?.appPreferences as any)?.calendarAutomation !== "AUTO" 
+                                  ? "bg-primary text-primary-foreground shadow-md" 
+                                  : "text-muted-foreground hover:text-foreground"
+                              } ${user?.plan === "FREE" ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              Ask First
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Smart Drafts */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-bold text-foreground">Smart Drafts</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Automatically generate intelligent reply drafts for actionable emails directly in your Gmail Drafts folder. You will be notified via WhatsApp.
+                            </p>
+                            <div className="flex items-center gap-2 mt-3">
+                              <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
+                            </div>
+                          </div>
+                          
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              disabled={user?.plan === "FREE"}
+                              checked={(user?.appPreferences as any)?.smartDrafts === true}
+                              onChange={async (e) => {
+                                const checked = e.target.checked;
+                                await updateAppPreferencesAction({ smartDrafts: checked });
+                                toast.success(`Smart Drafts ${checked ? "enabled" : "disabled"}`);
+                              }}
+                            />
+                            <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                          </label>
+                        </div>
+
                       </div>
                     </div>
                   </div>

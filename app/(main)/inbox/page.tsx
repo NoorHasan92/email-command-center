@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { db } from "@/server/repositories/db";
 import InboxClient from "./InboxClient";
 import { auth } from "@/config/auth";
@@ -9,9 +10,15 @@ export default async function InboxPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
+  
+  const cookieStore = await cookies();
+  const selectedAccountId = cookieStore.get("selected_account_id")?.value;
+  const accountId = selectedAccountId === "all" ? undefined : selectedAccountId;
+
+  const accountFilter = accountId ? { id: accountId, userId } : { userId };
 
   const recentEmails = await db.email.findMany({
-    where: { emailAccount: { userId } },
+    where: { emailAccount: accountFilter },
     orderBy: { date: "desc" },
     take: 10,
     include: {

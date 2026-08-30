@@ -45,7 +45,7 @@ export async function evaluateDecisions(email: Email, analysis: EmailAnalysis): 
     
     for (const rule of rules) {
       // Basic heuristic: Is the score >= threshold? OR is explicit action required?
-      if (analysis.score >= rule.minScoreThreshold || (analysis.isActionRequired && rule.minScoreThreshold <= 80)) {
+      if (analysis.urgencyScore >= rule.minScoreThreshold || (analysis.requiresAction && rule.minScoreThreshold <= 80)) {
         logger.info(`[STAGE 05 - DECISION] [MATCH] [ID: ${email.id}] | Rule matched for channel: ${rule.channel}`);
         matchedRules.push(rule);
       }

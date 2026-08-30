@@ -64,6 +64,15 @@ export async function processPendingEmails() {
       await analyzeEmail(normalizedEmail, aiProvider);
       metrics.analyzer = Math.round(performance.now() - stageStart);
 
+      // 5. Pro Actions (Calendar, Drafts)
+      const analysis = await db.emailAnalysis.findUnique({ where: { emailId: email.id } });
+      if (analysis) {
+        stageStart = performance.now();
+        const { executeProActions } = await import("@/core/pipeline/05-actions");
+        await executeProActions(email, analysis);
+        metrics.actions = Math.round(performance.now() - stageStart);
+      }
+
       // 5. Update Metrics (Status is already updated to AI_COMPLETE in analyzer)
       await db.email.update({
         where: { id: email.id },
@@ -71,8 +80,7 @@ export async function processPendingEmails() {
       });
 
       // 6. Notifier Engine (Multi-Channel: WhatsApp + Telegram)
-      const analysis = await db.emailAnalysis.findUnique({ where: { emailId: email.id } });
-      if (analysis && (analysis.suggestedNotification || analysis.urgencyScore >= 80)) {
+      if (analysis && (analysis.suggestedNotification || analysis.urgencyScore >= 80 || analysis.smartDraft || analysis.extractedEvents)) {
         const { dispatchNotifications } = await import("@/core/pipeline/06-notifier");
 
         // Fetch user to determine which channels they've enabled

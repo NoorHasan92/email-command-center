@@ -13,7 +13,15 @@ export const aiAnalysisSchema = z.object({
   sentiment: z.string().nullable().describe("Overall sentiment of the email (e.g. POSITIVE, NEUTRAL, URGENT, ANGRY)."),
   urgencyScore: z.number().min(0).max(100).describe("How urgent this email is (0-100)."),
   estimatedReadingTime: z.number().nullable().describe("Estimated reading time in seconds."),
-  suggestedNotification: z.boolean().describe("Whether this email is important enough to trigger an immediate push notification.")
+  suggestedNotification: z.boolean().describe("Whether this email is important enough to trigger an immediate push notification."),
+  smartDraft: z.string().nullable().optional().describe("A fully drafted, professional reply to the email if it requires an actionable response. Write the draft as if you are the user replying. Null if no reply is needed."),
+  extractedEvents: z.array(z.object({
+    title: z.string().describe("Title of the event or meeting."),
+    startTime: z.string().describe("ISO 8601 start time."),
+    endTime: z.string().describe("ISO 8601 end time."),
+    description: z.string().nullable().describe("Optional description of the event."),
+    location: z.string().nullable().describe("Optional location (physical or virtual).")
+  })).optional().describe("Any calendar events, flights, or meetings mentioned in the email.")
 });
 
 export type AIAnalysisOutput = z.infer<typeof aiAnalysisSchema>;

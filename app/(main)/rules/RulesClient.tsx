@@ -8,21 +8,24 @@ import { useRouter } from "next/navigation";
 import { NotificationChannel } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 
-export default function RulesClient({ initialRules }: { initialRules: any[] }) {
+export default function RulesClient({ initialRules, emailAccounts }: { initialRules: any[], emailAccounts: {id: string, emailAddress: string}[] }) {
   const [rules, setRules] = useState(initialRules);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   const router = useRouter();
 
   const handleOpenNew = () => {
     setEditingRule(null);
+    setSelectedAccounts(emailAccounts.map(a => a.id)); // Default to all accounts
     setModalOpen(true);
   };
 
   const handleOpenEdit = (rule: any) => {
     setEditingRule(rule);
+    setSelectedAccounts(rule.appliedAccounts || []);
     setModalOpen(true);
   };
 
@@ -30,11 +33,12 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
+    formData.append("appliedAccounts", JSON.stringify(selectedAccounts));
 
     if (editingRule) {
       const res = await updateRuleAction(editingRule.id, formData);
       if (res.success) {
-        setRules(rules.map(r => r.id === editingRule.id ? { ...r, minScoreThreshold: parseInt(formData.get("minScoreThreshold") as string), channel: formData.get("channel") } : r));
+        setRules(rules.map(r => r.id === editingRule.id ? { ...r, minScoreThreshold: parseInt(formData.get("minScoreThreshold") as string), channel: formData.get("channel"), appliedAccounts: selectedAccounts } : r));
       }
     } else {
       const res = await createRuleAction(formData);
@@ -204,11 +208,45 @@ export default function RulesClient({ initialRules }: { initialRules: any[] }) {
                     </div>
                   </div>
                 </div>
+                <div className="p-5 border border-border/50 rounded-xl bg-secondary/10 space-y-4">
+                  <label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Applies To</label>
+                  <p className="text-xs text-muted-foreground mb-3">Select the connected accounts this rule should monitor.</p>
+                  
+                  {emailAccounts.length === 0 ? (
+                    <div className="text-sm text-yellow-500 font-medium">No accounts connected.</div>
+                  ) : (
+                    <div className="space-y-2 max-h-32 overflow-y-auto styled-scroll pr-2">
+                      {emailAccounts.map(account => {
+                        const isSelected = selectedAccounts.includes(account.id);
+                        return (
+                          <label key={account.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${isSelected ? 'border-primary/50 bg-primary/5' : 'border-border/30 bg-background hover:bg-secondary/30'}`}>
+                            <input 
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAccounts([...selectedAccounts, account.id]);
+                                } else {
+                                  setSelectedAccounts(selectedAccounts.filter(id => id !== account.id));
+                                }
+                              }}
+                            />
+                            <span className="text-sm font-medium flex-1 truncate">{account.emailAddress}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedAccounts.length === 0 && emailAccounts.length > 0 && (
+                    <p className="text-xs text-red-500 mt-2 font-medium">Please select at least one account.</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-border/50">
                 <Button type="button" variant="ghost" className="rounded-full" onClick={() => setModalOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={loading} className="rounded-full shadow-sm px-6">
+                <Button type="submit" disabled={loading || selectedAccounts.length === 0} className="rounded-full shadow-sm px-6">
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingRule ? "Save Changes" : "Create Rule"}
                 </Button>

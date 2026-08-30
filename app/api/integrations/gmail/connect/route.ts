@@ -8,12 +8,16 @@ import { getBaseUrl } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
+    const isLinkFlow = req.nextUrl.searchParams.get("isLinkFlow") === "true";
     const session = await auth();
-    if (!session?.user?.id) {
+    
+    if (!session?.user?.id && !isLinkFlow) {
       return NextResponse.redirect(new URL("/login", getBaseUrl()));
     }
 
-    await logSecurityEvent("GMAIL_CONNECT_STARTED", session.user.id);
+    if (session?.user?.id) {
+      await logSecurityEvent("GMAIL_CONNECT_STARTED", session.user.id);
+    }
 
     const clientId = process.env.AUTH_GOOGLE_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET;
@@ -45,6 +49,8 @@ export async function GET(req: NextRequest) {
     // Requirement 2: Request minimum required scopes
     const scopes = [
       "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify", // To save smart drafts
+      "https://www.googleapis.com/auth/calendar.events", // To create calendar events
       "https://www.googleapis.com/auth/userinfo.email",
       "openid",
       "email",

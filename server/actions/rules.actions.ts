@@ -27,12 +27,15 @@ export async function createRuleAction(formData: FormData) {
   try {
     const minScoreThreshold = parseInt(formData.get("minScoreThreshold")?.toString() || "80", 10);
     const channel = formData.get("channel")?.toString() as NotificationChannel || "WHATSAPP";
+    const appliedAccountsRaw = formData.get("appliedAccounts")?.toString();
+    const appliedAccounts = appliedAccountsRaw ? JSON.parse(appliedAccountsRaw) : [];
 
     await db.notificationRule.create({
       data: {
         userId: session.user.id,
         minScoreThreshold,
-        channel
+        channel,
+        appliedAccounts
       }
     });
     
@@ -50,6 +53,8 @@ export async function updateRuleAction(id: string, formData: FormData) {
   try {
     const minScoreThreshold = parseInt(formData.get("minScoreThreshold")?.toString() || "80", 10);
     const channel = formData.get("channel")?.toString() as NotificationChannel;
+    const appliedAccountsRaw = formData.get("appliedAccounts")?.toString();
+    const appliedAccounts = appliedAccountsRaw ? JSON.parse(appliedAccountsRaw) : [];
     
     const rule = await db.notificationRule.findUnique({ where: { id } });
     if (!rule || rule.userId !== session.user.id) return { error: "Not found or unauthorized" };
@@ -58,7 +63,8 @@ export async function updateRuleAction(id: string, formData: FormData) {
       where: { id },
       data: {
         minScoreThreshold,
-        ...(channel && { channel })
+        channel,
+        appliedAccounts
       }
     });
 

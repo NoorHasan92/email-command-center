@@ -83,6 +83,7 @@ export async function dispatchNotifications(
       explanation: analysis.reasoning || "No explanation provided.",
       actionRequired: analysis.requiresAction,
       destination,
+      smartDraftGenerated: !!analysis.smartDraft && (user.appPreferences as any)?.smartDrafts === true,
     };
 
     // 5. Dispatch and Log

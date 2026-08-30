@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell, User, CheckCircle2, AlertCircle, Eye, ArrowRight, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ROUTES } from "@/config/routes";
@@ -19,14 +18,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMobileDrawer } from "@/providers/mobile-drawer-provider";
 
-import { useState } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { setActiveAccountAction } from "@/server/actions/account-switcher.actions";
+import { Mail, ChevronDown } from "lucide-react";
+import { useGlobalLoader } from "@/providers/global-loader-provider";
 
-export function Header() {
+interface HeaderProps {
+  emailAccounts?: { id: string; emailAddress: string; provider: string }[];
+  selectedAccountId?: string;
+}
+
+export function Header({ emailAccounts = [], selectedAccountId = "all" }: HeaderProps) {
   const pathname = usePathname();
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const { data: session } = useSession();
   const { toggle } = useMobileDrawer();
-  
+  const [isPending, startTransition] = useTransition();
+  const { setSwitchingAccount } = useGlobalLoader();
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("notifications_read");
+    if (!dismissed) {
+      setHasUnreadNotifications(true);
+    }
+  }, []);
+
+  const markAsRead = () => {
+    setHasUnreadNotifications(false);
+    localStorage.setItem("notifications_read", "true");
+  };
+
+  const handleAccountSwitch = (accountId: string) => {
+    if (accountId === selectedAccountId) return;
+    setSwitchingAccount(true);
+    startTransition(async () => {
+      await setActiveAccountAction(accountId);
+      setSwitchingAccount(false);
+    });
+  };
+
   let title = "Dashboard";
   if (pathname.includes("/inbox")) title = "Inbox";
   if (pathname.includes("/alerts")) title = "Alerts";
@@ -36,8 +66,12 @@ export function Header() {
   if (pathname.includes("/analytics")) title = "AI Insights";
   if (pathname.includes("/integrations")) title = "Integrations";
 
+  const selectedAccountLabel = selectedAccountId === "all" 
+    ? "All Accounts" 
+    : emailAccounts.find(a => a.id === selectedAccountId)?.emailAddress || "All Accounts";
+
   return (
-    <header className="sticky top-0 md:top-4 z-40 flex h-14 md:h-[60px] items-center gap-4 md:rounded-2xl border-b md:border border-white/5 bg-background/80 md:bg-background/40 px-4 backdrop-blur-md lg:px-6 md:mx-8 md:mt-4 shadow-sm shrink-0">
+    <header className="sticky top-0 md:top-4 z-40 flex h-14 md:h-[60px] items-center gap-4 md:rounded-2xl border-b md:border border-border/50 bg-background/80 md:bg-background/40 px-4 backdrop-blur-md lg:px-6 md:mx-8 md:mt-4 shadow-sm shrink-0">
       <div className="flex flex-1 items-center gap-2 md:gap-4">
         <button
           onClick={toggle}
@@ -47,7 +81,49 @@ export function Header() {
         </button>
         <h1 className="text-lg md:text-xl font-bold tracking-tight capitalize truncate">{title}</h1>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Global Account Switcher */}
+        {emailAccounts.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger disabled={isPending} className="flex items-center gap-2 h-9 px-3 rounded-full border border-border/50 bg-muted/30 hover:bg-secondary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium max-w-[120px] md:max-w-[180px] truncate">
+                {selectedAccountLabel}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground opacity-50" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[240px] bg-card/95 backdrop-blur-xl border-border/50 shadow-xl rounded-xl p-2">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
+                  Select Account
+                </DropdownMenuLabel>
+                <DropdownMenuItem 
+                  onClick={() => handleAccountSwitch("all")}
+                  className={`flex items-center gap-2 rounded-lg cursor-pointer transition-colors p-2 ${selectedAccountId === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary/50"}`}
+                >
+                  <span className="truncate">All Accounts</span>
+                  {selectedAccountId === "all" && <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />}
+                </DropdownMenuItem>
+                
+                {emailAccounts.map(account => (
+                  <DropdownMenuItem 
+                    key={account.id}
+                    onClick={() => handleAccountSwitch(account.id)}
+                    className={`flex items-center gap-2 mt-1 rounded-lg cursor-pointer transition-colors p-2 ${selectedAccountId === account.id ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary/50"}`}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-secondary flex items-center justify-center shrink-0">
+                      <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                    <span className="truncate">{account.emailAddress}</span>
+                    {selectedAccountId === account.id && <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger className="relative h-8 w-8 rounded-full border border-border/50 bg-muted/30 hover:bg-secondary transition-colors inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group">
             <Bell className="h-4 w-4 text-muted-foreground transition-transform group-hover:rotate-12 group-hover:scale-110 duration-200 origin-top" />
@@ -60,8 +136,8 @@ export function Header() {
             <DropdownMenuGroup className="flex items-center justify-between px-2 py-1.5">
               <DropdownMenuLabel className="font-semibold text-sm px-0">Recent Notifications</DropdownMenuLabel>
               {hasUnreadNotifications && (
-                <button 
-                  onClick={() => setHasUnreadNotifications(false)}
+                <button
+                  onClick={markAsRead}
                   className="text-xs text-primary hover:text-primary/80 font-medium transition-colors focus:outline-none"
                 >
                   Mark as read
@@ -112,7 +188,7 @@ export function Header() {
         </DropdownMenu>
 
         <ThemeToggle />
-        
+
         <Link href={ROUTES.settings} className="rounded-full flex items-center justify-center transition-colors">
           <UserAvatar src={session?.user?.image} name={session?.user?.name} size="sm" />
         </Link>

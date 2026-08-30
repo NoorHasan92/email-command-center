@@ -17,8 +17,8 @@ async function replayFailed() {
 
   // Replay Emails
   const { count: emailCount } = await db.email.updateMany({
-    where: { status: "FAILED" },
-    data: { status: "PENDING" }
+    where: { status: "AI_FAILED" },
+    data: { status: "SYNCED" }
   });
   logger.info({ replayedCount: emailCount }, "Replayed FAILED Emails");
 

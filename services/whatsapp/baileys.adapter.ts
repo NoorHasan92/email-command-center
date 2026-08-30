@@ -30,7 +30,7 @@ export class BaileysAdapter implements INotificationProvider {
 
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
 
-        const text = `📬 *Inbox Sentinel*
+        let text = `📬 *Inbox Sentinel*
 ━━━━━━━━━━━━━━
 🚨 *${payload.actionRequired ? 'Action Required' : 'High Priority Email'}*
 
@@ -40,6 +40,10 @@ ${payload.subject}
 ━━━━━━━━━━━━━━
 *Summary*
 ${payload.explanation}`;
+
+        if (payload.smartDraftGenerated) {
+            text += `\n\n📝 *A Smart Draft reply has been automatically saved to your Gmail Drafts folder.*`;
+        }
 
         try {
             if (!sock) throw new Error("[BaileysAdapter] Socket is still undefined");

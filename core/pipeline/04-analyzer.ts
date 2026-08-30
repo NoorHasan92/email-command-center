@@ -62,6 +62,8 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider) {
           urgencyScore: analysis.urgencyScore,
           estimatedReadingTime: analysis.estimatedReadingTime,
           suggestedNotification: analysis.suggestedNotification,
+          smartDraft: analysis.smartDraft || null,
+          extractedEvents: analysis.extractedEvents ? analysis.extractedEvents as any : Prisma.DbNull,
 
           // Telemetry
           model: analysis.model,

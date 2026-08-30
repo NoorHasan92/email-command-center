@@ -1,4 +1,4 @@
-import { EmailCategory, PriorityLevel, OpportunityType, ReminderPriority } from "@prisma/client";
+// import { EmailCategory, PriorityLevel, OpportunityType, ReminderPriority } from "@prisma/client";
 
 export interface AIAnalysisResult {
   summary: string;
@@ -14,6 +14,14 @@ export interface AIAnalysisResult {
   urgencyScore: number;
   estimatedReadingTime: number | null;
   suggestedNotification: boolean;
+  smartDraft?: string | null;
+  extractedEvents?: Array<{
+    title: string;
+    startTime: string;
+    endTime: string;
+    description: string | null;
+    location: string | null;
+  }>;
 
   // Telemetry
   model: string;

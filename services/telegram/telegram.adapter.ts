@@ -70,10 +70,19 @@ export class TelegramAdapter implements INotificationProvider {
       ``,
       `💡 *AI Analysis:*`,
       explanation,
+    ];
+
+    if (payload.smartDraftGenerated) {
+      message.push(``, `📝 *A Smart Draft reply has been automatically saved to your Gmail Drafts folder\\.*`);
+    }
+
+    message.push(
       ``,
       `\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_`,
-      `_Powered by Inbox Sentinel_`,
-    ].join("\n");
+      `_Powered by Inbox Sentinel_`
+    );
+
+    const finalMessage = message.join("\n");
 
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
@@ -83,7 +92,7 @@ export class TelegramAdapter implements INotificationProvider {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: message,
+          text: finalMessage,
           parse_mode: "MarkdownV2",
           disable_web_page_preview: true,
         }),

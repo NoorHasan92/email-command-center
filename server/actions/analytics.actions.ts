@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { db } from "@/server/repositories/db";
 import { auth } from "@/config/auth";
 
@@ -10,6 +11,12 @@ export async function getAnalyticsData() {
   }
 
   const userId = session.user.id;
+
+  const cookieStore = await cookies();
+  const selectedAccountId = cookieStore.get("selected_account_id")?.value;
+  const accountId = selectedAccountId === "all" ? undefined : selectedAccountId;
+  
+  const accountFilter = accountId ? { id: accountId, userId } : { userId };
 
   // Verify if user has an email account connected
   const accountCount = await db.emailAccount.count({
@@ -23,9 +30,7 @@ export async function getAnalyticsData() {
   // Get total processed (Emails belonging to this user)
   const totalProcessed = await db.email.count({
     where: {
-      emailAccount: {
-        userId
-      }
+      emailAccount: accountFilter
     }
   });
 
@@ -37,7 +42,7 @@ export async function getAnalyticsData() {
     where: {
       urgencyScore: { gte: 80 },
       email: {
-        emailAccount: { userId }
+        emailAccount: accountFilter
       }
     }
   });
@@ -49,7 +54,7 @@ export async function getAnalyticsData() {
 
   const emailsLast7Days = await db.email.findMany({
     where: {
-      emailAccount: { userId },
+      emailAccount: accountFilter,
       date: { gte: sevenDaysAgo }
     },
     include: { analysis: true }
@@ -84,7 +89,7 @@ export async function getAnalyticsData() {
   const categoryCounts = await db.emailAnalysis.groupBy({
     by: ['category'],
     where: {
-      email: { emailAccount: { userId } }
+      email: { emailAccount: accountFilter }
     },
     _count: { category: true }
   });

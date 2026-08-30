@@ -64,7 +64,7 @@ export function Sidebar() {
           animate={{ width: isCollapsed ? 80 : 288 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className={cn(
-            "fixed md:relative inset-y-0 left-0 z-50 flex flex-col shrink-0 h-full md:rounded-[28px] bg-[#111113]/95 md:bg-[#111113]/80 backdrop-blur-xl border-r md:border border-white/5 shadow-2xl shadow-black/40 overflow-visible transition-transform duration-300 md:translate-x-0",
+            "fixed md:relative inset-y-0 left-0 z-50 flex flex-col shrink-0 h-full md:rounded-[28px] bg-card/95 md:bg-card/90 backdrop-blur-xl border-r md:border border-border/50 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-visible transition-transform duration-300 md:translate-x-0",
             isOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -160,7 +160,7 @@ export function Sidebar() {
         </div>
         
         {/* Footer / Profile Section */}
-        <div className="p-4 border-t border-border/30 shrink-0 mt-auto bg-black/10 overflow-hidden">
+        <div className="p-4 border-t border-border/30 shrink-0 mt-auto bg-muted/30 dark:bg-black/10 overflow-hidden">
           <div className="flex flex-col gap-4">
             {(() => {
               const profileContent = (

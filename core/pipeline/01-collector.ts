@@ -39,7 +39,7 @@ export async function collectEmail(emailAccountId: string, payload: Standardized
         htmlBody: payload.htmlBody,
         plainText: payload.plainText,
         threadId: payload.threadId,
-        status: "PENDING",
+        status: "SYNCED"
       },
       update: {
         // We only update non-destructive fields if it already exists.

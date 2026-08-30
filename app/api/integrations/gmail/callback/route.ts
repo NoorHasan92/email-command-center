@@ -9,11 +9,26 @@ import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.redirect(new URL("/login", getBaseUrl()));
+    const cookieStore = await cookies();
+    const linkToken = cookieStore.get("gmail_link_token")?.value;
+    
+    let userId: string | undefined = undefined;
+    let linkRequest: any = null;
+
+    if (linkToken) {
+      linkRequest = await db.accountLinkRequest.findUnique({ where: { linkToken } });
+      if (linkRequest && linkRequest.status === "PENDING_OAUTH" && new Date() < linkRequest.expiresAt) {
+        userId = linkRequest.userId;
+      }
     }
-    const userId = session.user.id;
+
+    if (!userId) {
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.redirect(new URL("/login", getBaseUrl()));
+      }
+      userId = session.user.id;
+    }
 
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
@@ -31,7 +46,6 @@ export async function GET(request: Request) {
     }
 
     // Requirement 3: Verify CSRF state
-    const cookieStore = await cookies();
     const savedState = cookieStore.get("gmail_oauth_state")?.value;
 
     if (!savedState || state !== savedState) {
@@ -69,9 +83,13 @@ export async function GET(request: Request) {
     }
 
     const activeUser = await db.user.findUnique({ where: { id: userId } });
-    if (!activeUser || activeUser.email.toLowerCase() !== gmailAddress.toLowerCase()) {
-      await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Email mismatch", expected: activeUser?.email, received: gmailAddress });
-      return NextResponse.redirect(new URL("/settings?error=EmailMismatch", getBaseUrl()));
+    
+    // ULTRA plan users can link multiple/different Gmail accounts.
+    // Others must link the Gmail matching their login.
+    const isUltra = activeUser?.plan === "ULTRA" || activeUser?.plan === "ADMIN";
+    if (!activeUser || (!isUltra && activeUser.email.toLowerCase() !== gmailAddress.toLowerCase())) {
+      await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Email mismatch (Ultra required)", expected: activeUser?.email, received: gmailAddress });
+      return NextResponse.redirect(new URL("/settings?error=EmailMismatchUltraRequired", getBaseUrl()));
     }
 
     if (!tokens.access_token) {
@@ -177,6 +195,14 @@ export async function GET(request: Request) {
           syncStatus: "ERROR",
         }
       });
+    }
+
+    if (linkRequest) {
+      await db.accountLinkRequest.update({
+        where: { id: linkRequest.id },
+        data: { status: "LINKED" }
+      });
+      cookieStore.delete("gmail_link_token");
     }
 
     // Determine redirect logic

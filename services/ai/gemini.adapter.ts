@@ -60,7 +60,23 @@ export class GeminiAdapter implements IAIProvider {
                 sentiment: { type: Type.STRING },
                 urgencyScore: { type: Type.INTEGER },
                 estimatedReadingTime: { type: Type.INTEGER },
-                suggestedNotification: { type: Type.BOOLEAN }
+                suggestedNotification: { type: Type.BOOLEAN },
+                smartDraft: { type: Type.STRING, nullable: true },
+                extractedEvents: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING },
+                      startTime: { type: Type.STRING },
+                      endTime: { type: Type.STRING },
+                      description: { type: Type.STRING, nullable: true },
+                      location: { type: Type.STRING, nullable: true }
+                    },
+                    required: ["title", "startTime", "endTime"]
+                  },
+                  nullable: true
+                }
               },
               required: ["summary", "category", "priority", "confidence", "requiresAction", "reasoning", "actionItems", "entities", "sentiment", "urgencyScore", "estimatedReadingTime", "suggestedNotification"]
             }
