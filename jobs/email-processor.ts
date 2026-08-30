@@ -70,7 +70,7 @@ export async function processPendingEmails() {
       }
 
       const aiProvider = await resolveAIProvider(accountOwner.userId);
-      await analyzeEmail(normalizedEmail, aiProvider);
+      await analyzeEmail(normalizedEmail, aiProvider, accountOwner.userId);
       
       metrics.analyzer = Math.round(performance.now() - stageStart);
 
@@ -130,14 +130,24 @@ export async function processPendingEmails() {
     } catch (error: any) {
       logger.error(`[JOB] [EMAIL_PROCESSOR] [FAILED] [ID: ${rawEmail.id}] | error=${error.message}`);
       
-      const newStatus = rawEmail.retryCount + 1 >= 3 ? "AI_FAILED" : "QUEUED_FOR_AI";
+      let newStatus = rawEmail.retryCount + 1 >= 3 ? "AI_FAILED" : "QUEUED_FOR_AI";
+      let decrementRetry = false;
+      
+      if (error.message?.includes("QUOTA_EXHAUSTED")) {
+        newStatus = "PENDING_QUOTA"; // Graceful pause
+        decrementRetry = true;
+      }
       
       const metrics: any = (rawEmail.pipelineMetrics as any) || {};
       metrics.error = error.message;
 
       await db.email.update({
         where: { id: rawEmail.id },
-        data: { status: newStatus, pipelineMetrics: metrics },
+        data: { 
+          status: newStatus as any, 
+          pipelineMetrics: metrics,
+          ...(decrementRetry ? { retryCount: { decrement: 1 } } : {})
+        },
       });
     }
   }

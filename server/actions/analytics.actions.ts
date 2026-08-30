@@ -119,6 +119,18 @@ export async function getAnalyticsData() {
   }
   const accuracyStr = `${accuracy.toFixed(1)}%`;
 
+  const aiUsageBreakdown = await db.aIUsageEvent.groupBy({
+    by: ['source'],
+    where: { userId },
+    _count: { source: true }
+  });
+
+  const aiStats = {
+    platform: aiUsageBreakdown.find(x => x.source === "PLATFORM")?._count.source || 0,
+    personal: aiUsageBreakdown.find(x => x.source === "PERSONAL")?._count.source || 0,
+    fallback: aiUsageBreakdown.find(x => x.source === "PLATFORM_FALLBACK")?._count.source || 0,
+  };
+
   return {
     hasData: true,
     stats: {
@@ -127,6 +139,7 @@ export async function getAnalyticsData() {
       timeSaved: timeSavedStr,
       accuracy: accuracyStr
     },
+    aiStats,
     activityData,
     categoryData
   };

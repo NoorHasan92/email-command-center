@@ -480,7 +480,7 @@ export default function SettingsClient({
                             <div>
                               <h4 className="text-lg font-bold">Connect Your Own AI (BYOK)</h4>
                               <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
-                                Bring your own Gemini API key for unlimited personal usage. This is a premium add-on available for all plans.
+                                Bring your own Gemini API key to use your own quota. This is a premium add-on available for all plans.
                               </p>
                             </div>
                             <Button className="mt-4 rounded-xl">Purchase BYOK Add-on</Button>

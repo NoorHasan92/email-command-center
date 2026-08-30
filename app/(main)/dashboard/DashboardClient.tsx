@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "next-auth/react";
+import { NeedMoreAiModal } from "@/components/modals/need-more-ai-modal";
 
 import { Email, EmailAnalysis } from "@prisma/client";
 
@@ -30,6 +31,7 @@ interface HealthData {
   actionRequiredCount: number;
   deadlinesToday: number;
   deadlinesWeek: number;
+  pendingQuotaCount?: number;
   lastSync: string | null;
 }
 
@@ -38,15 +40,18 @@ export default function DashboardClient({
   healthData,
   recentNotifications,
   emailAccounts,
-  selectedAccountId
+  selectedAccountId,
+  quota
 }: { 
   initialEmails: EmailWithAnalysis[];
   healthData: HealthData;
   recentNotifications?: any[];
   emailAccounts?: { id: string; emailAddress: string }[];
   selectedAccountId?: string | null;
+  quota?: any;
 }) {
   const [emails, setEmails] = useState(initialEmails);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -106,12 +111,32 @@ export default function DashboardClient({
                 <p className="text-muted-foreground">{healthData.actionRequiredCount} emails need your attention.</p>
               ) : healthData.criticalCount > 0 ? (
                 <p className="text-muted-foreground text-red-400">{healthData.criticalCount} critical threats detected.</p>
+              ) : healthData.pendingQuotaCount && healthData.pendingQuotaCount > 0 ? (
+                <p className="text-muted-foreground text-orange-400">Emails paused ({healthData.pendingQuotaCount}) due to exhausted quota.</p>
               ) : (
                 <p className="text-muted-foreground">No critical threats detected.</p>
               )}
             </div>
           </div>
         </section>
+
+        {healthData.pendingQuotaCount && healthData.pendingQuotaCount > 0 && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="text-orange-500 w-5 h-5" />
+              <div>
+                <p className="text-sm font-semibold text-orange-200">Quota Exhausted</p>
+                <p className="text-xs text-orange-200/80">{healthData.pendingQuotaCount} emails are waiting to be processed. Add a BYOK key or upgrade.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowQuotaModal(true)}
+              className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Resolve
+            </button>
+          </div>
+        )}
 
         {/* Dashboard Hierarchy */}
         <section className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -171,24 +196,55 @@ export default function DashboardClient({
             </Card>
           </div>
 
-          {/* Small Stats */}
-          <div className="col-span-1 md:col-span-12 lg:col-span-3 grid grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6">
-             <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm">
-              <CardContent className="p-5 flex flex-col justify-center h-full">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Emails Today</p>
+          {/* AI Usage / Quota */}
+          <div className="col-span-1 md:col-span-12 lg:col-span-3">
+             <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm h-full flex flex-col justify-center">
+              <CardContent className="p-5 flex flex-col justify-center h-full gap-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AI Platform Quota</p>
+                  </div>
                 </div>
-                <span className="text-3xl font-bold">{initialEmails.length || 24}</span>
-              </CardContent>
-            </Card>
-             <Card className="bg-card/90 backdrop-blur border-border/50 shadow-sm">
-              <CardContent className="p-5 flex flex-col justify-center h-full">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Time Saved</p>
-                </div>
-                <span className="text-3xl font-bold text-blue-500">42m</span>
+                
+                {quota ? (
+                  <>
+                    <div className="flex items-end justify-between">
+                      <span className="text-3xl font-bold">{quota.used} <span className="text-sm font-medium text-muted-foreground">/ {quota.totalLimit}</span></span>
+                    </div>
+                    
+                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative">
+                      <div 
+                        className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${
+                          (quota.used / quota.totalLimit) > 0.85 ? "bg-red-500" :
+                          (quota.used / quota.totalLimit) > 0.70 ? "bg-orange-500" :
+                          "bg-indigo-500"
+                        }`}
+                        style={{ width: `${Math.min(100, (quota.used / quota.totalLimit) * 100)}%` }}
+                      />
+                    </div>
+                    
+                    {(quota.used / quota.totalLimit) > 0.85 ? (
+                      <div className="text-xs text-red-400 mt-1">Approaching quota limit. Emails may be paused soon.</div>
+                    ) : (quota.used / quota.totalLimit) > 0.70 ? (
+                      <div className="text-xs text-orange-400 mt-1">You are using AI frequently. Consider upgrading or adding a BYOK key.</div>
+                    ) : null}
+
+                    <div className="flex items-center justify-between text-xs mt-1">
+                      <span className="text-muted-foreground">
+                        {quota.remaining} remaining
+                      </span>
+                      <button 
+                        onClick={() => setShowQuotaModal(true)}
+                        className="text-indigo-400 font-medium hover:text-indigo-300 transition-colors flex items-center gap-1"
+                      >
+                        Need more? <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Loading quota...</div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -275,6 +331,14 @@ export default function DashboardClient({
 
         </div>
       </div>
+      
+      {(session?.user as any)?.plan && (
+        <NeedMoreAiModal 
+          isOpen={showQuotaModal} 
+          onClose={() => setShowQuotaModal(false)} 
+          plan={(session?.user as any).plan} 
+        />
+      )}
     </div>
   );
 }

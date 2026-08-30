@@ -133,7 +133,7 @@ export async function loginAction(formData: FormData) {
 export async function registerAction(formData: FormData) {
   try {
     const parsed = registerSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { error: parsed.error.errors[0].message };
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
 
     const { name, email, password } = parsed.data;
 
@@ -336,7 +336,7 @@ const resetPasswordSchema = z.object({
 export async function resetPasswordAction(formData: FormData) {
   try {
     const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { error: parsed.error.errors[0].message };
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
 
     const { token: rawToken, password } = parsed.data;
     const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");

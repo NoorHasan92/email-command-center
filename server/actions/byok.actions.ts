@@ -79,6 +79,9 @@ export async function connectAIKeyAction(apiKey: string, model: string = "gemini
       }
     });
 
+    const { AIQuotaService } = await import("@/services/ai/quota.service");
+    await AIQuotaService.recoverPendingEmails(session.user.id);
+
     revalidatePath("/settings");
     return { success: true };
   } catch (error: any) {
@@ -189,10 +192,19 @@ export async function updateAIProcessingModeAction(
     const session = await auth();
     if (!session?.user?.id) return { error: "Unauthorized" };
 
+    const connection = await db.userAIConnection.findUnique({
+      where: { userId: session.user.id }
+    });
+
+    if (!connection) return { error: "No connection found" };
+
     await db.userAIConnection.update({
-      where: { userId: session.user.id },
+      where: { id: connection.id },
       data: { processingMode, allowPlatformFallback }
     });
+    
+    const { AIQuotaService } = await import("@/services/ai/quota.service");
+    await AIQuotaService.recoverPendingEmails(session.user.id);
 
     revalidatePath("/settings");
     return { success: true };

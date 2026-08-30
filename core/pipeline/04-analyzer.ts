@@ -3,7 +3,10 @@ import { Email, Prisma } from "@prisma/client";
 import { IAIProvider } from "../interfaces/IAIProvider";
 import { logger } from "@/lib/logger";
 
-export async function analyzeEmail(email: Email, aiProvider: IAIProvider) {
+import { calculateEstimatedCost } from "@/lib/utils";
+import { AIQuotaService } from "@/services/ai/quota.service";
+
+export async function analyzeEmail(email: Email, aiProvider: IAIProvider, userId: string) {
   logger.info(`[STAGE 04 - ANALYZER] [AI_REQUEST_STARTED] [ID: ${email.id}] | metadata={"providerId": "${email.providerMessageId}"}`);
 
   // 1. Ensure body exists or provide explicit instruction for attachment-only emails
@@ -79,6 +82,42 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider) {
           modelVersion: analysis.model,
         }
       });
+
+      if ((analysis as any)._reservation) {
+        // Platform or Fallback mode: commit the reservation and link to email
+        await AIQuotaService.commitPlatformQuota((analysis as any)._reservation.eventId, {
+          provider: "Google",
+          model: analysis.model,
+          inputTokens: analysis.promptTokens,
+          outputTokens: analysis.completionTokens,
+          estimatedCost: calculateEstimatedCost(analysis.promptTokens || 0, analysis.completionTokens || 0, analysis.model || ""),
+          latencyMs: analysis.latencyMs
+        });
+        
+        // Link the event to this email analysis
+        await tx.aIUsageEvent.update({
+          where: { id: (analysis as any)._reservation.eventId },
+          data: { emailAnalysisId: email.id }
+        });
+      } else {
+        // Personal mode: create the usage event directly since there was no reservation
+        await tx.aIUsageEvent.create({
+          data: {
+            userId,
+            emailAnalysisId: email.id,
+            operationType: "EMAIL_ANALYSIS",
+            source: "PERSONAL",
+            status: "COMMITTED",
+            provider: "Google (BYOK)",
+            model: analysis.model,
+            inputTokens: analysis.promptTokens,
+            outputTokens: analysis.completionTokens,
+            estimatedCost: 0, // Zero cost to platform for BYOK
+            latencyMs: analysis.latencyMs,
+            errorCode: analysis.finishReason !== "STOP" ? analysis.finishReason : null,
+          }
+        });
+      }
 
       await tx.email.update({
         where: { id: email.id },

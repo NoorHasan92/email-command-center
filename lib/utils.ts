@@ -38,3 +38,24 @@ export function cleanEmailText(text: string | null | undefined): string {
 
   return cleaned.trim();
 }
+
+/**
+ * Calculates the estimated cost of an AI generation.
+ */
+export function calculateEstimatedCost(promptTokens: number, completionTokens: number, model: string): number {
+  let promptCostPer1k = 0;
+  let completionCostPer1k = 0;
+
+  if (model.includes("flash")) {
+    promptCostPer1k = 0.000075;
+    completionCostPer1k = 0.0003;
+  } else if (model.includes("pro")) {
+    promptCostPer1k = 0.00125;
+    completionCostPer1k = 0.005;
+  }
+
+  const promptCost = (promptTokens / 1000) * promptCostPer1k;
+  const completionCost = (completionTokens / 1000) * completionCostPer1k;
+  
+  return promptCost + completionCost;
+}

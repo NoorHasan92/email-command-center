@@ -132,6 +132,7 @@ enum EmailStatus {
   AI_PROCESSING
   AI_COMPLETE
   AI_FAILED
+  PENDING_QUOTA
   NOTIFIED
   SKIPPED
 }
@@ -205,6 +206,11 @@ model User {
   whatsappVerifications WhatsAppVerification[]
   accountLinkRequests   AccountLinkRequest[]
   aiConnection          UserAIConnection?
+
+  // AI Usage & Quota
+  aiUsage               UserAIUsage?
+  aiQuotaGrants         AIQuotaGrant[]
+  aiUsageEvents         AIUsageEvent[]
 }
 
 model UserAIConnection {
@@ -581,3 +587,105 @@ model AccountLinkRequest {
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// ---------------------------------------------------------
+// AI Quota & Usage System
+// ---------------------------------------------------------
+
+model UserAIUsage {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  platformAiUsed     Int      @default(0)
+  lifetimeGranted    Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([billingPeriodEnd])
+}
+
+enum AIQuotaGrantSource {
+  ADMIN
+  PROMOTION
+  PURCHASE
+  SUPPORT
+}
+
+model AIQuotaGrant {
+  id              String             @id @default(cuid())
+  userId          String
+  amount          Int
+  remainingAmount Int
+  source          AIQuotaGrantSource
+  reason          String?
+  expiresAt       DateTime?
+  createdAt       DateTime           @default(now())
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum AIUsageSource {
+  PLATFORM
+  PERSONAL
+  PLATFORM_FALLBACK
+}
+
+enum AIOperationType {
+  EMAIL_ANALYSIS
+  EMAIL_DRAFT
+  CALENDAR_EXTRACTION
+}
+
+enum AIUsageEventStatus {
+  RESERVED
+  PROCESSING
+  COMMITTED
+  RELEASED
+  EXPIRED
+  FAILED
+}
+
+model AIUsageEvent {
+  id              String          @id @default(cuid())
+  userId          String
+  emailAnalysisId String?         // Optional link back to the specific email
+  operationType   AIOperationType
+  source          AIUsageSource
+  provider        String?
+  model           String?
+  inputTokens     Int?
+  outputTokens    Int?
+  estimatedCost   Float?          
+  latencyMs       Int?
+  status          AIUsageEventStatus @default(COMMITTED)
+  errorCode       String?
+  quotaSourceType String?         // BASE or GRANT
+  quotaSourceId   String?         // ID of the UserAIUsage or AIQuotaGrant record
+  expiresAt       DateTime?
+  createdAt       DateTime        @default(now())
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([source, createdAt])
+  @@index([operationType, createdAt])
+  @@index([status, expiresAt])
+}
+
+model AdminAuditLog {
+  id            String   @id @default(cuid())
+  adminId       String
+  targetUserId  String
+  action        String
+  previousValue Json?
+  newValue      Json?
+  reason        String?
+  createdAt     DateTime @default(now())
+}
+

@@ -14,6 +14,11 @@ interface AnalyticsData {
     timeSaved: string;
     accuracy: string;
   };
+  aiStats?: {
+    platform: number;
+    personal: number;
+    fallback: number;
+  };
   activityData?: any[];
   categoryData?: any[];
 }
@@ -40,7 +45,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
     );
   }
 
-  const { stats, activityData, categoryData } = data;
+  const { stats, aiStats, activityData, categoryData } = data;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-auto p-4 md:p-6 lg:p-10 z-10 relative">
@@ -128,6 +133,49 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Quota & Routing Insights */}
+        <div>
+          <h2 className="text-xl font-bold tracking-tight mb-4 mt-8">AI Processing Source</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-card/80 backdrop-blur border-border/50 shadow-sm rounded-2xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" />
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2 text-indigo-400">
+                  <Sparkles className="w-5 h-5" />
+                  <h3 className="font-semibold uppercase tracking-wider text-xs">Platform AI</h3>
+                </div>
+                <div className="text-3xl font-bold">{aiStats?.platform || 0} <span className="text-sm font-medium text-muted-foreground">requests</span></div>
+                <p className="text-sm text-muted-foreground mt-2">Analyzed using your Inbox Sentinel plan quota.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/80 backdrop-blur border-border/50 shadow-sm rounded-2xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2 text-emerald-400">
+                  <Brain className="w-5 h-5" />
+                  <h3 className="font-semibold uppercase tracking-wider text-xs">Personal AI (BYOK)</h3>
+                </div>
+                <div className="text-3xl font-bold">{aiStats?.personal || 0} <span className="text-sm font-medium text-muted-foreground">requests</span></div>
+                <p className="text-sm text-muted-foreground mt-2">Analyzed securely using your own API key at no platform cost.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/80 backdrop-blur border-border/50 shadow-sm rounded-2xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent pointer-events-none" />
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-2 text-orange-400">
+                  <Activity className="w-5 h-5" />
+                  <h3 className="font-semibold uppercase tracking-wider text-xs">Platform Fallback</h3>
+                </div>
+                <div className="text-3xl font-bold">{aiStats?.fallback || 0} <span className="text-sm font-medium text-muted-foreground">requests</span></div>
+                <p className="text-sm text-muted-foreground mt-2">Saved by platform fallback when personal AI failed.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
       </div>
     </div>
   );

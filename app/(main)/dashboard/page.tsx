@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import DashboardClient from "./DashboardClient";
 import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
+import { AIQuotaService } from "@/services/ai/quota.service";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,16 @@ export default async function DashboardPage() {
     select: { lastSyncCompletedAt: true }
   });
 
+  const pendingQuotaCount = await db.email.count({
+    where: { emailAccount: accountFilter, status: "PENDING_QUOTA" }
+  });
+
   const healthData = {
     criticalCount,
     actionRequiredCount,
     deadlinesToday: Math.floor(deadlinesCount * 0.2),
     deadlinesWeek: deadlinesCount,
+    pendingQuotaCount,
     lastSync: lastSync?.lastSyncCompletedAt?.toISOString() || null
   };
 
@@ -76,6 +82,8 @@ export default async function DashboardPage() {
     select: { id: true, emailAddress: true }
   });
 
+  const quota = await AIQuotaService.getUsage(userId);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
       <DashboardClient 
@@ -84,6 +92,7 @@ export default async function DashboardPage() {
         recentNotifications={recentNotifications}
         emailAccounts={emailAccounts}
         selectedAccountId={accountId || null}
+        quota={quota}
       />
     </div>
   );

@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Search, Trash2, ShieldAlert, Mail, Activity, CalendarDays, KeyRound, X } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { deleteUser } from "./actions";
+import { deleteUser, grantBonusQuota } from "./actions";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,8 @@ import { QRCode } from "react-qrcode-logo";
 type RunWithResults = AIEvalRun & { results: AIEvalResult[] };
 
 type UserWithCounts = User & {
+  aiUsage?: any;
+  aiConnection?: any;
   _count: {
     emailAccounts: number;
     auditLogs: number;
@@ -40,6 +42,12 @@ export function AdminClient({
   const [planFilter, setPlanFilter] = useState("ALL");
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Grant Bonus State
+  const [grantUser, setGrantUser] = useState<UserWithCounts | null>(null);
+  const [grantAmount, setGrantAmount] = useState<number>(500);
+  const [grantReason, setGrantReason] = useState<string>("Admin Bonus");
+  const [isGranting, setIsGranting] = useState(false);
 
   // System WhatsApp State
   const [waStatus, setWaStatus] = useState<"connecting" | "connected" | "logged_out" | "available">(
@@ -68,6 +76,35 @@ export function AdminClient({
     } finally {
       setIsDeleting(false);
       setUserToDelete(null);
+    }
+  };
+
+  const handleGrantBonus = async () => {
+    if (!grantUser) return;
+    setIsGranting(true);
+    try {
+      await grantBonusQuota(grantUser.id, grantAmount, grantReason);
+      
+      // Update local state optimism
+      setUsers(users.map(u => {
+        if (u.id === grantUser.id) {
+          return {
+            ...u,
+            aiUsage: {
+              ...(u.aiUsage || {}),
+              bonusCredits: (u.aiUsage?.bonusCredits || 0) + grantAmount
+            }
+          };
+        }
+        return u;
+      }));
+
+      toast.success(`Granted ${grantAmount} bonus analyses to ${grantUser.name}.`);
+    } catch (error) {
+      toast.error("Failed to grant bonus.");
+    } finally {
+      setIsGranting(false);
+      setGrantUser(null);
     }
   };
 
@@ -142,6 +179,9 @@ export function AdminClient({
           </TabsTrigger>
           <TabsTrigger value="system-integrations" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300">
             System Integrations
+          </TabsTrigger>
+          <TabsTrigger value="ai-operations" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300">
+            AI Operations
           </TabsTrigger>
         </TabsList>
 
@@ -568,9 +608,144 @@ export function AdminClient({
               </div>
             </div>
           </TabsContent>
+          {/* AI OPERATIONS TAB */}
+          <TabsContent value="ai-operations" className="flex flex-col space-y-6 m-0 border-0 p-0 outline-none">
+            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+              <h2 className="text-2xl font-bold mb-4">AI Usage Overview</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Platform Requests</span>
+                  <span className="text-3xl font-bold">
+                    {users.reduce((acc, user) => acc + (user.aiUsage?.platformAiUsed || 0), 0)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total BYOK Requests</span>
+                  <span className="text-3xl font-bold">
+                    {users.reduce((acc, user) => acc + (user.aiConnection?.personalRequestCount || 0), 0)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Fallback</span>
+                  <span className="text-3xl font-bold">
+                    {users.reduce((acc, user) => acc + (user.aiConnection?.fallbackRequestCount || 0), 0)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Lifetime Grant</span>
+                  <span className="text-3xl font-bold text-indigo-400">
+                    {users.reduce((acc, user) => acc + (user.aiUsage?.lifetimeGranted || 0), 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+              <h2 className="text-xl font-bold mb-4">User AI Quota Tracker</h2>
+              <div className="bg-black/40 rounded-xl border border-white/5 overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase text-muted-foreground border-b border-white/10">
+                    <tr>
+                      <th className="px-6 py-4 font-bold tracking-wider">User</th>
+                      <th className="px-6 py-4 font-bold tracking-wider text-center">Plan</th>
+                      <th className="px-6 py-4 font-bold tracking-wider text-center">Current Used / Total</th>
+                      <th className="px-6 py-4 font-bold tracking-wider text-center">Personal / Fallback</th>
+                      <th className="px-6 py-4 font-bold tracking-wider text-center">Manage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(user => {
+                      const limit = user.plan === "FREE" ? 500 : user.plan === "PRO" ? 2000 : user.plan === "ULTRA" ? 5000 : 999999;
+                      return (
+                        <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-foreground">{user.name}</div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <Badge variant="outline">{user.plan || "FREE"}</Badge>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-bold">{user.aiUsage?.platformAiUsed || 0}</span> / {limit}
+                          </td>
+                          <td className="px-6 py-4 text-center text-muted-foreground">
+                            {user.aiConnection?.personalRequestCount || 0} / {user.aiConnection?.fallbackRequestCount || 0}
+                          </td>
+                          <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setGrantUser(user)}>Grant Bonus</Button>
+                            <Button variant="ghost" size="sm" onClick={async () => {
+                              try {
+                                const { reconcileQuota } = await import("./actions");
+                                const res = await reconcileQuota(user.id);
+                                if (res.success) toast.success(`Reconciled: ${res.platformCount} Platform, ${res.personalCount} BYOK`);
+                              } catch (e) {
+                                toast.error("Failed to reconcile");
+                              }
+                            }}>Reconcile</Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </TabsContent>
         </div>
       </Tabs>
 
+      {/* Grant Bonus Modal */}
+      {grantUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl border border-border/50 shadow-2xl p-6 flex flex-col gap-4 relative">
+            <button 
+              onClick={() => setGrantUser(null)} 
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold">Grant AI Bonus Quota</h2>
+            <p className="text-sm text-muted-foreground mb-2">
+              Add bonus AI analyses to <strong className="text-foreground">{grantUser.name}</strong>.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Bonus Amount (Analyses)</label>
+                <input 
+                  type="number" 
+                  value={grantAmount}
+                  onChange={e => setGrantAmount(parseInt(e.target.value) || 0)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Reason (Audit Log)</label>
+                <input 
+                  type="text" 
+                  value={grantReason}
+                  onChange={e => setGrantReason(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g. Apology for outage"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <Button variant="ghost" onClick={() => setGrantUser(null)}>Cancel</Button>
+              <Button 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white" 
+                onClick={handleGrantBonus}
+                disabled={isGranting}
+              >
+                {isGranting ? "Granting..." : "Confirm Grant"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm User Deletion Modal */}
       <ConfirmModal
         isOpen={!!userToDelete}
         onClose={() => setUserToDelete(null)}
