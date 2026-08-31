@@ -14,8 +14,8 @@ export default function Loading() {
           </div>
           
           {/* Silver/White animated filling logo */}
-          <div className="absolute inset-0 m-auto flex items-center justify-center animate-fill-up p-4 z-10">
-            <Image src="/app-logo.png" alt="Loading Fill" width={64} height={64} className="object-contain grayscale brightness-150 contrast-125 opacity-90 drop-shadow-[0_0_15px_rgba(200,200,210,0.5)]" unoptimized />
+          <div className="absolute inset-0 m-auto flex items-center justify-center animate-fill-up p-4 z-10 grayscale brightness-150 contrast-125 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+            <Image src="/app-logo.png" alt="Loading Fill" width={64} height={64} className="object-contain opacity-90" unoptimized />
           </div>
         </div>
         

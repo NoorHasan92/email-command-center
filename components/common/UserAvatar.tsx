@@ -54,27 +54,16 @@ export function UserAvatar({ src, name, size = "md", className, disableAnimation
           <AvatarImage 
             src={src} 
             alt={name || "User Avatar"} 
-            className={cn(
-              "object-cover w-full h-full transition-opacity duration-300",
-              loading ? "opacity-0" : "opacity-100"
-            )}
+            className="object-cover w-full h-full"
             onLoadingStatusChange={(status) => {
               if (status === "error") setError(true);
-              if (status === "loaded") setLoading(false);
             }}
           />
         ) : null}
 
-        {/* Fallback Initials / Skeleton Loading */}
-        <AvatarFallback className={cn(
-          "bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center transition-opacity duration-300",
-          (loading && src && !error) ? "animate-pulse" : ""
-        )}>
-          {(loading && src && !error) ? (
-            <div className="w-[30%] h-[30%] rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          ) : (
-            fallbackContent
-          )}
+        {/* Fallback Initials */}
+        <AvatarFallback className="bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center">
+          {fallbackContent}
         </AvatarFallback>
       </Avatar>
     </div>
