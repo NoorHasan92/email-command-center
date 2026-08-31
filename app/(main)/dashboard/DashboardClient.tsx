@@ -41,7 +41,9 @@ export default function DashboardClient({
   recentNotifications,
   emailAccounts,
   selectedAccountId,
-  quota
+  quota,
+  accountStatus,
+  deletionDate
 }: { 
   initialEmails: EmailWithAnalysis[];
   healthData: HealthData;
@@ -49,6 +51,8 @@ export default function DashboardClient({
   emailAccounts?: { id: string; emailAddress: string }[];
   selectedAccountId?: string | null;
   quota?: any;
+  accountStatus?: string;
+  deletionDate?: string;
 }) {
   const [emails, setEmails] = useState(initialEmails);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
@@ -73,6 +77,30 @@ export default function DashboardClient({
     <div className="h-full w-full bg-transparent overflow-auto">
         <div className="p-4 md:p-6 pb-24 max-w-6xl mx-auto w-full space-y-6 md:space-y-8 z-10 relative">
         
+        {/* Account Deletion Scheduled Banner */}
+        {accountStatus === "DELETION_SCHEDULED" && deletionDate && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="p-2 md:p-3 bg-destructive/20 rounded-full shrink-0 mt-1 md:mt-0">
+                <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-destructive font-bold text-base md:text-lg">Account Deletion Scheduled</h3>
+                <p className="text-destructive/80 text-sm mt-1 max-w-2xl">
+                  Your account and all associated data will be permanently deleted on <strong className="font-bold">{new Date(deletionDate).toLocaleDateString()}</strong>.
+                  Since you logged in, you can cancel this request from your settings.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => router.push("/settings")} 
+              className="px-4 py-2 bg-destructive text-white text-sm font-semibold rounded-xl hover:bg-destructive/90 transition-colors whitespace-nowrap"
+            >
+              Cancel Deletion
+            </button>
+          </div>
+        )}
+
         {/* Personalized Hero */}
         <section className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pb-6 border-b border-border/50">
           <div className="space-y-4 flex-1">

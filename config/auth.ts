@@ -10,6 +10,7 @@ import { verifyPassword } from "@/services/security/password";
 import { logSecurityEvent } from "@/services/security/audit";
 import { getToken } from "next-auth/jwt";
 import { cookies, headers } from "next/headers";
+import { sendWelcomeEmail } from "@/services/transactional-email/email.service";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -184,6 +185,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
+    async createUser(message) {
+      if (message.user?.id) {
+        sendWelcomeEmail(message.user.id).catch(err => console.error("Failed to send welcome email on user create:", err));
+      }
+    },
     async signIn(message) {
       if (message.user?.id) {
         await db.user.update({

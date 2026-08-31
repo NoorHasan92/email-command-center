@@ -62,11 +62,20 @@ export async function processPendingEmails() {
       
       const accountOwner = await db.emailAccount.findUnique({ 
         where: { id: email.emailAccountId }, 
-        select: { userId: true } 
+        select: { userId: true, user: { select: { accountStatus: true } } } 
       });
       
       if (!accountOwner) {
         throw new Error(`Email account ${email.emailAccountId} not found.`);
+      }
+
+      if (accountOwner.user?.accountStatus === "DELETION_SCHEDULED") {
+        logger.info(`[JOB] [EMAIL_PROCESSOR] [INFO] User ${accountOwner.userId} scheduled for deletion. Skipping email ${email.id}.`);
+        await db.email.update({
+          where: { id: email.id },
+          data: { status: "SKIPPED", pipelineMetrics: { ...metrics, error: "Account scheduled for deletion" } }
+        });
+        continue;
       }
 
       const aiProvider = await resolveAIProvider(accountOwner.userId);

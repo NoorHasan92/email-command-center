@@ -17,6 +17,12 @@ export default async function DashboardPage() {
   const selectedAccountId = cookieStore.get("selected_account_id")?.value;
   const accountId = selectedAccountId === "all" ? undefined : selectedAccountId;
 
+  // Fetch user account status for deletion banner
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { accountStatus: true, deletionRequest: true }
+  });
+
   // All queries MUST be scoped to the authenticated user's email accounts
   // If accountId is provided, scope to that specific account
   const accountFilter = accountId ? { id: accountId, userId } : { userId };
@@ -93,6 +99,8 @@ export default async function DashboardPage() {
         emailAccounts={emailAccounts}
         selectedAccountId={accountId || null}
         quota={quota}
+        accountStatus={user?.accountStatus}
+        deletionDate={user?.deletionRequest?.scheduledDeletionAt?.toISOString()}
       />
     </div>
   );

@@ -46,7 +46,8 @@ export async function processWebhooks() {
       }
 
       const emailAccount = await db.emailAccount.findFirst({
-        where: { emailAddress }
+        where: { emailAddress },
+        include: { user: true }
       });
 
       if (!emailAccount) {
@@ -54,6 +55,15 @@ export async function processWebhooks() {
         await db.webhookEvent.update({
           where: { id: event.id },
           data: { status: "PROCESSED", processed: true, error: "Account not found in system" }
+        });
+        continue;
+      }
+
+      if (emailAccount.user?.accountStatus === "DELETION_SCHEDULED") {
+        logger.info(`[JOB] [WEBHOOK_PROCESSOR] [INFO] Account ${emailAddress} scheduled for deletion. Skipping sync.`);
+        await db.webhookEvent.update({
+          where: { id: event.id },
+          data: { status: "PROCESSED", processed: true, error: "Account scheduled for deletion" }
         });
         continue;
       }

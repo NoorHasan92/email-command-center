@@ -36,7 +36,8 @@ export const authConfig = {
         path.startsWith("/privacy") ||
         path.startsWith("/terms") ||
         path.startsWith("/api/auth") ||
-        path.startsWith("/api/webhooks"); // Webhooks must be public
+        path.startsWith("/api/webhooks") ||
+        path.startsWith("/api/receipts"); 
 
       if (!isPublicRoute && !path.startsWith("/api/")) {
         // Any non-public, non-API route requires login

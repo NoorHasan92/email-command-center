@@ -25,6 +25,63 @@ enum AIProcessingMode {
   HYBRID
 }
 
+enum AccountDeletionStatus {
+  CONFIRMATION_PENDING
+  SCHEDULED
+  PROCESSING
+  CANCELLED
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum AccountStatus {
+  ACTIVE
+  DELETION_SCHEDULED
+  DELETED
+}
+
+enum TransactionalEmailType {
+  WELCOME
+  PURCHASE_CONFIRMATION
+  PAYMENT_RECEIPT
+  PASSWORD_CHANGED
+  ACCOUNT_DELETION_CONFIRMATION
+  ACCOUNT_DELETION_SCHEDULED
+  ACCOUNT_DELETION_CANCELLED
+  ACCOUNT_DELETION_COMPLETED
+}
+
+enum TransactionalEmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum OrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  PAID
+  FAILED
+  REFUNDED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum ProductType {
+  PLAN_PRO
+  PLAN_ULTRA
+  ADDON_BYOK
+}
+
 enum AIConnectionStatus {
   ACTIVE
   INVALID
@@ -211,6 +268,36 @@ model User {
   aiUsage               UserAIUsage?
   aiQuotaGrants         AIQuotaGrant[]
   aiUsageEvents         AIUsageEvent[]
+
+  // Transactions & Billing
+  orders                Order[]
+  payments              Payment[]
+  transactionalEmailLogs TransactionalEmailLog[]
+
+  // Account Lifecycle
+  accountStatus         AccountStatus           @default(ACTIVE)
+  deletionRequest       AccountDeletionRequest?
+}
+
+model AccountDeletionRequest {
+  id                    String                @id @default(cuid())
+  userId                String                @unique
+  status                AccountDeletionStatus @default(CONFIRMATION_PENDING)
+  reason                String?
+  feedback              String?               @db.Text
+  confirmationTokenHash String                @unique
+  confirmationExpiresAt DateTime
+  
+  requestedAt           DateTime              @default(now())
+  confirmedAt           DateTime?
+  scheduledDeletionAt   DateTime?
+  cancelledAt           DateTime?
+  deletedAt             DateTime?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserAIConnection {
@@ -594,7 +681,7 @@ model AccountLinkRequest {
 
 model UserAIUsage {
   id                 String   @id @default(cuid())
-  userId             String   @unique
+  userId             String?  @unique
   billingPeriodStart DateTime
   billingPeriodEnd   DateTime
   platformAiUsed     Int      @default(0)
@@ -602,7 +689,7 @@ model UserAIUsage {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([billingPeriodEnd])
 }
@@ -616,7 +703,7 @@ enum AIQuotaGrantSource {
 
 model AIQuotaGrant {
   id              String             @id @default(cuid())
-  userId          String
+  userId          String?
   amount          Int
   remainingAmount Int
   source          AIQuotaGrantSource
@@ -624,7 +711,7 @@ model AIQuotaGrant {
   expiresAt       DateTime?
   createdAt       DateTime           @default(now())
 
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([expiresAt])
@@ -653,7 +740,7 @@ enum AIUsageEventStatus {
 
 model AIUsageEvent {
   id              String          @id @default(cuid())
-  userId          String
+  userId          String?
   emailAnalysisId String?         // Optional link back to the specific email
   operationType   AIOperationType
   source          AIUsageSource
@@ -670,7 +757,7 @@ model AIUsageEvent {
   expiresAt       DateTime?
   createdAt       DateTime        @default(now())
 
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([source, createdAt])
@@ -689,3 +776,88 @@ model AdminAuditLog {
   createdAt     DateTime @default(now())
 }
 
+// ---------------------------------------------------------
+// Billing, Orders & Payments
+// ---------------------------------------------------------
+
+model ReferenceCounter {
+  id         String   @id @default(cuid())
+  prefix     String   @unique
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String?
+  referenceNumber String      @unique // e.g., INS-ORD-2026-000001
+  productType     ProductType
+  amount          Int         // In paise
+  currency        String      @default("INR")
+  status          OrderStatus @default(CREATED)
+  razorpayOrderId String?     @unique
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment         Payment?
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  userId            String?
+  provider          String        @default("RAZORPAY")
+  providerPaymentId String        @unique
+  providerOrderId   String?
+  paymentMethod     String?
+  amount            Int           // In paise
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  signatureVerified Boolean       @default(false)
+  receiptNumber     String?       @unique // e.g., INS-RCP-2026-000001
+  receiptToken      String?       @unique // Secure access token for URL
+  paidAt            DateTime?
+  providerMetadata  Json?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------
+// Transactional Emails
+// ---------------------------------------------------------
+
+model TransactionalEmailLog {
+  id                String                   @id @default(cuid())
+  userId            String?
+  recipient         String
+  type              TransactionalEmailType
+  subject           String
+  status            TransactionalEmailStatus @default(PENDING)
+  provider          String                   @default("RESEND")
+  providerMessageId String?
+  idempotencyKey    String                   @unique
+  metadata          Json?
+  attemptCount      Int                      @default(0)
+  lastError         String?                  @db.Text
+  
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([recipient])
+  @@index([type])
+  @@index([idempotencyKey])
+}

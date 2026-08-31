@@ -47,6 +47,11 @@ export default function SettingsClient({
   const [aiKeyInput, setAiKeyInput] = useState("");
   const [isPurchasingByok, setIsPurchasingByok] = useState(false);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteFeedback, setDeleteFeedback] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { font, setFont } = useFont();
@@ -874,6 +879,61 @@ export default function SettingsClient({
                         )}
                       </ul>
                     </div>
+
+                    {/* Danger Zone */}
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 backdrop-blur text-card-foreground shadow-xl overflow-hidden transition-all duration-300">
+                      <div className="p-6 border-b border-destructive/20 bg-destructive/10">
+                        <h3 className="text-lg font-bold text-destructive flex items-center gap-2"><AlertCircle className="w-5 h-5" /> Danger Zone</h3>
+                        <p className="text-sm text-destructive/80 mt-1">Irreversible and destructive actions for your account.</p>
+                      </div>
+                      <div className="p-6">
+                        {user?.accountStatus === "DELETION_SCHEDULED" ? (
+                          <div className="flex flex-col gap-4 bg-destructive/10 p-5 rounded-xl border border-destructive/20">
+                            <div className="flex items-center gap-3">
+                              <AlertCircle className="w-6 h-6 text-destructive shrink-0" />
+                              <div>
+                                <h4 className="font-bold text-destructive">Account Deletion Scheduled</h4>
+                                <p className="text-sm text-destructive/80 mt-1">
+                                  Your account is scheduled for deletion on <strong>{new Date(user?.deletionRequest?.scheduledDeletionAt).toLocaleDateString()}</strong>.
+                                </p>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              disabled={deleteLoading}
+                              onClick={async () => {
+                                setDeleteLoading(true);
+                                const { cancelAccountDeletionAction } = await import("@/server/actions/deletion.actions");
+                                const res = await cancelAccountDeletionAction();
+                                setDeleteLoading(false);
+                                if (res.success) {
+                                  toast.success("Account deletion cancelled successfully.");
+                                  router.refresh();
+                                } else {
+                                  toast.error(res.error || "Failed to cancel deletion");
+                                }
+                              }}
+                              className="w-fit self-start border-destructive text-destructive hover:bg-destructive hover:text-white transition-colors"
+                            >
+                              {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                              Cancel Deletion Request
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                              <h4 className="font-bold text-foreground">Delete Account</h4>
+                              <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                                Permanently remove your account, settings, active sessions, and data. This action is irreversible after a 14-day grace period.
+                              </p>
+                            </div>
+                            <Button variant="destructive" onClick={() => setIsDeleteModalOpen(true)} className="shrink-0 rounded-xl font-bold shadow-md hover:shadow-lg transition-all">
+                              Delete Account
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1121,6 +1181,118 @@ export default function SettingsClient({
           </div>
         </div>
       </div>
+
+      {/* Account Deletion Modal */}
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card w-full max-w-lg rounded-2xl border border-destructive/20 shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-border/50 bg-destructive/5 relative">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <AlertCircle className="w-24 h-24 text-destructive" />
+                </div>
+                <div className="relative z-10 flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-6 h-6 text-destructive" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-destructive">Delete Account</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This action will initiate the deletion of your account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh] styled-scroll">
+                <div className="space-y-3 bg-secondary/30 p-4 rounded-xl border border-border/50">
+                  <h4 className="font-bold text-sm">What happens next?</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0 mt-1.5" />
+                      Your account will be immediately logged out and disabled.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0 mt-1.5" />
+                      A 14-day grace period will begin. You can cancel the deletion by logging in during this time.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0 mt-1.5" />
+                      After 14 days, all your data, emails, and preferences will be permanently deleted.
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Why are you leaving? (Optional)</label>
+                    <select
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      className="w-full bg-background border border-border/50 rounded-xl px-4 h-11 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                    >
+                      <option value="">Select a reason...</option>
+                      <option value="TOO_EXPENSIVE">Too expensive</option>
+                      <option value="NOT_USEFUL">Not useful for my needs</option>
+                      <option value="SWITCHING_PRODUCT">Switching to another product</option>
+                      <option value="PRIVACY_CONCERNS">Privacy concerns</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Any feedback for us? (Optional)</label>
+                    <textarea
+                      value={deleteFeedback}
+                      onChange={(e) => setDeleteFeedback(e.target.value)}
+                      placeholder="We'd love to know how we can improve..."
+                      className="w-full bg-background border border-border/50 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all min-h-[100px] resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-border/50 bg-secondary/10 flex items-center justify-end gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={deleteLoading}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    setDeleteLoading(true);
+                    // Server action will be implemented in the next step
+                    const { requestAccountDeletionAction } = await import("@/server/actions/deletion.actions");
+                    const res = await requestAccountDeletionAction({ reason: deleteReason, feedback: deleteFeedback });
+                    setDeleteLoading(false);
+                    if (res.success) {
+                      toast.success("Account deletion requested. Please check your email to confirm.");
+                      setIsDeleteModalOpen(false);
+                      router.refresh();
+                    } else {
+                      toast.error(res.error || "Failed to request deletion");
+                    }
+                  }}
+                  disabled={deleteLoading}
+                  className="rounded-xl font-bold shadow-md"
+                >
+                  {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Confirm Deletion Request
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword, validatePasswordStrength } from "@/servic
 import { generateSecureToken, generateSessionToken } from "@/services/security/tokens";
 import { logSecurityEvent, parseUserAgent } from "@/services/security/audit";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/services/emails/resend";
+import { sendWelcomeEmail, sendPasswordChangedEmail } from "@/services/transactional-email/email.service";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -214,6 +215,9 @@ export async function verifyEmailAction(token: string) {
 
     await db.verificationToken.delete({ where: { token: hashedToken } });
     await logSecurityEvent("PASSWORD_CHANGED", user.id, { note: "Email verified" });
+    
+    // Trigger welcome email (non-blocking)
+    sendWelcomeEmail(user.id).catch(err => logger.error({ err }, "Failed to send welcome email"));
 
     return { success: true };
   } catch (error: any) {
@@ -375,6 +379,8 @@ export async function resetPasswordAction(formData: FormData) {
     await logSecurityEvent("PASSWORD_RESET_COMPLETED", user.id);
     await logSecurityEvent("PASSWORD_CHANGED", user.id);
 
+    sendPasswordChangedEmail(user.id).catch(err => logger.error({ err }, "Failed to send password changed email"));
+
     return { success: true };
   } catch (error) {
     console.error(error);
@@ -456,6 +462,8 @@ export async function updatePasswordAction(formData: FormData) {
 
     await logSecurityEvent("PASSWORD_CHANGED", user.id);
     
+    sendPasswordChangedEmail(user.id).catch(err => logger.error({ err }, "Failed to send password changed email"));
+
     return { success: true };
   } catch (error) {
     console.error(error);
