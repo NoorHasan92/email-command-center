@@ -335,12 +335,14 @@ export default function SettingsClient({
                         </div>
                         <div className="p-6">
                           {/* Premium Profile Card / Avatar */}
-                          <div className="flex items-center gap-6 mb-8">
-                            <UserAvatar src={user?.image} name={user?.name} size="xl" />
-                            <div className="flex flex-col justify-center">
-                              <h4 className="text-xl font-bold tracking-tight">{user?.name}</h4>
-                              <p className="text-sm text-muted-foreground mb-2">{user?.email}</p>
-                              <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-4 sm:gap-6 mb-8">
+                            <div className="shrink-0">
+                              <UserAvatar src={user?.image} name={user?.name} size="xl" />
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0 flex-1">
+                              <h4 className="text-xl font-bold tracking-tight break-words">{user?.name}</h4>
+                              <p className="text-sm text-muted-foreground mb-2 break-all">{user?.email}</p>
+                              <div className="flex flex-wrap items-center gap-2">
                                 <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${user?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
                                     user?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :
                                       user?.plan === "PRO" ? "bg-blue-500/20 text-blue-400" :

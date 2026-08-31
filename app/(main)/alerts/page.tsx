@@ -51,11 +51,11 @@ export default async function AlertsPage() {
             <p className="max-w-sm leading-relaxed">No notifications have been routed yet. Check your rules engine to configure routing.</p>
           </div>
         ) : (
-          <div className="relative pl-4 md:pl-8">
+          <div className="relative">
             {/* Timeline track */}
-            <div className="absolute top-0 bottom-0 left-[27px] md:left-[43px] w-0.5 bg-border/50" />
+            <div className="absolute top-0 bottom-0 left-[19px] md:left-[35px] w-0.5 bg-border/50" />
             
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               {notifications.map((log, index) => {
                 const isSuccess = log.status === "DELIVERED" || log.status === "READ" || log.status === "SENT";
                 const isFailed = log.status === "FAILED";
@@ -67,26 +67,26 @@ export default async function AlertsPage() {
                 let ChannelIcon = log.channel === "WHATSAPP" ? MessageCircle : log.channel === "TELEGRAM" ? Smartphone : Mail;
                 
                 return (
-                  <div key={log.id} className="relative flex items-start gap-6 group">
+                  <div key={log.id} className="relative flex items-start gap-3 md:gap-6 group">
                     {/* Timeline Node */}
-                    <div className="relative z-10 flex flex-col items-center mt-1">
+                    <div className="relative z-10 flex flex-col items-center mt-1 shrink-0 md:pl-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner transition-transform group-hover:scale-110 duration-300 ${statusColor}`}>
                         <StatusIcon className="w-5 h-5" />
                       </div>
                     </div>
 
                     {/* Timeline Content */}
-                    <div className="flex-1 bg-card/80 backdrop-blur border border-border/50 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md hover:border-border/80 group">
+                    <div className="flex-1 min-w-0 bg-card/80 backdrop-blur border border-border/50 rounded-2xl p-4 md:p-5 shadow-sm transition-all hover:shadow-md hover:border-border/80 group">
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary/80 border border-border/50 text-xs font-bold tracking-wider text-muted-foreground uppercase shadow-sm">
-                              <ChannelIcon className="w-3.5 h-3.5" /> {log.channel}
+                            <div className="flex items-center gap-1.5 px-2 py-1 md:px-2.5 rounded-md bg-secondary/80 border border-border/50 text-[10px] md:text-xs font-bold tracking-wider text-muted-foreground uppercase shadow-sm">
+                              <ChannelIcon className="w-3.5 h-3.5 shrink-0" /> {log.channel}
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase border shadow-sm ${statusColor}`}>
                               {log.status}
                             </span>
-                            <span className="text-xs text-muted-foreground font-mono ml-auto md:ml-0 whitespace-nowrap">
+                            <span className="text-[10px] md:text-xs text-muted-foreground font-mono ml-auto md:ml-0 whitespace-nowrap shrink-0">
                               {formatDistanceToNow(log.createdAt, { addSuffix: true })}
                             </span>
                           </div>

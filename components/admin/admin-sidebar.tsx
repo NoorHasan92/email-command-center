@@ -16,7 +16,7 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const ADMIN_NAVIGATION = [
+export const ADMIN_NAVIGATION = [
   { section: "Overview", items: [
     { id: "command-center", title: "Command Center", href: "/admin", icon: ShieldAlert },
   ]},
@@ -82,7 +82,7 @@ export function AdminSidebar() {
         animate={{ width: isCollapsed ? 80 : 288 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={cn(
-          "relative z-50 flex flex-col shrink-0 h-full bg-[#0a0a0a] border-r border-border/10 shadow-2xl overflow-visible transition-transform duration-300 text-slate-200"
+          "hidden md:flex relative z-50 flex-col shrink-0 h-full bg-[#0a0a0a] border-r border-border/10 shadow-2xl overflow-visible transition-transform duration-300 text-slate-200"
         )}
       >
         <button
