@@ -231,3 +231,13 @@
 .PhoneInputCountryIcon--border {
   @apply border border-border;
 }
+
+@keyframes fill-up {
+  0% { clip-path: inset(100% 0 0 0); }
+  50% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+
+.animate-fill-up {
+  animation: fill-up 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

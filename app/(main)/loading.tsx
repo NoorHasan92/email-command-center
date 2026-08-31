@@ -1,4 +1,4 @@
-import { Brain, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function Loading() {
   return (
@@ -7,9 +7,16 @@ export default function Loading() {
         {/* Glow effect */}
         <div className="absolute inset-0 bg-primary/20 blur-[50px] rounded-full animate-pulse" />
         
-        <div className="relative flex items-center justify-center w-20 h-20 bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10">
-          <Loader2 className="w-8 h-8 text-primary animate-spin absolute" />
-          <Brain className="w-4 h-4 text-primary/80 animate-pulse" />
+        <div className="relative flex items-center justify-center w-24 h-24 bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden">
+          {/* Black silhouette background logo */}
+          <div className="absolute inset-0 m-auto flex items-center justify-center opacity-40 grayscale brightness-0 p-4">
+            <Image src="/app-logo.png" alt="Loading Background" width={64} height={64} className="object-contain" unoptimized />
+          </div>
+          
+          {/* Silver/White animated filling logo */}
+          <div className="absolute inset-0 m-auto flex items-center justify-center animate-fill-up p-4 z-10">
+            <Image src="/app-logo.png" alt="Loading Fill" width={64} height={64} className="object-contain grayscale brightness-150 contrast-125 opacity-90 drop-shadow-[0_0_15px_rgba(200,200,210,0.5)]" unoptimized />
+          </div>
         </div>
         
         <div className="mt-8 flex flex-col items-center gap-2">

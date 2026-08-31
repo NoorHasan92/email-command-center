@@ -82,9 +82,9 @@ export function Sidebar() {
         </button>
 
         <div className="flex h-[72px] items-center px-6 shrink-0 border-b border-border/30 overflow-hidden">
-          <Link href="/" className="flex items-center gap-3 font-semibold">
+          <Link href="/dashboard" className="flex items-center gap-3 font-semibold">
             <motion.div layout>
-              <Image src="/app-logo.png" alt="Inbox Sentinel Logo" width={32} height={32} className="rounded-md shrink-0" unoptimized />
+              <Image src="/app-logo.png" alt="Inbox Sentinel Logo" width={56} height={56} className="shrink-0 object-contain" unoptimized />
             </motion.div>
             <AnimatePresence mode="wait">
               {!isCollapsed && (
