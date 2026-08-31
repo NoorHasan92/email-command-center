@@ -57,6 +57,8 @@ enum TransactionalEmailStatus {
   SENT
   DELIVERED
   FAILED
+  BOUNCED
+  COMPLAINED
 }
 
 enum OrderStatus {
@@ -277,6 +279,9 @@ model User {
   // Account Lifecycle
   accountStatus         AccountStatus           @default(ACTIVE)
   deletionRequest       AccountDeletionRequest?
+
+  // Entitlements
+  entitlements          UserEntitlement[]
 }
 
 model AccountDeletionRequest {
@@ -384,6 +389,7 @@ model AuditLog {
   ipAddress String?
   userAgent String?
   metadata  Json?
+  correlationId String?
   createdAt DateTime @default(now())
 
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -434,6 +440,8 @@ model WebhookEvent {
   status     String   @default("PENDING") // PENDING, PROCESSED, FAILED
   retryCount Int      @default(0)
   error      String?  @db.Text
+  errorHistory Json?
+  correlationId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -755,6 +763,7 @@ model AIUsageEvent {
   quotaSourceType String?         // BASE or GRANT
   quotaSourceId   String?         // ID of the UserAIUsage or AIQuotaGrant record
   expiresAt       DateTime?
+  correlationId   String?
   createdAt       DateTime        @default(now())
 
   user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -773,7 +782,29 @@ model AdminAuditLog {
   previousValue Json?
   newValue      Json?
   reason        String?
+  correlationId String?
   createdAt     DateTime @default(now())
+}
+
+model UserEntitlement {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type             String    // "PLAN" or "FEATURE"
+  value            String    // "FREE", "PRO", "ULTRA", "BYOK_ADDON"
+  source           String    // "PAYMENT", "ADMIN_GRANT", "PROMOTION", "TRIAL", "LEGACY", "SYSTEM"
+  status           String    @default("ACTIVE") // "ACTIVE", "EXPIRED", "REVOKED"
+  grantedAt        DateTime  @default(now())
+  expiresAt        DateTime?
+  revokedAt        DateTime?
+  paymentId        String?
+  orderId          String?
+  grantedByAdminId String?
+  metadata         Json?
+  
+  @@index([userId, status])
+  @@index([userId, type, value])
+  @@index([paymentId])
 }
 
 // ---------------------------------------------------------

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
@@ -48,6 +48,26 @@ export default function SettingsClient({
   const [isPurchasingByok, setIsPurchasingByok] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPendingCalendar, startTransitionCalendar] = useTransition();
+  const [isPendingDrafts, startTransitionDrafts] = useTransition();
+  
+  const [optimisticCalendar, setOptimisticCalendar] = useState<boolean | null>(null);
+  const [optimisticDrafts, setOptimisticDrafts] = useState<boolean | null>(null);
+  
+  const serverCalendarValue = (user?.appPreferences as any)?.calendarAutomation !== "OFF" && !!(user?.appPreferences as any)?.calendarAutomation;
+  const serverDraftsValue = (user?.appPreferences as any)?.smartDrafts === true;
+
+  useEffect(() => {
+    setOptimisticCalendar(null);
+  }, [serverCalendarValue]);
+
+  useEffect(() => {
+    setOptimisticDrafts(null);
+  }, [serverDraftsValue]);
+  
+  const isCalendarChecked = optimisticCalendar !== null ? optimisticCalendar : serverCalendarValue;
+  const isDraftsChecked = optimisticDrafts !== null ? optimisticDrafts : serverDraftsValue;
+
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteFeedback, setDeleteFeedback] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -466,25 +486,33 @@ export default function SettingsClient({
                                 <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-wider">Pro Feature</span>
                               </div>
                             </div>
-                            <div className="shrink-0">
-                              <label className={`relative inline-flex items-center ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                            <div className="shrink-0 flex items-center gap-3">
+                              <label className={`relative inline-flex items-center ${user?.plan === "FREE" || isPendingCalendar ? "cursor-not-allowed" : "cursor-pointer"}`}>
                                 <input
                                   type="checkbox"
-                                  className="sr-only peer"
-                                  disabled={user?.plan === "FREE"}
-                                  checked={(user?.appPreferences as any)?.calendarAutomation !== "OFF" && !!(user?.appPreferences as any)?.calendarAutomation}
-                                  onChange={async (e) => {
+                                  className="sr-only"
+                                  disabled={user?.plan === "FREE" || isPendingCalendar}
+                                  checked={isCalendarChecked}
+                                  onChange={(e) => {
                                     const checked = e.target.checked;
                                     const newMode = checked ? "ASK" : "OFF";
-                                    await updateAppPreferencesAction({ calendarAutomation: newMode });
-                                    if (checked) {
-                                      toast.success("Calendar automation enabled");
-                                    } else {
-                                      toast.error("Calendar automation disabled");
-                                    }
+                                    setOptimisticCalendar(checked);
+                                    startTransitionCalendar(async () => {
+                                      try {
+                                        await updateAppPreferencesAction({ calendarAutomation: newMode });
+                                        if (checked) toast.success("Calendar automation enabled");
+                                        else toast.error("Calendar automation disabled");
+                                      } catch (err) {
+                                        setOptimisticCalendar(null);
+                                        toast.error("Failed to update settings");
+                                      }
+                                    });
                                   }}
                                 />
-                                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                                <div className={`w-11 h-6 rounded-full shadow-inner transition-colors duration-300 ${isCalendarChecked ? 'bg-primary' : 'bg-secondary'} ${isPendingCalendar ? 'opacity-50' : 'opacity-100'}`}></div>
+                                <div className={`absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform duration-300 flex items-center justify-center shadow-sm ${isCalendarChecked ? 'translate-x-[20px]' : 'translate-x-0'}`}>
+                                  {isPendingCalendar && <Loader2 className="w-3 h-3 text-primary animate-spin" />}
+                                </div>
                               </label>
                             </div>
                           </div>
@@ -493,10 +521,12 @@ export default function SettingsClient({
                             <div className="text-xs font-semibold text-muted-foreground">Automation Mode</div>
                             <div className={`shrink-0 flex items-center bg-black/20 rounded-xl p-1 border border-border/30 transition-opacity ${((user?.appPreferences as any)?.calendarAutomation === "OFF" || !(user?.appPreferences as any)?.calendarAutomation) ? 'opacity-50 pointer-events-none' : ''}`}>
                               <button
-                                disabled={user?.plan === "FREE"}
-                                onClick={async () => {
-                                  await updateAppPreferencesAction({ calendarAutomation: "AUTO" });
-                                  toast.success("Calendar automation set to Automatic");
+                                disabled={user?.plan === "FREE" || isPendingCalendar}
+                                onClick={() => {
+                                  startTransitionCalendar(async () => {
+                                    await updateAppPreferencesAction({ calendarAutomation: "AUTO" });
+                                    toast.success("Calendar automation set to Automatic");
+                                  });
                                 }}
                                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${(user?.appPreferences as any)?.calendarAutomation === "AUTO"
                                     ? "bg-primary text-primary-foreground shadow-md"
@@ -506,10 +536,12 @@ export default function SettingsClient({
                                 Auto-Manage
                               </button>
                               <button
-                                disabled={user?.plan === "FREE"}
-                                onClick={async () => {
-                                  await updateAppPreferencesAction({ calendarAutomation: "ASK" });
-                                  toast.success("Calendar automation set to Ask Permission");
+                                disabled={user?.plan === "FREE" || isPendingCalendar}
+                                onClick={() => {
+                                  startTransitionCalendar(async () => {
+                                    await updateAppPreferencesAction({ calendarAutomation: "ASK" });
+                                    toast.success("Calendar automation set to Ask Permission");
+                                  });
                                 }}
                                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${(user?.appPreferences as any)?.calendarAutomation === "ASK"
                                     ? "bg-primary text-primary-foreground shadow-md"
@@ -534,24 +566,34 @@ export default function SettingsClient({
                             </div>
                           </div>
 
-                          <label className={`relative inline-flex items-center shrink-0 ${user?.plan === "FREE" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              disabled={user?.plan === "FREE"}
-                              checked={(user?.appPreferences as any)?.smartDrafts === true}
-                              onChange={async (e) => {
-                                const checked = e.target.checked;
-                                await updateAppPreferencesAction({ smartDrafts: checked });
-                                if (checked) {
-                                  toast.success("Smart Drafts enabled");
-                                } else {
-                                  toast.error("Smart Drafts disabled");
-                                }
-                              }}
-                            />
-                            <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
-                          </label>
+                          <div className="shrink-0 flex items-center gap-3">
+                            <label className={`relative inline-flex items-center ${user?.plan === "FREE" || isPendingDrafts ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                              <input
+                                type="checkbox"
+                                className="sr-only"
+                                disabled={user?.plan === "FREE" || isPendingDrafts}
+                                checked={isDraftsChecked}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setOptimisticDrafts(checked);
+                                  startTransitionDrafts(async () => {
+                                    try {
+                                      await updateAppPreferencesAction({ smartDrafts: checked });
+                                      if (checked) toast.success("Smart Drafts enabled");
+                                      else toast.error("Smart Drafts disabled");
+                                    } catch (err) {
+                                      setOptimisticDrafts(null);
+                                      toast.error("Failed to update settings");
+                                    }
+                                  });
+                                }}
+                              />
+                              <div className={`w-11 h-6 rounded-full shadow-inner transition-colors duration-300 ${isDraftsChecked ? 'bg-primary' : 'bg-secondary'} ${isPendingDrafts ? 'opacity-50' : 'opacity-100'}`}></div>
+                              <div className={`absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform duration-300 flex items-center justify-center shadow-sm ${isDraftsChecked ? 'translate-x-[20px]' : 'translate-x-0'}`}>
+                                {isPendingDrafts && <Loader2 className="w-3 h-3 text-primary animate-spin" />}
+                              </div>
+                            </label>
+                          </div>
                         </div>
 
                       </div>

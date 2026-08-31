@@ -138,10 +138,23 @@ export async function verifyRazorpaySignatureAction(
         data: { status: "PAID" }
       });
 
-      // Update User Plan
+      // Update User Plan (Legacy)
       await tx.user.update({
         where: { id: userId },
         data: { plan: planType as Plan }
+      });
+
+      // Grant new Entitlement
+      await tx.userEntitlement.create({
+        data: {
+          userId,
+          type: "PLAN",
+          value: planType,
+          source: "PAYMENT",
+          paymentId: paymentId,
+          orderId: internalOrder.id,
+          expiresAt: billingPeriodEnd
+        }
       });
 
       // Reset/Create Usage for new billing cycle
@@ -299,6 +312,17 @@ export async function verifyRazorpayByokSignatureAction(
       await tx.user.update({
         where: { id: userId },
         data: { byokEnabled: true }
+      });
+
+      await tx.userEntitlement.create({
+        data: {
+          userId,
+          type: "FEATURE",
+          value: "BYOK_ADDON",
+          source: "PAYMENT",
+          paymentId: paymentId,
+          orderId: internalOrder.id
+        }
       });
     });
 

@@ -65,8 +65,8 @@ export async function resolveAIProvider(userId: string): Promise<IAIProvider> {
     return new QuotaProtectedPlatformWrapper(userId, platformProvider, "PLATFORM");
   }
 
-  // 1. Check if user has BYOK active
-  if (!hasByokAccess(user) || !user.aiConnection || user.aiConnection.status !== "ACTIVE") {
+  const byokEnabled = await hasByokAccess(userId);
+  if (!byokEnabled || !user.aiConnection || user.aiConnection.status !== "ACTIVE") {
     return new QuotaProtectedPlatformWrapper(userId, platformProvider, "PLATFORM");
   }
 

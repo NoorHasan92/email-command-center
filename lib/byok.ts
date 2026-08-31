@@ -1,4 +1,5 @@
-export function hasByokAccess(user: { byokEnabled?: boolean; plan?: string }): boolean {
-  if (!user) return false;
-  return user.byokEnabled === true || user.plan === "ADMIN";
+import { EntitlementService } from "@/server/services/entitlement.service";
+
+export async function hasByokAccess(userId: string): Promise<boolean> {
+  return await EntitlementService.hasFeatureAccess(userId, "BYOK_ADDON");
 }

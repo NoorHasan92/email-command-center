@@ -22,7 +22,7 @@ export async function connectAIKeyAction(apiKey: string, model: string = "gemini
       select: { byokEnabled: true, plan: true }
     });
 
-    if (!user || !hasByokAccess(user)) {
+    if (!user || !(await hasByokAccess(session.user.id))) {
       return { error: "BYOK add-on is not enabled for this account." };
     }
 

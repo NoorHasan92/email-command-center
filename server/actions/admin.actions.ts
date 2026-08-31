@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
  * Ensures the caller is an authenticated ADMIN.
  * Throws an error if not.
  */
-async function requireAdmin() {
+export async function requireAdmin() {
   const session = await auth();
   // @ts-expect-error - role is extended but not in next-auth DefaultUser type yet
   if (!session?.user || session.user.role !== "ADMIN") {
@@ -52,7 +52,7 @@ export async function deleteUser(userId: string) {
     where: { id: userId },
   });
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/users");
   return { success: true };
 }
 
@@ -102,7 +102,7 @@ export async function grantBonusQuota(userId: string, amount: number, reason: st
   const { AIQuotaService } = await import("@/services/ai/quota.service");
   await AIQuotaService.recoverPendingEmails(userId);
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/ai-operations");
   return { success: true };
 }
 
@@ -182,6 +182,6 @@ export async function reconcileQuota(targetUserId: string) {
     }
   }).catch(() => null);
 
-  revalidatePath("/admin");
+  revalidatePath("/admin/ai-operations");
   return { success: true, platformCount, personalCount, fallbackCount };
 }
