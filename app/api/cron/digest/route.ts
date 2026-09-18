@@ -19,7 +19,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true, message: "Digest cron executed successfully" });
   } catch (error) {
-    console.error("[CRON_DIGEST] Error executing cron:", error);
-    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+    const err = error as Error;
+    console.error("[CRON_DIGEST] Error executing cron:", err);
+    return NextResponse.json({ success: false, error: err?.message || "Internal Server Error" }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  return GET(req);
 }

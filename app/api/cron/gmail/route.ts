@@ -22,34 +22,73 @@ export async function GET(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const results: Record<string, { status: "success" | "failed"; error?: string }> = {};
+
     // 1. Renew expiring Gmail watches
-    await renewWatches();
+    try {
+      await renewWatches();
+      results.watchRenewer = { status: "success" };
+    } catch (err: any) {
+      console.error("[CRON_GMAIL] renewWatches failed:", err);
+      results.watchRenewer = { status: "failed", error: err?.message || String(err) };
+    }
 
     // 2. Process any pending webhooks that were missed
-    await processWebhooks();
+    try {
+      await processWebhooks();
+      results.webhookProcessor = { status: "success" };
+    } catch (err: any) {
+      console.error("[CRON_GMAIL] processWebhooks failed:", err);
+      results.webhookProcessor = { status: "failed", error: err?.message || String(err) };
+    }
 
     // 3. Process any pending emails that failed or were stuck
-    await processPendingEmails();
+    try {
+      await processPendingEmails();
+      results.emailProcessor = { status: "success" };
+    } catch (err: any) {
+      console.error("[CRON_GMAIL] processPendingEmails failed:", err);
+      results.emailProcessor = { status: "failed", error: err?.message || String(err) };
+    }
 
     // 4. Force sync accounts that haven't received webhooks recently
-    await forceSyncStaleAccounts();
+    try {
+      await forceSyncStaleAccounts();
+      results.staleSync = { status: "success" };
+    } catch (err: any) {
+      console.error("[CRON_GMAIL] forceSyncStaleAccounts failed:", err);
+      results.staleSync = { status: "failed", error: err?.message || String(err) };
+    }
 
     const duration = Date.now() - start;
-    console.log(`[CRON_GMAIL] Completed successfully in ${duration}ms`);
+    const allFailed = Object.values(results).every(r => r.status === "failed");
+    const anyFailed = Object.values(results).some(r => r.status === "failed");
+
+    console.log(`[CRON_GMAIL] Completed in ${duration}ms`, results);
 
     return NextResponse.json({ 
-      success: true, 
-      message: "Gmail cron executed successfully",
+      success: !allFailed, 
+      message: allFailed 
+        ? "All Gmail cron tasks failed" 
+        : anyFailed 
+          ? "Gmail cron completed with partial failures" 
+          : "Gmail cron executed successfully",
+      results,
       durationMs: duration,
       timestamp: new Date().toISOString()
-    });
+    }, { status: allFailed ? 500 : 200 });
   } catch (error) {
     const duration = Date.now() - start;
-    console.error("[CRON_GMAIL] Error executing cron:", error);
+    const err = error as Error;
+    console.error("[CRON_GMAIL] Fatal error executing cron:", err);
     return NextResponse.json({ 
       success: false, 
-      error: "Internal Server Error",
+      error: err?.message || "Internal Server Error",
       durationMs: duration 
     }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  return GET(req);
 }

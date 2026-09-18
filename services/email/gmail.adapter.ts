@@ -30,8 +30,8 @@ export class GmailAdapter implements IEmailProvider {
 
   private getOAuth2Client() {
     return new google.auth.OAuth2(
-      process.env.AUTH_GOOGLE_ID,
-      process.env.AUTH_GOOGLE_SECRET,
+      process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
+      process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
       `${getBaseUrl()}/api/auth/callback/google`
     );
   }
@@ -45,8 +45,8 @@ export class GmailAdapter implements IEmailProvider {
       throw new Error(`EmailAccount not found: ${emailAccountId}`);
     }
 
-    const decryptedAccess = account.accessToken ? decrypt(account.accessToken) : null;
-    const decryptedRefresh = account.refreshToken ? decrypt(account.refreshToken) : null;
+    const decryptedAccess = account.accessToken ? (decrypt(account.accessToken) || account.accessToken) : null;
+    const decryptedRefresh = account.refreshToken ? (decrypt(account.refreshToken) || account.refreshToken) : null;
 
     // Temporary debug logging per requirements
     if (process.env.NODE_ENV === "development") {
@@ -111,14 +111,14 @@ export class GmailAdapter implements IEmailProvider {
   }
 
   async registerWebhook(emailAccountId: string): Promise<boolean> {
-    const gmail = await this.getGmailClient(emailAccountId);
-    
-    if (!process.env.GMAIL_PUBSUB_TOPIC) {
-      logger.warn("[GMAIL_ADAPTER] GMAIL_PUBSUB_TOPIC not defined. Skipping watch registration.");
-      return false;
-    }
-
     try {
+      const gmail = await this.getGmailClient(emailAccountId);
+      
+      if (!process.env.GMAIL_PUBSUB_TOPIC) {
+        logger.warn("[GMAIL_ADAPTER] GMAIL_PUBSUB_TOPIC not defined. Skipping watch registration.");
+        return false;
+      }
+
       const response = await withRetry(() => gmail.users.watch({
         userId: "me",
         requestBody: {
@@ -144,10 +144,12 @@ export class GmailAdapter implements IEmailProvider {
       return true;
     } catch (error) {
       logger.error({ err: error }, `[GMAIL_ADAPTER] Failed to register webhook for ${emailAccountId}`);
-      await db.emailAccount.update({
-        where: { id: emailAccountId },
-        data: { syncStatus: "ERROR" }
-      });
+      try {
+        await db.emailAccount.update({
+          where: { id: emailAccountId },
+          data: { syncStatus: "ERROR" }
+        });
+      } catch {}
       return false;
     }
   }

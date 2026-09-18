@@ -56,8 +56,8 @@ export async function GET(request: Request) {
     // Clear state cookie
     cookieStore.delete("gmail_oauth_state");
 
-    const clientId = process.env.AUTH_GOOGLE_ID;
-    const clientSecret = process.env.AUTH_GOOGLE_SECRET;
+    const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET;
     const baseUrl = getBaseUrl();
     const redirectUri = `${baseUrl}/api/integrations/gmail/callback`;
     console.log(`[GMAIL_CALLBACK] baseUrl=${baseUrl} redirectUri=${redirectUri}`);

@@ -32,8 +32,8 @@ export async function renewWatches() {
 
   for (const account of expiringAccounts) {
     try {
-      // JITTER: Wait between 0 and 5 seconds to prevent thundering herd against Google API
-      const jitterMs = Math.floor(Math.random() * 5000);
+      // JITTER: Wait between 0 and 500ms to prevent thundering herd against Google API
+      const jitterMs = Math.floor(Math.random() * 500);
       console.log(`[JOB] [WATCH_RENEWER] Applying ${jitterMs}ms jitter for account ${account.emailAddress}`);
       await sleep(jitterMs);
 

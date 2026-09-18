@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/repositories/db";
 import { OAuth2Client } from "google-auth-library";
 
@@ -33,59 +33,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Extract Body
-    const body = await req.json();
+    // 2. Extract Body safely
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      console.error("[WEBHOOK_GMAIL] Failed to parse JSON body.");
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    }
 
-    if (!body.message || !body.message.data) {
+    if (!body || !body.message || !body.message.data) {
       console.error("[WEBHOOK_GMAIL] Invalid payload structure.");
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     // 3. Temporarily Store Raw Webhook Event for Dead-Letter/Queue processing
-    const webhookEvent = await db.webhookEvent.create({
-      data: {
-        provider: "gmail",
-        payload: body,
-        processed: false,
-        status: "PENDING",
-      }
-    });
-
-    console.log(`[WEBHOOK_GMAIL] Payload successfully queued. Processing synchronously...`);
+    try {
+      const webhookEvent = await db.webhookEvent.create({
+        data: {
+          provider: "gmail",
+          payload: body,
+          processed: false,
+          status: "PENDING",
+        }
+      });
+      console.log(`[WEBHOOK_GMAIL] Payload successfully queued (ID: ${webhookEvent.id}). Processing synchronously...`);
+    } catch (dbErr: any) {
+      console.error("[WEBHOOK_GMAIL] Database error storing webhook event:", dbErr?.message);
+      return NextResponse.json({ 
+        error: "Database error: " + (dbErr?.message || "Failed to persist webhook event") 
+      }, { status: 500 });
+    }
 
     // 4. Process SYNCHRONOUSLY before returning response.
-    // The after() approach is unreliable on Vercel serverless — functions can be
-    // killed before background work completes, causing webhooks to pile up as PENDING.
-    // Google Pub/Sub allows up to 30s for a response, which is plenty of time.
+    // The webhook event is already saved in DB, so if synchronous processing
+    // fails or times out, the periodic cron sweep will pick it up.
     try {
       const { processWebhooks } = await import("@/jobs/webhook-processor");
       await processWebhooks();
 
       const { processPendingEmails } = await import("@/jobs/email-processor");
       await processPendingEmails();
-    } catch (processingErr) {
-      console.error("[WEBHOOK_GMAIL] Synchronous processing failed (will be retried by cron):", processingErr);
-      // Don't return an error — the webhook event is already saved in DB
-      // and will be picked up by the next cron sweep.
+    } catch (processingErr: any) {
+      console.error("[WEBHOOK_GMAIL] Synchronous processing failed (will be retried by cron):", processingErr?.message);
     }
 
-    // 5. Secondary sweep in after() for watch renewals and any remaining items
-    after(async () => {
-      try {
-        const { renewWatches } = await import("@/jobs/watch-renewer");
-        await renewWatches();
-      } catch (err) {
-        console.error("[WEBHOOK_GMAIL] Background watch renewal failed:", err);
-      }
-    });
-
-    // 6. Acknowledge Receipt
+    // 5. Acknowledge Receipt so Pub/Sub does not enter an infinite retry loop
     return NextResponse.json({ success: true });
 
   } catch (error) {
     const err = error as Error;
-    console.error("[WEBHOOK_GMAIL] Webhook processing error:", err.message);
-    // Returning 500 will cause Google Pub/Sub to backoff and retry later
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("[WEBHOOK_GMAIL] Webhook processing error:", err);
+    return NextResponse.json({ error: err?.message || "Internal Server Error" }, { status: 500 });
   }
 }

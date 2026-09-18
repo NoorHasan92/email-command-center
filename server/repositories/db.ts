@@ -128,13 +128,13 @@ const prismaClientSingleton = () => {
         access_token: {
           needs: { access_token: true },
           compute(account) {
-            return account.access_token ? decrypt(account.access_token) : null;
+            return account.access_token ? decrypt(account.access_token) || account.access_token : null;
           },
         },
         refresh_token: {
           needs: { refresh_token: true },
           compute(account) {
-            return account.refresh_token ? decrypt(account.refresh_token) : null;
+            return account.refresh_token ? decrypt(account.refresh_token) || account.refresh_token : null;
           },
         },
       },
@@ -148,7 +148,7 @@ const prismaClientSingleton = () => {
         refreshToken: {
           needs: { refreshToken: true },
           compute(emailAccount) {
-            return emailAccount.refreshToken ? decrypt(emailAccount.refreshToken) : null;
+            return emailAccount.refreshToken ? decrypt(emailAccount.refreshToken) || emailAccount.refreshToken : null;
           },
         },
       },

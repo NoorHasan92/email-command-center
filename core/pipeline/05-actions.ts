@@ -130,13 +130,13 @@ async function createGmailDraft(email: Email, emailAccount: any, draftText: stri
 
 function getOAuth2Client(emailAccount: any) {
   const oauth2Client = new google.auth.OAuth2(
-    process.env.AUTH_GOOGLE_ID,
-    process.env.AUTH_GOOGLE_SECRET,
+    process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID,
+    process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET,
     `${getBaseUrl()}/api/auth/callback/google`
   );
 
-  const decryptedAccess = emailAccount.accessToken ? decrypt(emailAccount.accessToken) : null;
-  const decryptedRefresh = emailAccount.refreshToken ? decrypt(emailAccount.refreshToken) : null;
+  const decryptedAccess = emailAccount.accessToken ? (decrypt(emailAccount.accessToken) || emailAccount.accessToken) : null;
+  const decryptedRefresh = emailAccount.refreshToken ? (decrypt(emailAccount.refreshToken) || emailAccount.refreshToken) : null;
 
   oauth2Client.setCredentials({
     access_token: decryptedAccess,
