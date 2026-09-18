@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { KeyRound, Mail, Activity, Calendar, ShieldAlert, Shield } from "lucide-react";
 import { EntitlementManagementCard } from "./EntitlementManagementCard";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminUserDetailPage({ params }: { params: { userId: string } }) {
   await requireAdmin();
   

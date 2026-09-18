@@ -10,6 +10,8 @@ import { cookies } from "next/headers";
 
 import { GlobalLoaderProvider } from "@/providers/global-loader-provider";
 
+export const dynamic = "force-dynamic";
+
 export default async function MainLayout({
   children,
 }: {

@@ -3,6 +3,8 @@ import { ShieldAlert, Users, Server, AlertCircle, Activity, CreditCard, CheckCir
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminCommandCenter() {
   // Fetch real data
   const [

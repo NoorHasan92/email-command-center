@@ -4,6 +4,8 @@ import { Activity } from "lucide-react";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminActivityPage() {
   await requireAdmin();
 

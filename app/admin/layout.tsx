@@ -4,6 +4,8 @@ import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
 import { PageTransition } from "@/components/layout/page-transition";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {

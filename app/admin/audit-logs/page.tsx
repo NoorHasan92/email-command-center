@@ -3,6 +3,8 @@ import { requireAdmin } from "@/server/actions/admin.actions";
 import { Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminAuditLogsPage() {
   await requireAdmin();
 

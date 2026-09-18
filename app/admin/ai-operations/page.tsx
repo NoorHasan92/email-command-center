@@ -2,6 +2,8 @@ import { getUsers } from "@/server/actions/admin.actions";
 import { AIOpsClient } from "./AIOpsClient";
 import { db } from "@/server/repositories/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminAIOpsPage() {
   const users = await getUsers();
   

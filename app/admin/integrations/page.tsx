@@ -2,6 +2,8 @@ import { IntegrationsClient } from "./IntegrationsClient";
 import { db } from "@/server/repositories/db";
 import { requireAdmin } from "@/server/actions/admin.actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminIntegrationsPage() {
   await requireAdmin();
 

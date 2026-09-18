@@ -3,6 +3,8 @@ import { db } from "@/server/repositories/db";
 import { redirect } from "next/navigation";
 import BillingClient from "./BillingClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function BillingPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
