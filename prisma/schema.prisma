@@ -82,6 +82,7 @@ enum ProductType {
   PLAN_PRO
   PLAN_ULTRA
   ADDON_BYOK
+  ADDON_RESEARCH_PACK
 }
 
 enum AIConnectionStatus {
@@ -282,6 +283,12 @@ model User {
 
   // Entitlements
   entitlements          UserEntitlement[]
+
+  // Personal Intelligence & Research
+  personalProfile       PersonalProfile?
+  researchUsage         UserResearchUsage?
+  conversations         AssistantConversation[]
+  researchSessions      ResearchSession[]
 }
 
 model AccountDeletionRequest {
@@ -506,6 +513,11 @@ model EmailAnalysis {
   aiProvider         String   @default("GEMINI")
   aiAnalysisVersion  String   @default("v2") 
   aiVersion          String   @default("2.0-gemini-2.5-flash")
+
+  // Personal Relevance
+  personalRelevanceScore    Int?
+  personalRelevanceReason   String?   @db.Text
+  personalRelevanceCategory String?
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -735,6 +747,10 @@ enum AIOperationType {
   EMAIL_ANALYSIS
   EMAIL_DRAFT
   CALENDAR_EXTRACTION
+  RESEARCH_EXECUTION
+  RESEARCH_SYNTHESIS
+  ASSISTANT_CONVERSATION
+  PERSONAL_RELEVANCE_EVAL
 }
 
 enum AIUsageEventStatus {
@@ -750,6 +766,7 @@ model AIUsageEvent {
   id              String          @id @default(cuid())
   userId          String?
   emailAnalysisId String?         // Optional link back to the specific email
+  researchSessionId String?       // Optional link back to research session
   operationType   AIOperationType
   source          AIUsageSource
   provider        String?
@@ -767,11 +784,13 @@ model AIUsageEvent {
   createdAt       DateTime        @default(now())
 
   user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  researchSession ResearchSession? @relation(fields: [researchSessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([source, createdAt])
   @@index([operationType, createdAt])
   @@index([status, expiresAt])
+  @@index([researchSessionId])
 }
 
 model AdminAuditLog {
@@ -891,4 +910,243 @@ model TransactionalEmailLog {
   @@index([recipient])
   @@index([type])
   @@index([idempotencyKey])
+}
+
+// ==========================================
+// Personal Intelligence & Research Assistant
+// ==========================================
+
+enum ResearchSessionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ResearchQuotaReservationStatus {
+  RESERVED
+  COMMITTED
+  RELEASED
+}
+
+enum FindingVerificationStatus {
+  DIRECTLY_CONFIRMED_BY_SOURCE
+  CORROBORATED
+  PARTIALLY_CORROBORATED
+  UNVERIFIED
+  CONFLICTING
+  UNABLE_TO_VERIFY
+}
+
+enum ProfileItemProvenance {
+  USER_ENTERED
+  IMPORTED
+  AI_INFERRED
+  SYSTEM_DERIVED
+}
+
+enum ProfileItemStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  REJECTED
+}
+
+enum AssistantMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ConversationChannel {
+  WHATSAPP
+  TELEGRAM
+  WEB
+}
+
+/// Distributed rate limiting entries across all serverless instances
+model RateLimitEntry {
+  key       String   @id
+  tokens    Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
+/// Webhook message deduplication table
+model InboundMessageDeduplication {
+  id                String              @id @default(cuid())
+  channel           ConversationChannel
+  provider          String              // e.g. "META", "BAILEYS", "TELEGRAM"
+  providerMessageId String              // Unique identifier from channel provider
+  userId            String?
+  processedAt       DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+
+  @@unique([channel, provider, providerMessageId])
+  @@index([createdAt])
+}
+
+/// Persistent user-scoped conversation context
+model AssistantConversation {
+  id               String               @id @default(cuid())
+  userId           String
+  channel          ConversationChannel
+  channelChatId    String               // Phone number or Telegram chatId
+  title            String?
+  activeEmailId    String?              // Deterministic active email context
+  activeResearchId String?              // Deterministic active research context
+  metadata         Json                 @default("{}")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages         AssistantMessage[]
+  researchSessions ResearchSession[]
+
+  @@unique([userId, channel, channelChatId])
+  @@index([userId])
+}
+
+/// Individual conversation messages with provider metadata
+model AssistantMessage {
+  id                String                @id @default(cuid())
+  conversationId    String
+  role              AssistantMessageRole
+  content           String                @db.Text
+  channel           ConversationChannel
+  provider          String                // Required for inbound: "META", "BAILEYS", "TELEGRAM", or "SYSTEM"
+  providerMessageId String?               // Nullable for outbound assistant messages
+  referencedEmailId String?               // Specific email referenced in this turn
+  referencedResearchId String?            // Specific research session referenced
+  metadata          Json                  @default("{}")
+  createdAt         DateTime              @default(now())
+
+  conversation      AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([providerMessageId])
+}
+
+/// Product-level monthly research usage tracking
+model UserResearchUsage {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  completedCount     Int      @default(0) // Successfully committed research requests
+  reservedCount      Int      @default(0) // Currently reserved/in-flight count
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([billingPeriodEnd])
+}
+
+/// Durable relationship between ResearchSession and its product quota reservation
+model ResearchQuotaReservation {
+  id                String                         @id @default(cuid())
+  userId            String
+  researchSessionId String                         @unique
+  status            ResearchQuotaReservationStatus @default(RESERVED)
+  billingPeriodEnd  DateTime
+  expiresAt         DateTime                       // Lease expiration for stuck reservations
+  committedAt       DateTime?
+  releasedAt        DateTime?
+  reason            String?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+
+  researchSession   ResearchSession                @relation(fields: [researchSessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
+/// Deep research session lifecycle
+model ResearchSession {
+  id                  String                @id @default(cuid())
+  userId              String
+  conversationId      String?
+  emailId             String?               // If research originated from an email
+  query               String                @db.Text
+  context             String?               @db.Text
+  status              ResearchSessionStatus @default(PENDING)
+  retryCount          Int                   @default(0)
+  leaseExpiresAt      DateTime?             // Distributed worker lease
+  summary             String?               @db.Text
+  epistemicConclusion String?               @db.Text // Synthesized evidence conclusion
+  totalTokens         Int                   @default(0) // Aggregate token telemetry
+  estimatedCost       Float                 @default(0.0)
+  totalLatencyMs      Int                   @default(0)
+  error               String?               @db.Text
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  completedAt         DateTime?
+
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation        AssistantConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  reservation         ResearchQuotaReservation?
+  findings            ResearchFinding[]
+  aiUsageEvents       AIUsageEvent[]
+
+  @@index([userId, status])
+  @@index([status, leaseExpiresAt])
+}
+
+/// Granular, source-level research findings with epistemic verification status
+model ResearchFinding {
+  id                 String                    @id @default(cuid())
+  researchSessionId  String
+  claim              String                    @db.Text
+  evidenceSnippet    String                    @db.Text // Concise quote (max 500 chars)
+  verificationStatus FindingVerificationStatus @default(UNVERIFIED)
+  confidenceScore    Float                     @default(0.0) // 0.0 to 1.0
+  relevance          String                    @default("HIGH") // HIGH, MEDIUM, LOW
+  isPrimarySource    Boolean                   @default(false)
+  sources            Json                      // Array of { url, title, domain, accessedAt }
+  createdAt          DateTime                  @default(now())
+
+  researchSession    ResearchSession           @relation(fields: [researchSessionId], references: [id], onDelete: Cascade)
+
+  @@index([researchSessionId])
+}
+
+/// User personal intelligence profile with item-level provenance
+model PersonalProfile {
+  id                 String               @id @default(cuid())
+  userId             String               @unique
+  summary            String?              @db.Text
+  primaryRole        String?
+  organization       String?
+  keyPriorities      Json                 @default("[]") // Array of string tags
+  vipDomains         Json                 @default("[]") // Array of domain strings
+  vipContacts        Json                 @default("[]") // Array of contact objects
+  items              ProfileItem[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Item-level profile details with strict provenance and review state
+model ProfileItem {
+  id                 String                @id @default(cuid())
+  profileId          String
+  category           String                // ROLE_GOALS, KEY_RELATIONSHIPS, PROJECTS_PRIORITIES, etc.
+  key                String
+  value              String                @db.Text
+  provenance         ProfileItemProvenance @default(USER_ENTERED)
+  status             ProfileItemStatus     @default(ACTIVE)
+  confidence         Float                 @default(1.0)
+  sourceReference    String?               // e.g. "email:cm123abc" if AI_INFERRED
+  metadata           Json                  @default("{}")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  profile            PersonalProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status])
+  @@index([profileId, category])
 }

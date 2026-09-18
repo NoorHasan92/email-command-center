@@ -40,5 +40,18 @@ export const PRODUCTS = {
       "Uncapped AI usage based on your provider",
       "Access to Personal & Hybrid processing modes"
     ]
+  },
+  ADDON_RESEARCH_PACK: {
+    type: "ADDON_RESEARCH_PACK",
+    name: "Research Pack (50 Deep Inquiries)",
+    description: "Additional deep research allowance for complex inquiries.",
+    price: 99900, // 999 INR in paise
+    currency: "INR",
+    aiLimit: 0,
+    features: [
+      "50 Deep Web & Evidence Research Requests",
+      "Primary-source evidence citation",
+      "Executive synthesized briefings delivered to WhatsApp/Telegram"
+    ]
   }
 };

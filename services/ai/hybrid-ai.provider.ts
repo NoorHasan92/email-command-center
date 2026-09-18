@@ -39,4 +39,68 @@ export class HybridAIProvider implements IAIProvider {
       return result;
     }
   }
+
+  async getCapabilities() {
+    const personalCaps = await this.personalProvider.getCapabilities();
+    if (!this.allowFallback) {
+      return personalCaps;
+    }
+    const platformCaps = await this.platformProvider.getCapabilities();
+    return {
+      webSearch: personalCaps.webSearch === "SUPPORTED" ? "SUPPORTED" : platformCaps.webSearch,
+      urlContext: personalCaps.urlContext === "SUPPORTED" ? "SUPPORTED" : platformCaps.urlContext,
+      customToolCalling: personalCaps.customToolCalling === "SUPPORTED" ? "SUPPORTED" : platformCaps.customToolCalling,
+      structuredOutput: personalCaps.structuredOutput === "SUPPORTED" ? "SUPPORTED" : platformCaps.structuredOutput,
+    };
+  }
+
+  async executeResearch(options: any) {
+    try {
+      const caps = await this.personalProvider.getCapabilities();
+      if (caps.webSearch === "SUPPORTED" && this.personalProvider.executeResearch) {
+        return await this.personalProvider.executeResearch(options);
+      }
+      throw new Error("Personal provider does not support web search");
+    } catch (error: any) {
+      if (!this.allowFallback) throw error;
+      logger.info("[HYBRID_AI_PROVIDER] Falling back to platform provider for research");
+      if (this.onFallbackUsed) await this.onFallbackUsed().catch(() => {});
+      if (this.platformProvider.executeResearch) {
+        return await this.platformProvider.executeResearch(options);
+      }
+      throw new Error("Platform provider does not support research execution");
+    }
+  }
+
+  async synthesizeBriefing(findings: any[], userContext?: string) {
+    try {
+      if (this.personalProvider.synthesizeBriefing) {
+        return await this.personalProvider.synthesizeBriefing(findings, userContext);
+      }
+      throw new Error("Personal provider does not support synthesis");
+    } catch (error: any) {
+      if (!this.allowFallback) throw error;
+      if (this.onFallbackUsed) await this.onFallbackUsed().catch(() => {});
+      if (this.platformProvider.synthesizeBriefing) {
+        return await this.platformProvider.synthesizeBriefing(findings, userContext);
+      }
+      throw new Error("Platform provider does not support synthesis");
+    }
+  }
+
+  async chatConversation(messages: any[], context?: string) {
+    try {
+      if (this.personalProvider.chatConversation) {
+        return await this.personalProvider.chatConversation(messages, context);
+      }
+      throw new Error("Personal provider does not support chat");
+    } catch (error: any) {
+      if (!this.allowFallback) throw error;
+      if (this.onFallbackUsed) await this.onFallbackUsed().catch(() => {});
+      if (this.platformProvider.chatConversation) {
+        return await this.platformProvider.chatConversation(messages, context);
+      }
+      throw new Error("Platform provider does not support chat");
+    }
+  }
 }

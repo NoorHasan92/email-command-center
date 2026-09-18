@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { IAIProvider, AIAnalysisResult } from "../../core/interfaces/IAIProvider";
+import { AICapabilities } from "../../core/interfaces/IAICapabilities";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -94,6 +95,15 @@ export class OpenAIAdapter implements IAIProvider {
       totalTokens: response.usage?.total_tokens || 0,
       latencyMs: latencyMs,
       finishReason: response.choices[0].finish_reason
+    };
+  }
+
+  async getCapabilities(): Promise<AICapabilities> {
+    return {
+      webSearch: "UNAVAILABLE",
+      urlContext: "UNAVAILABLE",
+      customToolCalling: "SUPPORTED",
+      structuredOutput: "SUPPORTED",
     };
   }
 }

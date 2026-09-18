@@ -47,7 +47,13 @@ export async function executeAccountCleanup(userId: string) {
 
       // 2d. Delete WhatsApp/Telegram Sessions
       await tx.whatsAppSession.deleteMany({ where: { userId } });
-      // Telegram sessions are usually just stored in the User record, but if we had a separate table we'd clear it here.
+      
+      // 2e. Delete Personal Intelligence, Profiles, Conversations, and Research
+      await tx.personalProfile.deleteMany({ where: { userId } });
+      await tx.assistantConversation.deleteMany({ where: { userId } });
+      await tx.researchSession.deleteMany({ where: { userId } });
+      await tx.userResearchUsage.deleteMany({ where: { userId } });
+      await tx.inboundMessageDeduplication.deleteMany({ where: { userId } });
 
       // 3. Scrub Payment Metadata (anonymizing Financial Records)
       await tx.payment.updateMany({

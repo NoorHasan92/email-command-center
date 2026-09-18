@@ -1,4 +1,10 @@
-// import { EmailCategory, PriorityLevel, OpportunityType, ReminderPriority } from "@prisma/client";
+import {
+  AICapabilities,
+  ResearchGenerationOptions,
+  ResearchExecutionResult,
+  BriefingSynthesisResult,
+  RawResearchFinding,
+} from "./IAICapabilities";
 
 export interface AIAnalysisResult {
   summary: string;
@@ -32,6 +38,18 @@ export interface AIAnalysisResult {
   finishReason: string | null;
 }
 
+export interface AssistantChatResult {
+  reply: string;
+  telemetry: {
+    provider: string;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    latencyMs: number;
+  };
+}
+
 export interface IAIProvider {
   /**
    * Analyzes the plain text content of an email and returns structured intelligence.
@@ -44,4 +62,33 @@ export interface IAIProvider {
     subject: string,
     metadata?: Record<string, any>
   ): Promise<AIAnalysisResult>;
+
+  /**
+   * Returns supported capabilities for the current provider and configured model.
+   */
+  getCapabilities(): Promise<AICapabilities>;
+
+  /**
+   * Executes strongly typed research discovery using provider-native search grounding.
+   */
+  executeResearch?(
+    options: ResearchGenerationOptions
+  ): Promise<ResearchExecutionResult>;
+
+  /**
+   * Synthesizes findings into a final epistemic briefing.
+   */
+  synthesizeBriefing?(
+    findings: RawResearchFinding[],
+    userContext?: string,
+    metadata?: { researchSessionId?: string; correlationId?: string }
+  ): Promise<BriefingSynthesisResult>;
+
+  /**
+   * Executes conversational turn with assistant.
+   */
+  chatConversation?(
+    messages: Array<{ role: "USER" | "ASSISTANT" | "SYSTEM"; content: string }>,
+    context?: string
+  ): Promise<AssistantChatResult>;
 }

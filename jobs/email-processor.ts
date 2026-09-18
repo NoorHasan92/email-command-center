@@ -83,9 +83,23 @@ export async function processPendingEmails() {
       
       metrics.analyzer = Math.round(performance.now() - stageStart);
 
-      // 5. Pro Actions (Calendar, Drafts)
+      // 5. Pro Actions (Calendar, Drafts) & Personal Relevance
       const analysis = await db.emailAnalysis.findUnique({ where: { emailId: email.id } });
       if (analysis) {
+        // Personal Relevance Evaluation (Strict Failure Isolation)
+        try {
+          const { PersonalRelevanceService } = await import("@/services/intelligence/relevance.service");
+          await PersonalRelevanceService.evaluateEmailRelevance(
+            accountOwner.userId,
+            email.id,
+            normalizedEmail.subject || "",
+            normalizedEmail.from || "",
+            analysis
+          );
+        } catch (err: any) {
+          logger.warn(`[EMAIL_PROCESSOR] Personal relevance evaluation failed (non-fatal): ${err.message}`);
+        }
+
         stageStart = performance.now();
         const { executeProActions } = await import("@/core/pipeline/05-actions");
         await executeProActions(email, analysis);

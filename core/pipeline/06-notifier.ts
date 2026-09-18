@@ -85,11 +85,16 @@ export async function dispatchNotifications(
       });
     }
 
+    let explanation = analysis.reasoning || "No explanation provided.";
+    if (analysis.personalRelevanceReason && analysis.personalRelevanceScore) {
+      explanation = `🎯 Personal Relevance (${analysis.personalRelevanceScore}/100 — ${analysis.personalRelevanceCategory || "STRATEGIC"}):\n${analysis.personalRelevanceReason}\n\n${explanation}`;
+    }
+
     const payload: NotificationPayload = {
       emailId: email.id,
       subject: email.subject || "No Subject",
       score: analysis.urgencyScore,
-      explanation: analysis.reasoning || "No explanation provided.",
+      explanation,
       actionRequired: analysis.requiresAction,
       destination,
       smartDraftGenerated: !!analysis.smartDraft && (user.appPreferences as any)?.smartDrafts === true,
@@ -124,6 +129,23 @@ export async function dispatchNotifications(
 
       logger.info(`[STAGE 06 - NOTIFIER] [SUCCESS] [ID: ${email.id}] | Channel: ${channelName} | WAMID: ${providerMessageId}`);
       
+      // Update active email context on the user's assistant conversation
+      try {
+        const conversation = await db.assistantConversation.findFirst({
+          where: {
+            userId: user.id,
+            channel: channelName as any,
+          },
+        });
+        if (conversation) {
+          await db.assistantConversation.update({
+            where: { id: conversation.id },
+            data: { activeEmailId: email.id },
+          });
+        }
+      } catch (convErr: any) {
+        logger.warn(`[STAGE 06 - NOTIFIER] Could not bind activeEmailId context: ${convErr.message}`);
+      }
     } catch (error: any) {
       logger.error(`[STAGE 06 - NOTIFIER] [FAILED] [ID: ${email.id}] | Channel: ${channelName} | error=${error.message}`);
       

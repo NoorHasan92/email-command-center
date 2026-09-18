@@ -12,6 +12,8 @@ export interface QuotaDetails {
   resetDate: Date;
 }
 
+import { AIOperationType } from "@prisma/client";
+
 export class AIQuotaService {
   /**
    * Ensure a billing period exists and is up to date for the user.
@@ -107,7 +109,8 @@ export class AIQuotaService {
    */
   static async reservePlatformQuota(
     userId: string, 
-    operationType: "EMAIL_ANALYSIS" | "EMAIL_DRAFT" | "CALENDAR_EXTRACTION"
+    operationType: AIOperationType,
+    metadata?: { researchSessionId?: string; correlationId?: string }
   ): Promise<{ eventId: string; sourceId: string; type: "BASE" | "GRANT" } | null> {
     await this.refreshBillingPeriodIfNeeded(userId);
 
@@ -139,6 +142,8 @@ export class AIQuotaService {
               status: "RESERVED",
               quotaSourceType: "BASE",
               quotaSourceId: usage.id,
+              researchSessionId: metadata?.researchSessionId,
+              correlationId: metadata?.correlationId,
               expiresAt
             }
           });
@@ -174,6 +179,8 @@ export class AIQuotaService {
               status: "RESERVED",
               quotaSourceType: "GRANT",
               quotaSourceId: grantToUse.id,
+              researchSessionId: metadata?.researchSessionId,
+              correlationId: metadata?.correlationId,
               expiresAt
             }
           });

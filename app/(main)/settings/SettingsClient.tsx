@@ -9,12 +9,13 @@ import { connectAIKeyAction, disconnectAIKeyAction, updateAIProcessingModeAction
 import { createRazorpayByokOrderAction, verifyRazorpayByokSignatureAction } from "@/server/actions/billing.actions";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info, CreditCard, Type } from "lucide-react";
+import { User, Shield, Key, Loader2, CheckCircle2, AlertCircle, User as UserIcon, Monitor, Bell, Mail, Globe, Laptop, Sun, Moon, Sliders, Brain, Cpu, Database, Link, Unlink, Lock, RefreshCw, Info, CreditCard, Type, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { useFont } from "@/providers/font-provider";
+import { PersonalIntelligenceTab } from "./PersonalIntelligenceTab";
 
 
 declare global {
@@ -38,7 +39,7 @@ export default function SettingsClient({
   hasGoogleLinked: boolean;
   initialTab?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "ai" | "security" | "appearance" | "notifications">(initialTab as any);
+  const [activeTab, setActiveTab] = useState<"profile" | "intelligence" | "preferences" | "ai" | "security" | "appearance" | "notifications">(initialTab as any);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -253,6 +254,7 @@ export default function SettingsClient({
   // UI Components
   const TABS = [
     { id: "profile", label: "Profile", icon: User },
+    { id: "intelligence", label: "Intelligence", icon: Sparkles },
     { id: "preferences", label: "App Settings", icon: Sliders },
     { id: "ai", label: "AI Provider", icon: Brain },
     { id: "security", label: "Security", icon: Shield },
@@ -464,6 +466,11 @@ export default function SettingsClient({
                       </div>
                     </div>
                   </div>
+                )}
+
+                {/* PERSONAL INTELLIGENCE TAB */}
+                {activeTab === "intelligence" && (
+                  <PersonalIntelligenceTab user={user} />
                 )}
 
                 {/* APP SETTINGS (PREFERENCES) TAB */}

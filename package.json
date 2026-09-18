@@ -7,6 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "test": "ts-node -r tsconfig-paths/register --project tsconfig.test.json tests/run-all-tests.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
