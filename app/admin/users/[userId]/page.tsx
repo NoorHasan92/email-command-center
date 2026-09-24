@@ -151,8 +151,10 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
             </div>
           </div>
         </div>
-        
-        {/* Entitlements Management */}
+      </div>
+      
+      {/* Entitlements Management (Full Width) */}
+      <div className="w-full">
         <EntitlementManagementCard userId={user.id} entitlements={user.entitlements} />
       </div>
     </div>

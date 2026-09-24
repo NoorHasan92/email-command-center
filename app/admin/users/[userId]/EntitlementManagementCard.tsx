@@ -243,17 +243,17 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
               <span className="text-[11px] text-slate-400">Takes effect immediately</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
               {/* Entitlement Type (PLAN vs FEATURE) */}
               <div className="md:col-span-3 flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   Entitlement Type
                   <span className="text-slate-500 font-normal">({grantType === "PLAN" ? "Tier Override" : "Modular Addon"})</span>
                 </label>
                 <select 
                   value={grantType} 
                   onChange={e => handleTypeChange(e.target.value as EntitlementType)}
-                  className="bg-black/60 border border-border/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                  className="h-10 bg-black/60 border border-border/20 rounded-xl px-3 text-xs text-white outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                 >
                   <option value="PLAN">PLAN (Subscription Tier)</option>
                   <option value="FEATURE">FEATURE (Platform Add-on)</option>
@@ -268,7 +268,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                 <select 
                   value={selectedPresetValue}
                   onChange={e => setSelectedPresetValue(e.target.value)}
-                  className="bg-black/60 border border-border/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                  className="h-10 bg-black/60 border border-border/20 rounded-xl px-3 text-xs text-white outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                 >
                   {(grantType === "PLAN" ? PLAN_OPTIONS : FEATURE_OPTIONS).map(opt => (
                     <option key={opt.value} value={opt.value} className="bg-[#111] text-white">
@@ -283,7 +283,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                     value={customValue}
                     onChange={e => setCustomValue(e.target.value)}
                     placeholder="e.g. VIP_PARTNER, BETA_TESTER"
-                    className="mt-1 bg-black/60 border border-border/20 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500 uppercase"
+                    className="mt-1.5 h-10 bg-black/60 border border-border/20 rounded-xl px-3 text-xs text-white outline-none focus:border-indigo-500 uppercase"
                   />
                 )}
               </div>
@@ -310,7 +310,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                       }
                     }
                   }}
-                  className="bg-black/60 border border-border/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors"
+                  className="h-10 bg-black/60 border border-border/20 rounded-xl px-3 text-xs text-white outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
@@ -319,7 +319,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                 <button 
                   onClick={handleGrant}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 shadow-lg shadow-indigo-600/20"
+                  className="h-10 w-full flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-4 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 shadow-lg shadow-indigo-600/20 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   {loading ? "Granting..." : "Grant"}
@@ -328,9 +328,9 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
             </div>
 
             {/* Quick Duration Preset Chips */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[11px] text-slate-500 mr-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Quick Presets:
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+              <span className="text-xs text-slate-400 mr-1 flex items-center gap-1.5 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" /> Quick Presets:
               </span>
               {DURATION_PRESETS.map((preset) => {
                 const isSelected = grantDays === preset.days;
@@ -339,7 +339,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                     key={preset.label}
                     type="button"
                     onClick={() => setGrantDays(preset.days)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       isSelected
                         ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
                         : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5"
@@ -349,7 +349,7 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                   </button>
                 );
               })}
-              <span className="text-[11px] text-slate-500 ml-auto font-mono">
+              <span className="text-xs text-slate-400 ml-auto font-mono bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
                 {grantDays ? `Valid for ${grantDays} days` : "Permanent Lifetime Access"}
               </span>
             </div>
