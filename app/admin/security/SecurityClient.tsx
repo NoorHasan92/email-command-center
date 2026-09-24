@@ -172,13 +172,26 @@ export function SecurityClient() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {log.user?.id && (
-                          <button
-                            onClick={() => setRevokingId(log.user.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-medium"
-                          >
-                            <Lock className="w-3 h-3" />
-                            Revoke
-                          </button>
+                          <div className="relative group inline-block">
+                            <button
+                              onClick={() => setRevokingId(log.user.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-medium cursor-pointer"
+                            >
+                              <Lock className="w-3 h-3" />
+                              Revoke
+                            </button>
+                            {/* Hover explanation tooltip */}
+                            <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-red-500/30 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
+                              <div className="flex items-center gap-1.5 font-semibold text-red-400 mb-0.5">
+                                <Lock className="w-3.5 h-3.5" />
+                                Revoke User Sessions
+                              </div>
+                              <span>
+                                Force-logout: Immediately terminates all active authentication sessions and JWT tokens for this user across all mobile and web devices.
+                              </span>
+                              <div className="absolute top-full right-4 border-4 border-transparent border-t-black/95" />
+                            </div>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -214,8 +227,8 @@ export function SecurityClient() {
         isOpen={!!revokingId}
         onClose={() => setRevokingId(null)}
         onConfirm={handleRevoke}
-        title="Revoke All Sessions"
-        description="Are you sure you want to revoke all active sessions for this user? They will be immediately logged out of all devices. This action is logged."
+        title="Revoke All User Sessions"
+        description="This will instantly invalidate all active login sessions, OAuth refresh tokens, and authentication cookies for this user. They will be forcefully logged out from every phone, tablet, and browser, and will need to log in again. This security audit event is permanently logged."
         confirmText="Revoke Sessions"
         cancelText="Cancel"
         isDestructive={true}

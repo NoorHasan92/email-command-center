@@ -10,7 +10,7 @@ export class PersonalGeminiAdapter implements IAIProvider {
   private ai: GoogleGenAI;
   private currentModel: string;
 
-  constructor(apiKey: string, model: string = "gemini-2.5-flash") {
+  constructor(apiKey: string, model: string = "gemini-2.0-flash") {
     this.ai = new GoogleGenAI({ apiKey });
     this.currentModel = model;
   }

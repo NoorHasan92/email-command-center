@@ -196,7 +196,7 @@ export async function runProductionAuditTests() {
     assert.strictEqual(geminiCaps.webSearch, "SUPPORTED");
     assert.strictEqual(geminiCaps.urlContext, "SUPPORTED");
 
-    const personalGemini = new PersonalGeminiAdapter("mock-key", "gemini-2.5-flash");
+    const personalGemini = new PersonalGeminiAdapter("mock-key", "gemini-2.0-flash");
     const personalCaps = await personalGemini.getCapabilities();
     assert.strictEqual(personalCaps.webSearch, "SUPPORTED");
 

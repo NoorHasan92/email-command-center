@@ -5,7 +5,7 @@ import { User, AIEvalRun, AIEvalResult } from "@prisma/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Server, X } from "lucide-react";
+import { ShieldAlert, Server, X, Search, Sparkles, RefreshCw } from "lucide-react";
 import { grantBonusQuota } from "@/server/actions/admin.actions";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,37 @@ type UserWithCounts = User & {
 export function AIOpsClient({ initialUsers, runs }: { initialUsers: UserWithCounts[], runs: RunWithResults[] }) {
   const [users, setUsers] = useState<UserWithCounts[]>(initialUsers);
   const [selectedRun, setSelectedRun] = useState<RunWithResults | null>(runs[0] || null);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [planFilter, setPlanFilter] = useState("ALL");
+  const [usageFilter, setUsageFilter] = useState("ALL");
+  const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+
+  // Filtered Users logic
+  const filteredUsers = users.filter((user) => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      (user.name?.toLowerCase().includes(q)) ||
+      (user.email?.toLowerCase().includes(q));
+
+    const matchesPlan =
+      planFilter === "ALL" || (user.plan || "FREE").toUpperCase() === planFilter.toUpperCase();
+
+    let matchesUsage = true;
+    if (usageFilter === "ACTIVE") {
+      matchesUsage = (user.aiUsage?.platformAiUsed || 0) > 0;
+    } else if (usageFilter === "ZERO") {
+      matchesUsage = (user.aiUsage?.platformAiUsed || 0) === 0;
+    } else if (usageFilter === "BYOK") {
+      matchesUsage = (user.aiConnection?.personalRequestCount || 0) > 0;
+    } else if (usageFilter === "BONUS") {
+      matchesUsage = (user.aiUsage?.lifetimeGranted || 0) > 0;
+    }
+
+    return matchesSearch && matchesPlan && matchesUsage;
+  });
 
   // Grant Bonus State
   const [grantUser, setGrantUser] = useState<UserWithCounts | null>(null);
@@ -106,7 +137,91 @@ export function AIOpsClient({ initialUsers, runs }: { initialUsers: UserWithCoun
             </div>
 
             <div className="bg-[#0f0f0f] p-6 rounded-2xl border border-border/10 shadow-inner">
-              <h2 className="text-xl font-bold mb-4 text-white">User AI Quota Tracker</h2>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    User AI Quota Tracker
+                    <span className="text-xs font-normal text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                      {filteredUsers.length} of {users.length} users
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Monitor consumed tokens, BYOK requests, and manage individual allocations.
+                  </p>
+                </div>
+
+                {/* Search & Filter Controls */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Search Bar */}
+                  <div className="relative min-w-[220px]">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-black/40 border border-border/20 text-white placeholder-slate-500 rounded-xl pl-9 pr-3 py-1.5 text-xs outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Plan Filter */}
+                  <div className="flex items-center gap-1.5 bg-black/40 border border-border/20 rounded-xl px-2.5 py-1">
+                    <span className="text-[11px] text-slate-400 font-medium">Plan:</span>
+                    <select
+                      value={planFilter}
+                      onChange={(e) => setPlanFilter(e.target.value)}
+                      className="bg-transparent text-white text-xs outline-none font-semibold cursor-pointer"
+                    >
+                      <option value="ALL" className="bg-[#111] text-white">All Plans</option>
+                      <option value="FREE" className="bg-[#111] text-white">FREE (500)</option>
+                      <option value="PRO" className="bg-[#111] text-white">PRO (2,000)</option>
+                      <option value="ULTRA" className="bg-[#111] text-white">ULTRA (5,000)</option>
+                      <option value="ADMIN" className="bg-[#111] text-white">ADMIN (Unlimited)</option>
+                    </select>
+                  </div>
+
+                  {/* Activity Filter */}
+                  <div className="flex items-center gap-1.5 bg-black/40 border border-border/20 rounded-xl px-2.5 py-1">
+                    <span className="text-[11px] text-slate-400 font-medium">Activity:</span>
+                    <select
+                      value={usageFilter}
+                      onChange={(e) => setUsageFilter(e.target.value)}
+                      className="bg-transparent text-white text-xs outline-none font-semibold cursor-pointer"
+                    >
+                      <option value="ALL" className="bg-[#111] text-white">All Activity</option>
+                      <option value="ACTIVE" className="bg-[#111] text-white">Active Usage ({">"}0)</option>
+                      <option value="ZERO" className="bg-[#111] text-white">Zero Usage</option>
+                      <option value="BYOK" className="bg-[#111] text-white">Has BYOK</option>
+                      <option value="BONUS" className="bg-[#111] text-white">Has Bonus</option>
+                    </select>
+                  </div>
+
+                  {/* Reset Filters button */}
+                  {(searchQuery || planFilter !== "ALL" || usageFilter !== "ALL") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setPlanFilter("ALL");
+                        setUsageFilter("ALL");
+                      }}
+                      className="h-8 text-xs text-slate-400 hover:text-white px-2"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               <div className="bg-black/20 rounded-xl border border-border/10 overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs uppercase text-slate-500 border-b border-border/10">
@@ -119,38 +234,136 @@ export function AIOpsClient({ initialUsers, runs }: { initialUsers: UserWithCoun
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map(user => {
-                      const limit = user.plan === "FREE" ? 500 : user.plan === "PRO" ? 2000 : user.plan === "ULTRA" ? 5000 : 999999;
-                      return (
-                        <tr key={user.id} className="border-b border-border/5 hover:bg-white/5 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-semibold text-white">{user.name}</div>
-                            <div className="text-xs text-slate-500">{user.email}</div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <Badge variant="outline" className="bg-white/5">{user.plan || "FREE"}</Badge>
-                          </td>
-                          <td className="px-6 py-4 text-center text-slate-300">
-                            <span className="font-bold text-white">{user.aiUsage?.platformAiUsed || 0}</span> / {limit}
-                          </td>
-                          <td className="px-6 py-4 text-center text-slate-500">
-                            {user.aiConnection?.personalRequestCount || 0} / {user.aiConnection?.fallbackRequestCount || 0}
-                          </td>
-                          <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setGrantUser(user)} className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 hover:text-indigo-300">Grant Bonus</Button>
-                            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white" onClick={async () => {
-                              try {
-                                const { reconcileQuota } = await import("@/server/actions/admin.actions");
-                                const res = await reconcileQuota(user.id);
-                                if (res.success) toast.success(`Reconciled: ${res.platformCount} Platform, ${res.personalCount} BYOK`);
-                              } catch (e) {
-                                toast.error("Failed to reconcile");
-                              }
-                            }}>Reconcile</Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                          No users matched your search and filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => {
+                        const limit = user.plan === "FREE" ? 500 : user.plan === "PRO" ? 2000 : user.plan === "ULTRA" ? 5000 : 999999;
+                        const used = user.aiUsage?.platformAiUsed || 0;
+                        const pct = Math.min(100, Math.round((used / limit) * 100));
+
+                        return (
+                          <tr key={user.id} className="border-b border-border/5 hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-white">{user.name || "Unnamed User"}</div>
+                              <div className="text-xs text-slate-500">{user.email}</div>
+                              {user.aiUsage?.lifetimeGranted ? (
+                                <span className="inline-block mt-1 text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                  +{user.aiUsage.lifetimeGranted} Bonus Granted
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <Badge variant="outline" className={`font-mono text-xs ${
+                                user.plan === "ULTRA" ? "bg-purple-500/10 text-purple-300 border-purple-500/30" :
+                                user.plan === "PRO" ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30" :
+                                user.plan === "ADMIN" ? "bg-amber-500/10 text-amber-300 border-amber-500/30" :
+                                "bg-white/5 text-slate-300 border-white/10"
+                              }`}>
+                                {user.plan || "FREE"}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4 text-center text-slate-300">
+                              <div className="flex flex-col items-center gap-1">
+                                <div>
+                                  <span className="font-bold text-white">{used}</span> / {limit}
+                                </div>
+                                <div className="w-24 bg-white/10 h-1 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-400' : 'bg-indigo-500'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center text-slate-400 font-mono text-xs">
+                              {user.aiConnection?.personalRequestCount || 0} / {user.aiConnection?.fallbackRequestCount || 0}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                {/* Grant Bonus with rich hover explanation */}
+                                <div className="relative group inline-block">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setGrantUser(user)}
+                                    className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 hover:text-indigo-300 gap-1.5 text-xs"
+                                  >
+                                    <Sparkles className="w-3 h-3" />
+                                    Grant Bonus
+                                  </Button>
+                                  {/* Tooltip Popup on Hover */}
+                                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-indigo-500/30 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
+                                    <div className="flex items-center gap-1.5 font-semibold text-indigo-300 mb-0.5">
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      Grant Bonus Quota
+                                    </div>
+                                    <span>
+                                      Credits additional free AI analyses directly to this user&apos;s account balance without upgrading or changing their subscription billing plan.
+                                    </span>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/95" />
+                                  </div>
+                                </div>
+
+                                {/* Reconcile with rich hover explanation */}
+                                <div className="relative group inline-block">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={reconcilingId === user.id}
+                                    className="text-slate-400 hover:text-white gap-1.5 text-xs"
+                                    onClick={async () => {
+                                      setReconcilingId(user.id);
+                                      try {
+                                        const { reconcileQuota } = await import("@/server/actions/admin.actions");
+                                        const res = await reconcileQuota(user.id);
+                                        if (res.success) {
+                                          setUsers(users.map(u => u.id === user.id ? {
+                                            ...u,
+                                            aiUsage: {
+                                              ...(u.aiUsage || {}),
+                                              platformAiUsed: res.platformCount
+                                            },
+                                            aiConnection: {
+                                              ...(u.aiConnection || {}),
+                                              personalRequestCount: res.personalCount,
+                                              fallbackRequestCount: res.fallbackCount
+                                            }
+                                          } : u));
+                                          toast.success(`Reconciled: ${res.platformCount} Platform, ${res.personalCount} BYOK`);
+                                        }
+                                      } catch (e) {
+                                        toast.error("Failed to reconcile");
+                                      } finally {
+                                        setReconcilingId(null);
+                                      }
+                                    }}
+                                  >
+                                    <RefreshCw className={`w-3 h-3 ${reconcilingId === user.id ? 'animate-spin' : ''}`} />
+                                    Reconcile
+                                  </Button>
+                                  {/* Tooltip Popup on Hover */}
+                                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
+                                    <div className="flex items-center gap-1.5 font-semibold text-white mb-0.5">
+                                      <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+                                      Reconcile AI Quota
+                                    </div>
+                                    <span>
+                                      Recalculates exact usage numbers directly from raw AI usage events in the database to eliminate cache drifts or counter desyncs.
+                                    </span>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/95" />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

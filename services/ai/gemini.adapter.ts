@@ -7,13 +7,9 @@ import { logger } from "@/lib/logger";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const FALLBACK_MODELS = [
-  "gemini-3.5-flash", 
-  "gemini-2.5-flash", 
-  "gemini-2.5-flash-lite", 
-  "gemini-3-flash", 
-  "gemini-3.6-flash", 
-  "gemini-3.1-flash-lite", 
-  "gemma-4-31b"
+  "gemini-2.0-flash", 
+  "gemini-1.5-flash", 
+  "gemini-1.5-pro", 
 ];
 
 export class GeminiAdapter implements IAIProvider {
@@ -118,13 +114,14 @@ export class GeminiAdapter implements IAIProvider {
         lastError = error;
         const status = error.status || error.response?.status;
         
-        // Non-retryable errors
-        if (status && [400, 401, 403, 404].includes(status)) {
-          logger.error(`[GEMINI_ADAPTER] Permanent failure (HTTP ${status}): ${error.message}`);
+        // Permanent auth failures abort immediately
+        if (status && [401, 403].includes(status)) {
+          logger.error(`[GEMINI_ADAPTER] Permanent auth failure (HTTP ${status}): ${error.message}`);
           throw error;
         }
 
-        logger.warn(`[GEMINI_ADAPTER] Retryable error on attempt ${attempt} with ${currentModel}: ${error.message}`);
+        // For 404 (model not found/deprecated) or 429 (rate limited) or 5xx, log and try next model
+        logger.warn(`[GEMINI_ADAPTER] Error on attempt ${attempt} with ${currentModel} (status ${status || "unknown"}): ${error.message}. Trying next fallback model...`);
         
         if (attempt >= maxRetries) {
           logger.error(`[GEMINI_ADAPTER] Exhausted all ${maxRetries} fallback models.`);
@@ -132,7 +129,7 @@ export class GeminiAdapter implements IAIProvider {
         }
 
         // Exponential backoff before next model
-        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        await new Promise(resolve => setTimeout(resolve, attempt * 500));
       }
     }
 
@@ -151,7 +148,7 @@ export class GeminiAdapter implements IAIProvider {
   async executeResearch(
     options: ResearchGenerationOptions
   ): Promise<ResearchExecutionResult> {
-    const currentModel = "gemini-2.5-flash";
+    const currentModel = "gemini-2.0-flash";
     const startTime = Date.now();
 
     const systemInstruction = `You are an elite research intelligence analyst for Inbox Sentinel.
@@ -276,7 +273,7 @@ Provide your findings formatted with:
     findings: any[],
     userContext?: string
   ): Promise<any> {
-    const currentModel = "gemini-2.5-flash";
+    const currentModel = "gemini-2.0-flash";
     const startTime = Date.now();
 
     const prompt = `Synthesize the following research findings into an executive briefing for the user.
@@ -326,7 +323,7 @@ Provide:
     messages: Array<{ role: "USER" | "ASSISTANT" | "SYSTEM"; content: string }>,
     context?: string
   ): Promise<any> {
-    const currentModel = "gemini-2.5-flash";
+    const currentModel = "gemini-2.0-flash";
     const startTime = Date.now();
 
     const formattedContents = messages.map((m) => ({

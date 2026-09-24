@@ -146,7 +146,7 @@ export function JobsClient() {
                 <tr>
                   <th className="px-6 py-4 font-semibold">User</th>
                   <th className="px-6 py-4 font-semibold">Operation</th>
-                  <th className="px-6 py-4 font-semibold">Error Code</th>
+                  <th className="px-6 py-4 font-semibold">Error Status</th>
                   <th className="px-6 py-4 font-semibold">Model</th>
                   <th className="px-6 py-4 font-semibold">Date</th>
                 </tr>
@@ -159,19 +159,53 @@ export function JobsClient() {
                     </td>
                   </tr>
                 ) : (
-                  aiFailures.map((a) => (
-                    <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4 font-medium text-white">{a.user?.email || "Unknown"}</td>
-                      <td className="px-6 py-4 text-xs text-slate-300">{a.operationType}</td>
-                      <td className="px-6 py-4">
-                        <Badge className="bg-red-500/20 text-red-400 border-0">{a.errorCode || "FAILED"}</Badge>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-400">{a.model || "-"}</td>
-                      <td className="px-6 py-4 text-xs text-slate-400">
-                        {format(new Date(a.createdAt), "MMM d, HH:mm")}
-                      </td>
-                    </tr>
-                  ))
+                  aiFailures.map((a) => {
+                    let errorBadge = "FAILED";
+                    let errorDetails = a.errorCode || "Unknown AI error";
+                    
+                    try {
+                      const parsed = JSON.parse(a.errorCode || "");
+                      if (parsed.error?.code === 404 || parsed.error?.message?.includes("no longer available")) {
+                        errorBadge = "MODEL_UNAVAILABLE (404)";
+                        errorDetails = parsed.error?.message || a.errorCode;
+                      } else if (parsed.error?.code === 429) {
+                        errorBadge = "RATE_LIMIT (429)";
+                        errorDetails = parsed.error?.message || a.errorCode;
+                      } else if (parsed.error?.message) {
+                        errorBadge = `API_ERROR (${parsed.error?.code || "FAIL"})`;
+                        errorDetails = parsed.error.message;
+                      }
+                    } catch {
+                      if (a.errorCode?.includes("no longer available") || a.errorCode?.includes("404")) {
+                        errorBadge = "MODEL_UNAVAILABLE (404)";
+                      } else if (a.errorCode?.includes("QUOTA_EXHAUSTED")) {
+                        errorBadge = "QUOTA_EXHAUSTED";
+                      }
+                    }
+
+                    return (
+                      <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-6 py-4 font-medium text-white">{a.user?.email || "Unknown"}</td>
+                        <td className="px-6 py-4 text-xs text-slate-300">
+                          <span className="font-mono bg-white/5 px-2 py-1 rounded">{a.operationType}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1 max-w-[380px]">
+                            <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 w-fit font-mono text-[11px]">
+                              {errorBadge}
+                            </Badge>
+                            <span className="text-xs text-slate-400 truncate font-mono" title={errorDetails}>
+                              {errorDetails}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{a.model || "gemini-2.0-flash"}</td>
+                        <td className="px-6 py-4 text-xs text-slate-400">
+                          {format(new Date(a.createdAt), "MMM d, HH:mm")}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
