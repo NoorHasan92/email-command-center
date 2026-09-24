@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
@@ -305,13 +306,13 @@ export function PersonalIntelligenceTab({ user }: PersonalIntelligenceTabProps) 
                 </p>
               </div>
             </div>
-            <a
-              href="/pricing"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/35 transition-colors shrink-0"
+            <Link
+              href="/billing"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/35 transition-all w-full sm:w-auto shrink-0 active:scale-95"
             >
               Upgrade to Ultra
               <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            </Link>
           </div>
         </motion.div>
       )}
@@ -522,19 +523,19 @@ export function PersonalIntelligenceTab({ user }: PersonalIntelligenceTabProps) 
           className="relative rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-950/20 via-amber-900/10 to-transparent backdrop-blur-xl p-6 shadow-2xl overflow-hidden"
         >
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-amber-500/20 border border-amber-500/30 p-2.5 text-amber-400 shadow-inner">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="rounded-xl bg-amber-500/20 border border-amber-500/30 p-2.5 text-amber-400 shadow-inner shrink-0 mt-0.5 sm:mt-0">
                 <AlertCircle className="w-5 h-5" />
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-foreground flex flex-wrap items-center gap-2">
                   Pending AI Inferences
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                     {pendingItems.length} require review
                   </span>
                 </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                   Extracted from patterns in incoming emails. You must approve them before they enter your active profile.
                 </p>
               </div>
@@ -545,7 +546,7 @@ export function PersonalIntelligenceTab({ user }: PersonalIntelligenceTabProps) 
             {pendingItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border/50 dark:border-white/[0.08] bg-card/80 backdrop-blur hover:border-amber-500/30 transition-colors shadow-sm"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-2xl border border-border/50 dark:border-white/[0.08] bg-card/80 backdrop-blur hover:border-amber-500/30 transition-colors shadow-sm"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1.5">
@@ -556,10 +557,10 @@ export function PersonalIntelligenceTab({ user }: PersonalIntelligenceTabProps) 
                   </div>
                   <p className="text-xs text-muted-foreground truncate leading-relaxed">{item.value}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto">
                   <button
                     onClick={() => handleApprove(item.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" /> Approve
                   </button>
@@ -580,28 +581,28 @@ export function PersonalIntelligenceTab({ user }: PersonalIntelligenceTabProps) 
       {/* Active Profile Intelligence Items */}
       <div className="relative rounded-3xl border border-white/[0.08] dark:border-white/[0.08] bg-card/85 backdrop-blur-xl text-card-foreground shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden">
         {/* Card Header */}
-        <div className="p-6 border-b border-border/40 bg-secondary/10 dark:bg-white/[0.02] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-indigo-500/5 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner shrink-0">
+        <div className="p-5 sm:p-6 border-b border-border/40 bg-secondary/10 dark:bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-indigo-500/5 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner shrink-0 mt-0.5 sm:mt-0">
               <Brain className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
                   Active Intelligence Attributes
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
                   {activeItems.length}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 Verified items currently shaping AI triage and personal relevance scoring.
               </p>
             </div>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 transition-colors cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 transition-all cursor-pointer w-full sm:w-auto shrink-0 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Attribute</span>

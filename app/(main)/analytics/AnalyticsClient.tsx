@@ -117,16 +117,69 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
             <CardContent className="p-6 flex-1 flex flex-col justify-center items-center text-center space-y-6 relative overflow-hidden">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-purple-500/10 rounded-full blur-[50px] pointer-events-none" />
               
-              <div className="relative">
-                <div className="w-32 h-32 rounded-full border-[8px] border-purple-500/20 flex items-center justify-center relative shadow-inner">
-                  <div className="absolute inset-0 rounded-full border-[8px] border-purple-500 border-l-transparent border-b-transparent transform rotate-45" />
-                  <span className="text-4xl font-black">{stats?.accuracy || "98%"}</span>
-                </div>
-              </div>
+              {/* Precision SVG Circular Gauge */}
+              {(() => {
+                const rawAccuracy = parseFloat(stats?.accuracy?.replace(/%/g, "") || "98.5");
+                const validAccuracy = Math.min(100, Math.max(0, isNaN(rawAccuracy) ? 98.5 : rawAccuracy));
+                const radius = 62;
+                const circumference = 2 * Math.PI * radius;
+                const strokeDashoffset = circumference - (validAccuracy / 100) * circumference;
+
+                return (
+                  <div className="relative w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
+                      <defs>
+                        <linearGradient id="accuracyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#a855f7" />
+                          <stop offset="50%" stopColor="#818cf8" />
+                          <stop offset="100%" stopColor="#6366f1" />
+                        </linearGradient>
+                      </defs>
+                      {/* Background track */}
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r={radius}
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        className="text-purple-500/15"
+                      />
+                      {/* Animated Progress ring */}
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r={radius}
+                        stroke="url(#accuracyGradient)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        fill="transparent"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        className="transition-all duration-1000 ease-out"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(168, 85, 247, 0.45))" }}
+                      />
+                    </svg>
+
+                    {/* Centered Metric & Subtitle */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
+                      <span className="text-2xl sm:text-3xl font-black tracking-tight text-foreground drop-shadow-sm">
+                        {stats?.accuracy || "98.5%"}
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400/90 mt-0.5">
+                        Calibrated
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
               
               <div>
-                <h3 className="font-semibold text-lg mb-2">Highly Calibrated</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Highly Calibrated
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
                   The Consequence Engine is accurately categorizing your emails with exceptional precision, continuously learning from your workflow.
                 </p>
               </div>

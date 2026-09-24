@@ -119,6 +119,7 @@ export default function HomePage() {
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link href="/refund" className="hover:text-foreground transition-colors">Refund Policy</Link>
             <a href="mailto:mdnoorhasan1720@gmail.com" className="hover:text-foreground transition-colors">Contact</a>
             <a href="https://github.com/NoorHasan92/email-command-center" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
           </div>

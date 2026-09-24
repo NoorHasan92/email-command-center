@@ -4,7 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, ShieldCheck, Zap, Lock, RefreshCw, Crown, Brain, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { UserAIUsage } from "@prisma/client";
 import { PLAN_AI_LIMITS } from "@/config/plans";
 import { createRazorpayOrderAction, verifyRazorpaySignatureAction } from "@/server/actions/billing.actions";
@@ -147,17 +148,29 @@ export default function BillingClient({
 
           {/* Pricing Tiers */}
           <div>
-            <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6">Subscription Plans</h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight">Subscription Plans</h2>
+                <p className="text-sm text-muted-foreground mt-1">Scale your autonomous email intelligence with zero setup friction.</p>
+              </div>
+              <span className="text-xs font-medium text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-full border border-border/50 self-start sm:self-auto">
+                Billed monthly via Razorpay • Cancel anytime
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 items-stretch">
 
               {/* FREE Plan */}
               <PricingCard
                 title="Free"
                 price="$0"
-                description="Perfect for casual users."
+                description="Essential triage for individuals getting started."
                 features={[
                   `${PLAN_AI_LIMITS.FREE} AI Analyses / month`,
-                  "Basic Email Summarization",
+                  "Basic Email Summarization & Priority",
+                  "1 Connected Gmail Account",
+                  "Standard Urgency & Deadline Detection",
+                  "Web Dashboard Access",
                   "Community Support"
                 ]}
                 isActive={plan === "FREE"}
@@ -172,13 +185,15 @@ export default function BillingClient({
               <PricingCard
                 title="Pro"
                 price="$11.99"
-                description="For professionals who need more power. (Billed as ₹1,145)"
+                description="For professionals who need fast triage & automated drafts. (Billed as ₹1,145)"
                 features={[
                   `${PLAN_AI_LIMITS.PRO} AI Analyses / month`,
-                  "Smart AI Email Drafts",
-                  "Calendar & Other Few Apps Integration",
-                  "Bring Your Own Key (BYOK) Feature",
-                  "Priority Support"
+                  "Smart AI Email Drafts & Fast Replies",
+                  "Bring Your Own Key (BYOK) - Unlimited AI via personal keys",
+                  "Calendar & Productivity Integrations",
+                  "Real-Time Risk & Consequence Detection",
+                  "WhatsApp & Telegram Instant Alerts (Optional)",
+                  "Priority Email & Ticket Support"
                 ]}
                 isActive={plan === "PRO"}
                 isCurrent={plan === "PRO"}
@@ -186,6 +201,7 @@ export default function BillingClient({
                 onAction={() => handleUpgrade("PRO")}
                 isLoading={upgradingTo === "PRO"}
                 highlight
+                badge="POPULAR"
                 disabled={plan === "PRO" || plan === "ADMIN" || plan === "ULTRA"}
               />
 
@@ -193,23 +209,63 @@ export default function BillingClient({
               <PricingCard
                 title="Ultra"
                 price="$24.99"
-                description="Maximum capacity for power users. (Billed as ₹2,385)"
+                description="Complete executive command with autonomous memory & deep research. (Billed as ₹2,385)"
                 features={[
-                  `${PLAN_AI_LIMITS.ULTRA} AI Analyses / month`,
-                  "Everything in Pro",
-                  "More Apps Integrations",
-                  "Multiple Gmail Setup",
-                  "24/7 Dedicated Support"
+                  `${PLAN_AI_LIMITS.ULTRA} AI Analyses / month (Platform Quota)`,
+                  "Everything in Pro, plus:",
+                  "Ultra Personal Intelligence & Autonomous Executive Profile",
+                  "Active Intelligence Attributes & Adaptive Relevance Scoring",
+                  "Deep Research Engine (10-Stage autonomous background synthesis)",
+                  "Multi-Gmail Setup (Connect & triage multiple Gmail accounts)",
+                  "Observation Review Gate & Continuous Profile Learning",
+                  "VIP Triage Escalation & Fast Queue Priority",
+                  "24/7 Dedicated Priority Support"
                 ]}
                 isActive={plan === "ULTRA"}
                 isCurrent={plan === "ULTRA"}
                 buttonText={plan === "ULTRA" ? "Current Plan" : "Upgrade to Ultra"}
                 onAction={() => handleUpgrade("ULTRA")}
                 isLoading={upgradingTo === "ULTRA"}
+                isUltra
+                badge="EXECUTIVE TIER"
                 disabled={plan === "ULTRA" || plan === "ADMIN"}
               />
 
             </div>
+          </div>
+
+          {/* MNC SaaS Enterprise Trust & Legal Assurance */}
+          <div className="pt-6 border-t border-border/50">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card/40 border border-border/40">
+                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground">PCI-DSS Compliant</h4>
+                  <p className="text-[11px] text-muted-foreground">Transactions encrypted via Razorpay 256-bit SSL.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card/40 border border-border/40">
+                <Zap className="w-5 h-5 text-indigo-400 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground">Instant Digital Delivery</h4>
+                  <p className="text-[11px] text-muted-foreground">Tier quota and features activate immediately on payment.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card/40 border border-border/40">
+                <RefreshCw className="w-5 h-5 text-purple-400 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground">Flexible Cancellation</h4>
+                  <p className="text-[11px] text-muted-foreground">Cancel anytime from dashboard; no lock-in contracts.</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-center text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              Subscriptions renew automatically each month unless cancelled prior to renewal. By subscribing, you agree to our{" "}
+              <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>,{" "}
+              <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>, and{" "}
+              <Link href="/refund" className="text-primary hover:underline">Cancellation & Refund Policy</Link>.
+            </p>
           </div>
 
         </div>
@@ -219,51 +275,105 @@ export default function BillingClient({
 }
 
 function PricingCard({
-  title, price, description, features, isActive, isCurrent, highlight, buttonText, onAction, isLoading, disabled
+  title, price, description, features, isActive, isCurrent, highlight, isUltra, badge, buttonText, onAction, isLoading, disabled
 }: {
-  title: string, price: string, description: string, features: string[], isActive: boolean, isCurrent: boolean, highlight?: boolean, buttonText: string, onAction: () => void, isLoading: boolean, disabled: boolean
+  title: string;
+  price: string;
+  description: string;
+  features: string[];
+  isActive: boolean;
+  isCurrent: boolean;
+  highlight?: boolean;
+  isUltra?: boolean;
+  badge?: string;
+  buttonText: string;
+  onAction: () => void;
+  isLoading: boolean;
+  disabled: boolean;
 }) {
   return (
-    <Card className={`relative flex flex-col overflow-hidden transition-all ${highlight
-      ? "border-primary/50 shadow-lg shadow-primary/5 bg-primary/5"
-      : "bg-card/50 border-border hover:border-border/80 hover:bg-card/80"
+    <Card className={`relative flex flex-col overflow-hidden transition-all duration-300 ${
+      isUltra
+        ? "border-purple-500/40 bg-gradient-to-b from-purple-950/20 via-card/90 to-card shadow-xl shadow-purple-500/5 hover:border-purple-500/60 ring-1 ring-purple-500/30"
+        : highlight
+          ? "border-indigo-500/40 shadow-lg shadow-indigo-500/5 bg-gradient-to-b from-indigo-950/20 via-card/90 to-card hover:border-indigo-500/60"
+          : "bg-card/50 border-border hover:border-border/80 hover:bg-card/80"
       } ${isActive ? "ring-2 ring-primary border-transparent" : ""}`}>
-      {highlight && (
-        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+      
+      {/* Top accent line */}
+      {isUltra && (
+        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
       )}
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          <span className="text-xl">{title}</span>
-          {isCurrent && <Badge variant="secondary">Active</Badge>}
-        </CardTitle>
-        <div className="mt-4 flex items-baseline text-3xl md:text-4xl font-extrabold">
-          {price}
-          <span className="ml-1 text-xl font-medium text-muted-foreground">/mo</span>
+      {highlight && !isUltra && (
+        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500/50 via-indigo-500 to-indigo-500/50" />
+      )}
+
+      <CardHeader className="pb-4">
+        <div className="flex justify-between items-center mb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-bold">{title}</span>
+            {isUltra && <Crown className="w-4 h-4 text-purple-400" />}
+          </div>
+          {isCurrent ? (
+            <Badge variant="secondary" className="font-semibold">Active</Badge>
+          ) : badge ? (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              isUltra 
+                ? "bg-purple-500/20 text-purple-300 border-purple-500/30" 
+                : "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+            }`}>
+              {badge}
+            </span>
+          ) : null}
         </div>
-        <CardDescription className="pt-2">{description}</CardDescription>
+        <div className="mt-3 flex items-baseline text-3xl md:text-4xl font-black tracking-tight">
+          {price}
+          <span className="ml-1 text-sm font-semibold text-muted-foreground">/month</span>
+        </div>
+        <CardDescription className="pt-2 text-xs leading-relaxed min-h-[36px]">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1">
-        <ul className="space-y-3 text-sm text-muted-foreground mt-4">
-          {features.map((feature, i) => (
-            <li key={i} className="flex items-start">
-              <Check className="h-4 w-4 text-primary shrink-0 mr-2 mt-0.5" />
-              <span className="font-medium text-foreground/80">{feature}</span>
-            </li>
-          ))}
+
+      <CardContent className="flex-1 pb-6">
+        <div className="h-px w-full bg-border/40 mb-4" />
+        <ul className="space-y-2.5 text-xs text-muted-foreground">
+          {features.map((feature, i) => {
+            const isHeader = feature.startsWith("Everything in");
+            return (
+              <li key={i} className={`flex items-start gap-2 ${isHeader ? "font-semibold text-foreground pt-1 pb-0.5" : ""}`}>
+                {!isHeader ? (
+                  <Check className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isUltra ? "text-purple-400" : highlight ? "text-indigo-400" : "text-primary"}`} />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-purple-400" />
+                )}
+                <span className={`leading-relaxed ${isHeader ? "text-purple-300 font-semibold" : "text-foreground/90 font-medium"}`}>{feature}</span>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
-      <CardFooter>
+
+      <CardFooter className="pt-2">
         <button
           onClick={onAction}
           disabled={disabled || isLoading}
-          className={`w-full flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${isCurrent
-            ? "bg-secondary text-secondary-foreground cursor-default"
-            : highlight
-              ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-              : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+          className={`w-full flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
+            isCurrent
+              ? "bg-secondary text-secondary-foreground cursor-default opacity-80"
+              : isUltra
+                ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 active:scale-95"
+                : highlight
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20 active:scale-95"
+                  : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
             } ${disabled && !isCurrent ? "opacity-50 cursor-not-allowed" : ""}`}
         >
-          {isLoading ? "Processing..." : buttonText}
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Processing...
+            </span>
+          ) : (
+            buttonText
+          )}
         </button>
       </CardFooter>
     </Card>
