@@ -118,16 +118,55 @@ export async function GET(request: Request) {
     }
 
     const activeUser = await db.user.findUnique({ where: { id: userId } });
-    
-    // ULTRA and ADMIN plan users can link multiple/different Gmail accounts.
-    // For users with 0 accounts (initial onboarding), allow connecting their primary inbox.
-    // Subsequent accounts for non-Ultra users must match their account email.
-    const isUltra = activeUser?.plan === "ULTRA" || activeUser?.plan === "ADMIN";
-    const isFirstAccount = existingAccounts === 0;
+    if (!activeUser) {
+      return errorRedirect("UserNotFound");
+    }
 
-    if (!activeUser || (!isUltra && !isFirstAccount && activeUser.email.toLowerCase() !== gmailAddress.toLowerCase())) {
-      await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Email mismatch (Ultra required)", expected: activeUser?.email, received: gmailAddress });
-      return errorRedirect("EmailMismatchUltraRequired");
+    const isUltra = activeUser.plan === "ULTRA" || activeUser.plan === "ADMIN";
+    const isFirstAccount = existingAccounts === 0;
+    const isEmailMismatch = activeUser.email.toLowerCase() !== gmailAddress.toLowerCase();
+
+    if (isEmailMismatch) {
+      if (isFirstAccount) {
+        // The user is onboarding with their first inbox and selected a Gmail different from their initial registration.
+        // Check if another user already owns this email in the database
+        const existingTargetUser = await db.user.findUnique({
+          where: { email: gmailAddress.toLowerCase() }
+        });
+
+        if (existingTargetUser && existingTargetUser.id !== userId) {
+          await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { 
+            reason: "Account already registered", 
+            targetEmail: gmailAddress 
+          });
+          const baseUrl = getBaseUrl(request);
+          return NextResponse.redirect(new URL(`/onboarding?error=AccountAlreadyRegistered&targetEmail=${encodeURIComponent(gmailAddress)}`, baseUrl));
+        }
+
+        // Adopt this Gmail as the primary account email
+        await db.user.update({
+          where: { id: userId },
+          data: {
+            email: gmailAddress.toLowerCase(),
+            name: userInfo.data.name || activeUser.name,
+            image: userInfo.data.picture || activeUser.image,
+            emailVerified: new Date(),
+          }
+        });
+        
+        await logSecurityEvent("PROFILE_UPDATED", userId, { 
+          note: "Adopted connected Gmail during initial onboarding",
+          previousEmail: activeUser.email,
+          newEmail: gmailAddress.toLowerCase()
+        });
+      } else if (!isUltra) {
+        await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { 
+          reason: "Email mismatch (Ultra required)", 
+          expected: activeUser.email, 
+          received: gmailAddress 
+        });
+        return errorRedirect("EmailMismatchUltraRequired");
+      }
     }
 
     if (!tokens.access_token) {

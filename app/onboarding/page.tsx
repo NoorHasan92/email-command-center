@@ -24,7 +24,10 @@ export default async function OnboardingPage() {
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading onboarding...</div>}>
-      <OnboardingClient userName={session.user.name || "there"} />
+      <OnboardingClient 
+        userName={session.user.name || session.user.email?.split("@")[0] || "there"} 
+        userEmail={session.user.email || ""}
+      />
     </Suspense>
   );
 }

@@ -51,7 +51,7 @@ export default function LoginClient() {
 
   const handleGoogleLogin = () => {
     setGoogleLoading(true);
-    signIn("google", { callbackUrl });
+    signIn("google", { callbackUrl }, { prompt: "select_account" });
   };
 
   return (

@@ -40,7 +40,7 @@ export default function RegisterClient() {
 
   const handleGoogleLogin = () => {
     setGoogleLoading(true);
-    signIn("google", { callbackUrl });
+    signIn("google", { callbackUrl }, { prompt: "select_account" });
   };
 
   return (

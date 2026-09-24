@@ -3,22 +3,30 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, CheckCircle2, Loader2, ArrowRight, Shield, Zap, AlertCircle } from "lucide-react";
+import { Mail, CheckCircle2, Loader2, ArrowRight, Shield, Zap, AlertCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { signOut } from "next-auth/react";
 
-export default function OnboardingClient({ userName }: { userName: string }) {
+export default function OnboardingClient({ userName, userEmail }: { userName: string; userEmail: string }) {
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
+  const targetEmail = searchParams.get("targetEmail");
   const [step, setStep] = useState(urlError ? 2 : 1);
   const [isConnecting, setIsConnecting] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const router = useRouter();
 
+  const handleSignOutAndSwitch = async () => {
+    await signOut({ redirect: true, callbackUrl: "/register" });
+  };
+
   const getErrorMessage = (err: string | null) => {
     if (!err) return null;
     switch (err) {
+      case "AccountAlreadyRegistered":
+        return `An account with ${targetEmail || "that email"} is already registered. Please switch accounts to sign in with that address.`;
       case "EmailMismatchUltraRequired":
-        return "The connected Gmail does not match your account email. Please connect the Gmail account you signed up with, or upgrade to Ultra.";
+        return "The connected Gmail does not match your account email. Please connect the Gmail account you signed up with, or switch to your other account.";
       case "ConsentDenied":
         return "Google authorization was not granted. Please approve permissions to connect your inbox.";
       case "StateMismatch":
@@ -44,7 +52,6 @@ export default function OnboardingClient({ userName }: { userName: string }) {
   const finishOnboarding = () => {
     router.push("/dashboard");
   };
-
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -73,6 +80,25 @@ export default function OnboardingClient({ userName }: { userName: string }) {
                 exit={{ opacity: 0, x: -20 }}
                 className="p-10 flex flex-col h-full"
               >
+                {userEmail && (
+                  <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-secondary/50 border border-border/80 text-xs mb-6">
+                    <div className="flex items-center gap-2 truncate text-muted-foreground">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="truncate">
+                        Signed in as <strong className="text-foreground font-semibold">{userEmail}</strong>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSignOutAndSwitch}
+                      className="text-primary hover:text-primary/80 font-medium shrink-0 ml-3 flex items-center gap-1.5 transition-colors underline-offset-4 hover:underline"
+                    >
+                      <LogOut className="w-3 h-3" />
+                      Switch account
+                    </button>
+                  </div>
+                )}
+
                 <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-6">
                   <Shield className="w-6 h-6" />
                 </div>
@@ -98,7 +124,26 @@ export default function OnboardingClient({ userName }: { userName: string }) {
               >
                 {!isConnecting ? (
                   <>
-                    <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6 mt-4">
+                    {userEmail && (
+                      <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-secondary/50 border border-border/80 text-xs mb-4 w-full">
+                        <div className="flex items-center gap-2 truncate text-muted-foreground text-left">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="truncate">
+                            Account: <strong className="text-foreground font-semibold">{userEmail}</strong>
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSignOutAndSwitch}
+                          className="text-primary hover:text-primary/80 font-medium shrink-0 ml-3 flex items-center gap-1.5 transition-colors underline-offset-4 hover:underline"
+                        >
+                          <LogOut className="w-3 h-3" />
+                          Switch
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6 mt-2">
                       <Mail className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight mb-3">Connect your Inbox</h2>
@@ -107,12 +152,27 @@ export default function OnboardingClient({ userName }: { userName: string }) {
                     </p>
 
                     {errorMessage && (
-                      <div className="w-full mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-3 text-left">
-                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-destructive" />
-                        <div className="flex-1">
-                          <div className="font-semibold mb-0.5">Connection Failed</div>
-                          <div className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</div>
+                      <div className="w-full mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex flex-col gap-3 text-left">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-destructive" />
+                          <div className="flex-1">
+                            <div className="font-semibold mb-0.5">Connection Issue</div>
+                            <div className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</div>
+                          </div>
                         </div>
+                        {(urlError === "EmailMismatchUltraRequired" || urlError === "AccountAlreadyRegistered") && (
+                          <div className="pt-2 border-t border-destructive/20 flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={handleSignOutAndSwitch}
+                              className="w-full border-destructive/30 hover:bg-destructive/10 text-xs h-9"
+                            >
+                              <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                              Sign in with {targetEmail || "another account"}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
 

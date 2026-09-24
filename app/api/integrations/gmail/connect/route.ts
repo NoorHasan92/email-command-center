@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 
     const authorizationUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
-      prompt: "consent", // Force consent to ensure a refresh token is provided
+      prompt: "consent select_account", // Force consent AND account chooser
       scope: scopes,
       state: state,
       ...(loginHint && { login_hint: loginHint }),
