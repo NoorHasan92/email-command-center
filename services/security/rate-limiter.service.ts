@@ -24,7 +24,8 @@ export class DistributedRateLimiter {
     const newResetAt = new Date(now.getTime() + windowMs);
 
     let attempts = 0;
-    while (attempts < 3) {
+    const maxAttempts = 5;
+    while (attempts < maxAttempts) {
       attempts++;
       try {
         return await db.$transaction(
@@ -81,9 +82,16 @@ export class DistributedRateLimiter {
           }
         );
       } catch (error: any) {
-        if (error.code === "P2034" && attempts < 3) {
-          // Transaction conflict retry
-          await new Promise((res) => setTimeout(res, 20 * attempts));
+        const isConflict =
+          error.code === "P2034" ||
+          error.message?.includes("write conflict") ||
+          error.message?.includes("deadlock") ||
+          error.message?.includes("could not serialize access");
+
+        if (isConflict && attempts < maxAttempts) {
+          // Transaction conflict retry with exponential backoff and jitter
+          const backoff = Math.floor(Math.random() * 25) + 20 * attempts;
+          await new Promise((res) => setTimeout(res, backoff));
           continue;
         }
         logger.error(`[RATE_LIMITER] Distributed limit check failed for ${key}: ${error.message}`);
