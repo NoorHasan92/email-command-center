@@ -8,11 +8,12 @@ import { EntitlementManagementCard } from "./EntitlementManagementCard";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminUserDetailPage({ params }: { params: { userId: string } }) {
+export default async function AdminUserDetailPage({ params }: { params: Promise<{ userId: string }> }) {
   await requireAdmin();
+  const { userId } = await params;
   
   const user = await db.user.findUnique({
-    where: { id: params.userId },
+    where: { id: userId },
     include: {
       emailAccounts: true,
       aiUsage: true,

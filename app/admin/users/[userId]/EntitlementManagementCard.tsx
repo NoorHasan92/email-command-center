@@ -20,6 +20,7 @@ import {
   Layers
 } from "lucide-react";
 import { toast } from "sonner";
+import { AdminTooltip } from "@/components/ui/admin-tooltip";
 
 interface EntitlementRecord {
   id: string;
@@ -207,15 +208,24 @@ export function EntitlementManagementCard({ userId, entitlements }: { userId: st
                       </div>
                     </div>
                     {isActive && (
-                      <button 
-                        onClick={() => handleRevoke(e.id, `${e.type}:${e.value}`)} 
-                        disabled={loading}
-                        title="Revoke entitlement"
-                        className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-400/10 transition-colors disabled:opacity-50 flex items-center gap-1 text-xs"
+                      <AdminTooltip
+                        title={
+                          <span className="flex items-center gap-1.5 text-red-400">
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Revoke Entitlement
+                          </span>
+                        }
+                        content={`Immediately revokes '${e.type}: ${e.value}' and terminates this grant for the user.`}
                       >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Revoke</span>
-                      </button>
+                        <button 
+                          onClick={() => handleRevoke(e.id, `${e.type}:${e.value}`)} 
+                          disabled={loading}
+                          className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-400/10 transition-colors disabled:opacity-50 flex items-center gap-1 text-xs cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Revoke</span>
+                        </button>
+                      </AdminTooltip>
                     )}
                   </div>
                 );

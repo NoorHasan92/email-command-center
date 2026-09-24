@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { AdminTooltip } from "@/components/ui/admin-tooltip";
 
 export function SecurityClient() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -172,7 +173,15 @@ export function SecurityClient() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {log.user?.id && (
-                          <div className="relative group inline-block">
+                          <AdminTooltip
+                            title={
+                              <span className="flex items-center gap-1.5 text-red-400">
+                                <Lock className="w-3.5 h-3.5" />
+                                Revoke User Sessions
+                              </span>
+                            }
+                            content="Force-logout: Immediately terminates all active authentication sessions and JWT tokens for this user across all mobile and web devices."
+                          >
                             <button
                               onClick={() => setRevokingId(log.user.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-medium cursor-pointer"
@@ -180,18 +189,7 @@ export function SecurityClient() {
                               <Lock className="w-3 h-3" />
                               Revoke
                             </button>
-                            {/* Hover explanation tooltip */}
-                            <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-red-500/30 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
-                              <div className="flex items-center gap-1.5 font-semibold text-red-400 mb-0.5">
-                                <Lock className="w-3.5 h-3.5" />
-                                Revoke User Sessions
-                              </div>
-                              <span>
-                                Force-logout: Immediately terminates all active authentication sessions and JWT tokens for this user across all mobile and web devices.
-                              </span>
-                              <div className="absolute top-full right-4 border-4 border-transparent border-t-black/95" />
-                            </div>
-                          </div>
+                          </AdminTooltip>
                         )}
                       </td>
                     </tr>

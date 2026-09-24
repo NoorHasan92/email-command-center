@@ -9,6 +9,7 @@ import { ShieldAlert, Server, X, Search, Sparkles, RefreshCw } from "lucide-reac
 import { grantBonusQuota } from "@/server/actions/admin.actions";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminTooltip } from "@/components/ui/admin-tooltip";
 
 type RunWithResults = AIEvalRun & { results: AIEvalResult[] };
 
@@ -285,37 +286,42 @@ export function AIOpsClient({ initialUsers, runs }: { initialUsers: UserWithCoun
                             </td>
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center gap-2">
-                                {/* Grant Bonus with rich hover explanation */}
-                                <div className="relative group inline-block">
+                                {/* Grant Bonus with portal hover tooltip in outermost layer */}
+                                <AdminTooltip
+                                  title={
+                                    <span className="flex items-center gap-1.5 text-indigo-300">
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      Grant Bonus Quota
+                                    </span>
+                                  }
+                                  content="Credits additional free AI analyses directly to this user's account balance without upgrading or changing their subscription billing plan."
+                                >
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setGrantUser(user)}
-                                    className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 hover:text-indigo-300 gap-1.5 text-xs"
+                                    className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 hover:text-indigo-300 gap-1.5 text-xs cursor-pointer"
                                   >
                                     <Sparkles className="w-3 h-3" />
                                     Grant Bonus
                                   </Button>
-                                  {/* Tooltip Popup on Hover */}
-                                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-indigo-500/30 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
-                                    <div className="flex items-center gap-1.5 font-semibold text-indigo-300 mb-0.5">
-                                      <Sparkles className="w-3.5 h-3.5" />
-                                      Grant Bonus Quota
-                                    </div>
-                                    <span>
-                                      Credits additional free AI analyses directly to this user&apos;s account balance without upgrading or changing their subscription billing plan.
-                                    </span>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/95" />
-                                  </div>
-                                </div>
+                                </AdminTooltip>
 
-                                {/* Reconcile with rich hover explanation */}
-                                <div className="relative group inline-block">
+                                {/* Reconcile with portal hover tooltip in outermost layer */}
+                                <AdminTooltip
+                                  title={
+                                    <span className="flex items-center gap-1.5 text-white">
+                                      <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+                                      Reconcile AI Quota
+                                    </span>
+                                  }
+                                  content="Recalculates exact usage numbers directly from raw AI usage events in the database to eliminate cache drifts or counter desyncs."
+                                >
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     disabled={reconcilingId === user.id}
-                                    className="text-slate-400 hover:text-white gap-1.5 text-xs"
+                                    className="text-slate-400 hover:text-white gap-1.5 text-xs cursor-pointer"
                                     onClick={async () => {
                                       setReconcilingId(user.id);
                                       try {
@@ -346,18 +352,7 @@ export function AIOpsClient({ initialUsers, runs }: { initialUsers: UserWithCoun
                                     <RefreshCw className={`w-3 h-3 ${reconcilingId === user.id ? 'animate-spin' : ''}`} />
                                     Reconcile
                                   </Button>
-                                  {/* Tooltip Popup on Hover */}
-                                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-black/95 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-200 backdrop-blur-md leading-relaxed text-left">
-                                    <div className="flex items-center gap-1.5 font-semibold text-white mb-0.5">
-                                      <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-                                      Reconcile AI Quota
-                                    </div>
-                                    <span>
-                                      Recalculates exact usage numbers directly from raw AI usage events in the database to eliminate cache drifts or counter desyncs.
-                                    </span>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/95" />
-                                  </div>
-                                </div>
+                                </AdminTooltip>
                               </div>
                             </td>
                           </tr>
