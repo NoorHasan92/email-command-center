@@ -19,7 +19,7 @@ interface EmailLayoutProps {
   children: React.ReactNode;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tars.homes";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mail.tars.homes";
 
 export const EmailLayout = ({
   previewText,

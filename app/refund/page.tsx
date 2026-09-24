@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CreditCard,
   RefreshCw,
@@ -43,11 +44,16 @@ export default function RefundPolicyPage() {
       
       {/* Navigation Header */}
       <header className="sticky top-0 w-full flex items-center justify-between px-6 py-4 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Mail className="w-4 h-4 text-primary-foreground" />
-          </div>
-          {APP_CONFIG.name}
+        <div className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+          <Image
+            src="/app-logo.png"
+            alt="Inbox Sentinel"
+            width={32}
+            height={32}
+            className="w-8 h-8 object-contain shrink-0"
+            unoptimized
+          />
+          <span>{APP_CONFIG.name}</span>
         </div>
 
         {/* Navigation Tabs */}
