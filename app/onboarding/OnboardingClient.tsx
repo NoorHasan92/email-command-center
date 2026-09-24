@@ -1,16 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, CheckCircle2, Loader2, ArrowRight, Shield, Zap } from "lucide-react";
+import { Mail, CheckCircle2, Loader2, ArrowRight, Shield, Zap, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function OnboardingClient({ userName }: { userName: string }) {
-  const [step, setStep] = useState(1);
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get("error");
+  const [step, setStep] = useState(urlError ? 2 : 1);
   const [isConnecting, setIsConnecting] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const router = useRouter();
+
+  const getErrorMessage = (err: string | null) => {
+    if (!err) return null;
+    switch (err) {
+      case "EmailMismatchUltraRequired":
+        return "The connected Gmail does not match your account email. Please connect the Gmail account you signed up with, or upgrade to Ultra.";
+      case "ConsentDenied":
+        return "Google authorization was not granted. Please approve permissions to connect your inbox.";
+      case "StateMismatch":
+        return "Connection session expired or was interrupted. Please tap Connect Gmail again.";
+      case "NoAccessToken":
+        return "Unable to retrieve access credentials from Google. Please try again.";
+      case "DatabaseError":
+        return "A database error occurred while saving your inbox. Please try again.";
+      case "InvalidCallback":
+        return "Invalid response received from Google. Please try again.";
+      default:
+        return "An error occurred while connecting your inbox. Please try again.";
+    }
+  };
+
+  const errorMessage = getErrorMessage(urlError);
 
   const handleConnectGmail = () => {
     setIsConnecting(true);
@@ -20,6 +44,7 @@ export default function OnboardingClient({ userName }: { userName: string }) {
   const finishOnboarding = () => {
     router.push("/dashboard");
   };
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -77,9 +102,20 @@ export default function OnboardingClient({ userName }: { userName: string }) {
                       <Mail className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight mb-3">Connect your Inbox</h2>
-                    <p className="text-muted-foreground mb-8">
+                    <p className="text-muted-foreground mb-6">
                       We need access to your Gmail to start analyzing your emails. We use read-only permissions and never sell your data.
                     </p>
+
+                    {errorMessage && (
+                      <div className="w-full mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-3 text-left">
+                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-destructive" />
+                        <div className="flex-1">
+                          <div className="font-semibold mb-0.5">Connection Failed</div>
+                          <div className="text-xs text-muted-foreground leading-relaxed">{errorMessage}</div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-auto w-full">
                       <Button onClick={handleConnectGmail} className="w-full h-12 text-base bg-foreground text-background hover:bg-foreground/90">
                         <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">

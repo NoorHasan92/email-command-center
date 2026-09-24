@@ -39,7 +39,15 @@ export async function GET(req: NextRequest) {
 
     // Redirect to the normal Google OAuth flow
     // We append a query param just so the connect route knows it's a link flow (optional)
-    return NextResponse.redirect(`${getBaseUrl()}/api/integrations/gmail/connect?isLinkFlow=true&proScopes=${isPro}`);
+    const res = NextResponse.redirect(`${getBaseUrl(req)}/api/integrations/gmail/connect?isLinkFlow=true&proScopes=${isPro}`);
+    res.cookies.set("gmail_link_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 10 * 60,
+      path: "/",
+      sameSite: "lax",
+    });
+    return res;
   } catch (error) {
     console.error("Error in gmail link route:", error);
     return new NextResponse("Internal Server Error", { status: 500 });

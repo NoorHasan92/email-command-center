@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const session = await auth();
     
     if (!session?.user?.id && !isLinkFlow) {
-      return NextResponse.redirect(new URL("/login", getBaseUrl()));
+      return NextResponse.redirect(new URL("/login", getBaseUrl(req)));
     }
 
     if (session?.user?.id) {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET;
-    const baseUrl = getBaseUrl();
+    const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/integrations/gmail/callback`;
     console.log(`[GMAIL_CONNECT] baseUrl=${baseUrl} redirectUri=${redirectUri}`);
 
@@ -32,15 +32,21 @@ export async function GET(req: NextRequest) {
 
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-    // Requirement 3: Generate a cryptographically secure state value
-    const state = crypto.randomBytes(32).toString("hex");
+    // Requirement 3: Generate a cryptographically secure, signed state value
+    const secret = process.env.AUTH_SECRET || "inbox_sentinel_secret";
+    const timestamp = Date.now();
+    const randomHex = crypto.randomBytes(16).toString("hex");
+    const targetUserId = session?.user?.id || (isLinkFlow ? "link" : "anonymous");
+    const payload = `${targetUserId}:${timestamp}:${randomHex}`;
+    const signature = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    const state = Buffer.from(JSON.stringify({ p: payload, s: signature })).toString("base64url");
 
     // Store state in a secure HttpOnly cookie
     const cookieStore = await cookies();
     cookieStore.set("gmail_oauth_state", state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 10 * 60, // 10 minutes
+      maxAge: 15 * 60, // 15 minutes
       path: "/",
       sameSite: "lax",
     });
@@ -70,7 +76,16 @@ export async function GET(req: NextRequest) {
       ...(loginHint && { login_hint: loginHint }),
     });
 
-    return NextResponse.redirect(authorizationUrl);
+    const res = NextResponse.redirect(authorizationUrl);
+    res.cookies.set("gmail_oauth_state", state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60,
+      path: "/",
+      sameSite: "lax",
+    });
+
+    return res;
   } catch (error) {
     console.error("Error initiating Gmail OAuth:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

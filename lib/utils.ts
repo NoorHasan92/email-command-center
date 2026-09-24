@@ -8,13 +8,36 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getBaseUrl() {
+export function getBaseUrl(req?: Request | { headers: Headers | Map<string, string> | Record<string, string | string[] | undefined> } | null): string {
+  if (req) {
+    let host: string | null = null;
+    let proto: string | null = null;
+
+    if ("headers" in req && typeof (req as any).headers?.get === "function") {
+      const h = (req as any).headers;
+      host = h.get("x-forwarded-host") || h.get("host");
+      proto = h.get("x-forwarded-proto");
+    } else if ("headers" in req && (req as any).headers) {
+      const h = (req as any).headers;
+      host = (h["x-forwarded-host"] || h["host"]) as string;
+      proto = h["x-forwarded-proto"] as string;
+    }
+
+    if (host) {
+      const cleanHost = host.split(",")[0].trim();
+      const cleanProto = proto?.split(",")[0].trim() || (cleanHost.includes("localhost") || cleanHost.includes("127.0.0.1") ? "http" : "https");
+      return `${cleanProto}://${cleanHost}`;
+    }
+  }
+
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.NODE_ENV === "production") return "https://mail.tars.homes";
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return "http://localhost:3000";
 }
+
 
 /**
  * Cleans up raw plain text emails by stripping out massive URLs, 

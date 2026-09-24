@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/config/auth";
 import { db } from "@/server/repositories/db";
 import { redirect } from "next/navigation";
@@ -21,5 +22,10 @@ export default async function OnboardingPage() {
     redirect("/dashboard");
   }
 
-  return <OnboardingClient userName={session.user.name || "there"} />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading onboarding...</div>}>
+      <OnboardingClient userName={session.user.name || "there"} />
+    </Suspense>
+  );
 }
+

@@ -6,6 +6,8 @@ import { db } from "@/server/repositories/db";
 import { encrypt } from "@/services/security/encryption";
 import { logSecurityEvent } from "@/services/security/audit";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+import crypto from "crypto";
 
 export async function GET(request: Request) {
   try {
@@ -25,10 +27,19 @@ export async function GET(request: Request) {
     if (!userId) {
       const session = await auth();
       if (!session?.user?.id) {
-        return NextResponse.redirect(new URL("/login", getBaseUrl()));
+        return NextResponse.redirect(new URL("/login", getBaseUrl(request)));
       }
       userId = session.user.id;
     }
+
+    const existingAccounts = userId ? await db.emailAccount.count({ where: { userId } }) : 0;
+    const errorRedirect = (err: string) => {
+      const baseUrl = getBaseUrl(request);
+      if (existingAccounts === 0) {
+        return NextResponse.redirect(new URL(`/onboarding?error=${encodeURIComponent(err)}`, baseUrl));
+      }
+      return NextResponse.redirect(new URL(`/settings?error=${encodeURIComponent(err)}`, baseUrl));
+    };
 
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
@@ -37,20 +48,44 @@ export async function GET(request: Request) {
 
     if (error) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "User denied consent", error });
-      return NextResponse.redirect(new URL("/settings?error=ConsentDenied", getBaseUrl()));
+      return errorRedirect("ConsentDenied");
     }
 
     if (!code || !state) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Missing code or state" });
-      return NextResponse.redirect(new URL("/settings?error=InvalidCallback", getBaseUrl()));
+      return errorRedirect("InvalidCallback");
     }
 
-    // Requirement 3: Verify CSRF state
+    // Requirement 3: Verify CSRF state: either matching cookie OR verified HMAC signature
+    let isStateValid = false;
     const savedState = cookieStore.get("gmail_oauth_state")?.value;
 
-    if (!savedState || state !== savedState) {
+    if (savedState && savedState === state) {
+      isStateValid = true;
+    } else {
+      // Fallback: Verify cryptographic HMAC signature for mobile browsers that drop Lax cookies
+      try {
+        const secret = process.env.AUTH_SECRET || "inbox_sentinel_secret";
+        const decoded = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+        const { p: payload, s: signature } = decoded;
+        const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+        if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+          const [stateUserId, timestampStr] = payload.split(":");
+          const ts = parseInt(timestampStr, 10);
+          if (Date.now() - ts <= 15 * 60 * 1000) {
+            if (stateUserId === userId || stateUserId === "link" || stateUserId === "anonymous") {
+              isStateValid = true;
+            }
+          }
+        }
+      } catch {
+        isStateValid = false;
+      }
+    }
+
+    if (!isStateValid) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "CSRF State mismatch" });
-      return NextResponse.redirect(new URL("/settings?error=StateMismatch", getBaseUrl()));
+      return errorRedirect("StateMismatch");
     }
 
     // Clear state cookie
@@ -58,7 +93,7 @@ export async function GET(request: Request) {
 
     const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET;
-    const baseUrl = getBaseUrl();
+    const baseUrl = getBaseUrl(request);
     const redirectUri = `${baseUrl}/api/integrations/gmail/callback`;
     console.log(`[GMAIL_CALLBACK] baseUrl=${baseUrl} redirectUri=${redirectUri}`);
 
@@ -79,23 +114,27 @@ export async function GET(request: Request) {
 
     if (!gmailAddress) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Could not fetch Gmail address" });
-      return NextResponse.redirect(new URL("/settings?error=NoEmailAddress", getBaseUrl()));
+      return errorRedirect("NoEmailAddress");
     }
 
     const activeUser = await db.user.findUnique({ where: { id: userId } });
     
-    // ULTRA plan users can link multiple/different Gmail accounts.
-    // Others must link the Gmail matching their login.
+    // ULTRA and ADMIN plan users can link multiple/different Gmail accounts.
+    // For users with 0 accounts (initial onboarding), allow connecting their primary inbox.
+    // Subsequent accounts for non-Ultra users must match their account email.
     const isUltra = activeUser?.plan === "ULTRA" || activeUser?.plan === "ADMIN";
-    if (!activeUser || (!isUltra && activeUser.email.toLowerCase() !== gmailAddress.toLowerCase())) {
+    const isFirstAccount = existingAccounts === 0;
+
+    if (!activeUser || (!isUltra && !isFirstAccount && activeUser.email.toLowerCase() !== gmailAddress.toLowerCase())) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Email mismatch (Ultra required)", expected: activeUser?.email, received: gmailAddress });
-      return NextResponse.redirect(new URL("/settings?error=EmailMismatchUltraRequired", getBaseUrl()));
+      return errorRedirect("EmailMismatchUltraRequired");
     }
 
     if (!tokens.access_token) {
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "No access token received" });
-      return NextResponse.redirect(new URL("/settings?error=NoAccessToken", getBaseUrl()));
+      return errorRedirect("NoAccessToken");
     }
+
 
     // Requirement 6: Encrypt tokens
     const encryptedAccessToken = encrypt(tokens.access_token);
@@ -157,7 +196,7 @@ export async function GET(request: Request) {
       const error = e as Error;
       console.error("Database transaction failed:", error);
       await logSecurityEvent("GMAIL_CONNECT_FAILED", userId, { reason: "Database error", error: error.message });
-      return NextResponse.redirect(new URL("/settings?error=DatabaseError", getBaseUrl()));
+      return errorRedirect("DatabaseError");
     }
 
     // Requirement 8: Call getProfile(), Save historyId, Register Watch()
@@ -219,23 +258,33 @@ export async function GET(request: Request) {
       cookieStore.delete("gmail_link_token");
     }
 
+    // Revalidate paths to prevent stale layouts or cached redirects
+    revalidatePath("/", "layout");
+    revalidatePath("/dashboard");
+    revalidatePath("/onboarding");
+    revalidatePath("/settings");
+    revalidatePath("/integrations");
+
     // Determine redirect logic
     const totalAccounts = await db.emailAccount.count({ where: { userId } });
     
     // If we just granted calendar scopes, take them to the preferences tab to manage it
     if (tokens.scope && tokens.scope.includes("calendar.events")) {
-      return NextResponse.redirect(new URL("/settings?tab=preferences", getBaseUrl()));
+      return NextResponse.redirect(new URL("/settings?tab=preferences", getBaseUrl(request)));
     }
 
-    if (totalAccounts === 1) {
-      return NextResponse.redirect(new URL("/dashboard", getBaseUrl()));
-    } else {
-      // It seems the user's codebase previously expected "integrations" but maybe "preferences" is better or they just go to /integrations.
-      // Wait, there is no "integrations" tab in SettingsClient. The tabs are: "profile", "preferences", "security", "appearance", "notifications".
-      // Let's redirect them to /integrations page instead if there's no such tab.
-      // Or just keep the existing behavior if it worked for them (but change to /integrations directly).
-      return NextResponse.redirect(new URL("/integrations", getBaseUrl()));
-    }
+    const targetUrl = totalAccounts === 1 ? "/dashboard" : "/integrations";
+    const redirectResponse = NextResponse.redirect(new URL(targetUrl, getBaseUrl(request)));
+
+    // Ensure selected account cookie is set so the header switcher is in sync
+    redirectResponse.cookies.set("selected_account_id", emailAccount.id, {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return redirectResponse;
 
   } catch (error) {
     console.error("Error in Gmail Callback:", error);
