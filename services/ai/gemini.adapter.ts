@@ -7,9 +7,11 @@ import { logger } from "@/lib/logger";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const FALLBACK_MODELS = [
-  "gemini-2.0-flash", 
-  "gemini-1.5-flash", 
-  "gemini-1.5-pro", 
+  "gemini-3.5-flash-lite", 
+  "gemini-3.1-flash-lite", 
+  "gemini-3.7-flash", 
+  "gemini-3.5-flash", 
+  "gemini-3.6-flash", 
 ];
 
 export class GeminiAdapter implements IAIProvider {
@@ -148,7 +150,7 @@ export class GeminiAdapter implements IAIProvider {
   async executeResearch(
     options: ResearchGenerationOptions
   ): Promise<ResearchExecutionResult> {
-    const currentModel = "gemini-2.0-flash";
+    const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 
     const systemInstruction = `You are an elite research intelligence analyst for Inbox Sentinel.
@@ -177,14 +179,26 @@ Provide your findings formatted with:
 
     try {
       logger.info(`[GEMINI_ADAPTER] Executing grounded research using ${currentModel}...`);
-      const response = await ai.models.generateContent({
-        model: currentModel,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          tools: [{ googleSearch: {} }],
-        },
-      });
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model: currentModel,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            tools: [{ googleSearch: {} }],
+          },
+        });
+      } catch (groundingErr: any) {
+        logger.warn(`[GEMINI_ADAPTER] Grounded search tool unavailable (${groundingErr.message}). Retrying direct synthesis...`);
+        response = await ai.models.generateContent({
+          model: currentModel,
+          contents: prompt,
+          config: {
+            systemInstruction,
+          },
+        });
+      }
 
       const latencyMs = Date.now() - startTime;
       const candidate = response.candidates?.[0];
@@ -273,7 +287,7 @@ Provide your findings formatted with:
     findings: any[],
     userContext?: string
   ): Promise<any> {
-    const currentModel = "gemini-2.0-flash";
+    const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 
     const prompt = `Synthesize the following research findings into an executive briefing for the user.
@@ -323,7 +337,7 @@ Provide:
     messages: Array<{ role: "USER" | "ASSISTANT" | "SYSTEM"; content: string }>,
     context?: string
   ): Promise<any> {
-    const currentModel = "gemini-2.0-flash";
+    const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 
     const formattedContents = messages.map((m) => ({

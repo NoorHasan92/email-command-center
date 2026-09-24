@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
 /**
  * Validates and stores a new Gemini API Key for BYOK
  */
-export async function connectAIKeyAction(apiKey: string, model: string = "gemini-2.0-flash") {
+export async function connectAIKeyAction(apiKey: string, model: string = "gemini-3.5-flash-lite") {
   try {
     const session = await auth();
     if (!session?.user?.id) return { error: "Unauthorized" };
@@ -37,7 +37,7 @@ export async function connectAIKeyAction(apiKey: string, model: string = "gemini
       const ai = new GoogleGenAI({ apiKey: trimmedKey });
       // Lightweight verification request (doesn't consume generation tokens usually)
       await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.5-flash-lite",
         contents: "Respond with the word OK."
       });
     } catch (verifyError: any) {
@@ -132,7 +132,7 @@ export async function verifyAIKeyAction() {
     try {
       const ai = new GoogleGenAI({ apiKey: decryptedKey });
       await ai.models.generateContent({
-        model: connection.selectedModel || "gemini-2.0-flash",
+        model: connection.selectedModel || "gemini-3.5-flash-lite",
         contents: "Respond with the word OK."
       });
       
