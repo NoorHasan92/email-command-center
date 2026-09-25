@@ -1,9 +1,30 @@
-import makeWASocket, { DisconnectReason, ConnectionState, Browsers } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, ConnectionState, Browsers, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { DatabaseStore } from './session-store/DatabaseStore';
 import { logger } from '@/lib/logger';
 import { EventEmitter } from 'events';
 import { db } from '@/server/repositories/db';
 import pino from 'pino';
+
+// Cached WA version to avoid fetching on every connection
+let cachedWAVersion: [number, number, number] | null = null;
+let cachedWAVersionExpiry = 0;
+const WA_VERSION_CACHE_MS = 30 * 60 * 1000; // 30 minutes
+
+async function getWAVersion(): Promise<[number, number, number]> {
+    if (cachedWAVersion && Date.now() < cachedWAVersionExpiry) {
+        return cachedWAVersion;
+    }
+    try {
+        const { version } = await fetchLatestBaileysVersion();
+        cachedWAVersion = version;
+        cachedWAVersionExpiry = Date.now() + WA_VERSION_CACHE_MS;
+        logger.info(`[WhatsAppManager] Fetched WA version: ${version.join('.')}`);
+        return version;
+    } catch (e: any) {
+        logger.warn(`[WhatsAppManager] Failed to fetch WA version, using default: ${e.message}`);
+        return cachedWAVersion || [2, 3000, 1015901307];
+    }
+}
 
 export class WhatsAppManager extends EventEmitter {
     private sockets: Map<string, ReturnType<typeof makeWASocket>> = new Map();
@@ -101,8 +122,12 @@ export class WhatsAppManager extends EventEmitter {
         const store = new DatabaseStore(userId);
         const { state, saveCreds } = await store.getAuthState();
 
+        // Fetch the latest WA protocol version to prevent version mismatch errors
+        const version = await getWAVersion();
+
         const sock = makeWASocket({
             auth: state,
+            version,
             printQRInTerminal: false,
             browser: Browsers.macOS('Chrome'),
             logger: pino({ level: 'silent' }) as any
@@ -128,11 +153,15 @@ export class WhatsAppManager extends EventEmitter {
                 const boomError = lastDisconnect?.error as any;
                 const statusCode = boomError?.output?.statusCode;
                 const errorPayload = boomError?.output?.payload;
+                const errorMessage = boomError?.message || 'No message';
                 const isLoggedOut = statusCode === DisconnectReason.loggedOut;
                 const isReplaced = statusCode === DisconnectReason.connectionReplaced;
                 const isRestartRequired = statusCode === DisconnectReason.restartRequired;
                 
-                logger.warn(`[WhatsAppManager] Connection closed for ${userId}. StatusCode: ${statusCode} (${errorPayload?.error || 'Unknown'}), Message: ${boomError?.message || 'No message'}`);
+                // Detect session corruption errors ("b.mask is not a function", crypto failures, etc.)
+                const isSessionCorrupted = /mask is not a function|Cannot read prop.*of (null|undefined)|proto|decode|HMAC|encrypt|decrypt|signal/i.test(errorMessage);
+                
+                logger.warn(`[WhatsAppManager] Connection closed for ${userId}. StatusCode: ${statusCode} (${errorPayload?.error || 'Unknown'}), Message: ${errorMessage}${isSessionCorrupted ? ' [DETECTED: Session corruption]' : ''}`);
                 
                 if (this.connectionTimeouts.has(userId)) {
                     clearTimeout(this.connectionTimeouts.get(userId)!);
@@ -140,6 +169,26 @@ export class WhatsAppManager extends EventEmitter {
                 }
 
                 this.sockets.delete(userId);
+
+                // Case 0: Session corruption (b.mask, crypto errors) — auto-clear and retry with fresh session
+                if (isSessionCorrupted) {
+                    const corruptRetries = this.retryCounts.get(userId) || 0;
+                    if (corruptRetries < 2) {
+                        logger.warn(`[WhatsAppManager] Session corruption detected for ${userId}. Clearing session and retrying (attempt ${corruptRetries + 1}/2).`);
+                        this.retryCounts.set(userId, corruptRetries + 1);
+                        await store.clear();
+                        // Invalidate cached version so we fetch fresh
+                        cachedWAVersion = null;
+                        cachedWAVersionExpiry = 0;
+                        setTimeout(() => this.connect(userId).catch(console.error), 2000);
+                    } else {
+                        logger.error(`[WhatsAppManager] Session corruption persists after 2 retries for ${userId}. Halting. Manual QR re-scan required.`);
+                        this.lastStatuses.set(userId, 'logged_out');
+                        this.retryCounts.delete(userId);
+                        this.emit(`status-${userId}`, { status: 'logged_out', error: 'Session corrupted. Please re-link WhatsApp.' });
+                    }
+                    return;
+                }
 
                 // Case 1: Explicit logout - remove credentials and notify
                 if (isLoggedOut) {
