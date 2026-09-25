@@ -122,6 +122,14 @@ export async function GET(request: Request) {
       return errorRedirect("UserNotFound");
     }
 
+    // Automatically sync profile picture from connected Gmail if available
+    if (userInfo.data.picture && (!activeUser.image || activeUser.image !== userInfo.data.picture)) {
+      await db.user.update({
+        where: { id: userId },
+        data: { image: userInfo.data.picture }
+      }).catch(err => console.error("Failed to sync profile picture from connected Gmail:", err));
+    }
+
     const isUltra = activeUser.plan === "ULTRA" || activeUser.plan === "ADMIN";
     const isFirstAccount = existingAccounts === 0;
     const isEmailMismatch = activeUser.email.toLowerCase() !== gmailAddress.toLowerCase();

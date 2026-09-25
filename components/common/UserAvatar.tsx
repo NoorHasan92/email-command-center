@@ -1,8 +1,7 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface UserAvatarProps {
@@ -15,7 +14,12 @@ interface UserAvatarProps {
 
 export function UserAvatar({ src, name, size = "md", className, disableAnimation = false }: UserAvatarProps) {
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+    setLoaded(false);
+  }, [src]);
 
   // Standard sizes mapping
   const sizeClasses = {
@@ -34,10 +38,11 @@ export function UserAvatar({ src, name, size = "md", className, disableAnimation
   };
 
   const fallbackContent = getInitials(name) || <UserIcon className="w-1/2 h-1/2 opacity-70" />;
+  const hasValidImage = Boolean(src && !error);
 
   return (
     <div className={cn(
-      "relative group shrink-0", 
+      "relative group shrink-0 select-none", 
       !disableAnimation && "hover:scale-[1.03] transition-all duration-300", 
       sizeClasses[size],
       className
@@ -47,25 +52,28 @@ export function UserAvatar({ src, name, size = "md", className, disableAnimation
         <div className="absolute inset-0 bg-gradient-to-tr from-primary to-purple-500 rounded-full blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-300 pointer-events-none" />
       )}
       
-      <Avatar className={cn(
-        "relative w-full h-full border border-border/30 shadow-sm bg-card overflow-hidden !size-full after:hidden"
-      )}>
-        {src && !error ? (
-          <AvatarImage 
-            src={src} 
+      <div className="relative w-full h-full rounded-full border border-border/30 shadow-sm bg-card overflow-hidden">
+        {hasValidImage && (
+          <img 
+            src={src!} 
             alt={name || "User Avatar"} 
-            className="object-cover w-full h-full"
-            onLoadingStatusChange={(status) => {
-              if (status === "error") setError(true);
-            }}
+            referrerPolicy="no-referrer"
+            onLoad={() => setLoaded(true)}
+            onError={() => setError(true)}
+            className={cn(
+              "object-cover w-full h-full rounded-full transition-opacity duration-200",
+              loaded ? "opacity-100" : "opacity-0"
+            )}
           />
-        ) : null}
+        )}
 
         {/* Fallback Initials */}
-        <AvatarFallback className="bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center">
-          {fallbackContent}
-        </AvatarFallback>
-      </Avatar>
+        {(!hasValidImage || !loaded) && (
+          <div className="absolute inset-0 bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center rounded-full">
+            {fallbackContent}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

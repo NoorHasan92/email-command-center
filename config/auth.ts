@@ -159,14 +159,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Sync Google picture when user signs in (account & profile are only passed on sign-in)
-      if (account?.provider === "google" && profile?.picture) {
-        token.image = profile.picture as string;
+      const googlePic = (profile as any)?.picture || (user as any)?.image;
+      if (account?.provider === "google" && googlePic) {
+        token.image = googlePic as string;
         
         if (token.id) {
           await db.user.update({
             where: { id: token.id as string },
-            data: { image: profile.picture as string }
+            data: { image: googlePic as string }
           }).catch(err => console.error("Failed to sync avatar:", err));
+        }
+      }
+
+      // If token exists but has no image, sync image from database
+      if (token?.id && !token.image) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: { image: true }
+          });
+          if (dbUser?.image) {
+            token.image = dbUser.image;
+          }
+        } catch (err) {
+          console.error("Failed to sync user image in jwt callback:", err);
         }
       }
 
