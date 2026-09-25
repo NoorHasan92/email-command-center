@@ -3,9 +3,13 @@ import { z } from "zod";
 import { IAIProvider, AIAnalysisResult } from "../../core/interfaces/IAIProvider";
 import { AICapabilities } from "../../core/interfaces/IAICapabilities";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("[OPENAI_ADAPTER] Missing OPENAI_API_KEY in environment.");
+  }
+  return new OpenAI({ apiKey });
+}
 
 export class OpenAIAdapter implements IAIProvider {
   async analyzeEmail(
@@ -21,6 +25,7 @@ export class OpenAIAdapter implements IAIProvider {
     const prompt = `Analyze this email:\nSubject: ${subject}\nContent:\n${emailText}`;
     
     const startTime = performance.now();
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],

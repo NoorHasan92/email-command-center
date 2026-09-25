@@ -23,17 +23,14 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 export async function POST(req: NextRequest) {
   try {
     // 1. Webhook Secret Token Verification (Production Security)
-    if (process.env.NODE_ENV === "production") {
-      if (!TELEGRAM_WEBHOOK_SECRET) {
-        logger.error("[TELEGRAM_WEBHOOK] TELEGRAM_WEBHOOK_SECRET is not configured in production.");
-        return new NextResponse("Server configuration error", { status: 500 });
-      }
-
+    if (TELEGRAM_WEBHOOK_SECRET) {
       const secretToken = req.headers.get("x-telegram-bot-api-secret-token");
       if (secretToken !== TELEGRAM_WEBHOOK_SECRET) {
         logger.warn("[TELEGRAM_WEBHOOK] Unauthorized secret token.");
         return new NextResponse("Unauthorized", { status: 401 });
       }
+    } else {
+      logger.warn("[TELEGRAM_WEBHOOK] TELEGRAM_WEBHOOK_SECRET is not configured. Proceeding without header verification.");
     }
 
     let update: any;

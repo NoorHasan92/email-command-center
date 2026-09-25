@@ -27,7 +27,7 @@ export interface AIAnalysisResult {
     endTime: string;
     description: string | null;
     location: string | null;
-  }>;
+  }> | null;
 
   // Telemetry
   model: string;

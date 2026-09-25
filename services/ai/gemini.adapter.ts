@@ -5,13 +5,23 @@ import { buildSystemPrompt, buildUserPrompt } from "./prompt-builder";
 import { parseAIResponse } from "./parser";
 import { logger } from "@/lib/logger";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getGeminiClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("[GEMINI_ADAPTER] Missing GEMINI_API_KEY in environment.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
+
 const FALLBACK_MODELS = [
   "gemini-3.5-flash-lite", 
   "gemini-3.1-flash-lite", 
+  "gemini-3.8-flash", 
   "gemini-3.7-flash", 
   "gemini-3.5-flash", 
   "gemini-3.6-flash", 
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
 ];
 
 export class GeminiAdapter implements IAIProvider {
@@ -20,6 +30,7 @@ export class GeminiAdapter implements IAIProvider {
     subject: string,
     metadata?: Record<string, any>
   ): Promise<AIAnalysisResult> {
+    const ai = getGeminiClient();
     const systemInstruction = buildSystemPrompt();
     const prompt = buildUserPrompt(emailText, subject, metadata);
 
@@ -135,6 +146,20 @@ export class GeminiAdapter implements IAIProvider {
       }
     }
 
+    // If all Gemini models fail (e.g. 503 high demand or quota), fall back to OpenAI if available
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        logger.info(`[GEMINI_ADAPTER] Exhausted all Gemini models. Attempting fallback to OpenAI (gpt-4o-mini)...`);
+        const { OpenAIAdapter } = await import("./openai.adapter");
+        const openaiAdapter = new OpenAIAdapter();
+        const result = await openaiAdapter.analyzeEmail(emailText, subject, metadata);
+        logger.info(`[GEMINI_ADAPTER] OpenAI fallback succeeded seamlessly.`);
+        return result;
+      } catch (openAiError: any) {
+        logger.error(`[GEMINI_ADAPTER] OpenAI fallback also failed: ${openAiError.message}`);
+      }
+    }
+
     throw new Error(`AI Analysis failed after trying ${maxRetries} models. Last Error: ${lastError?.message}`);
   }
 
@@ -150,6 +175,7 @@ export class GeminiAdapter implements IAIProvider {
   async executeResearch(
     options: ResearchGenerationOptions
   ): Promise<ResearchExecutionResult> {
+    const ai = getGeminiClient();
     const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 
@@ -287,6 +313,7 @@ Provide your findings formatted with:
     findings: any[],
     userContext?: string
   ): Promise<any> {
+    const ai = getGeminiClient();
     const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 
@@ -337,6 +364,7 @@ Provide:
     messages: Array<{ role: "USER" | "ASSISTANT" | "SYSTEM"; content: string }>,
     context?: string
   ): Promise<any> {
+    const ai = getGeminiClient();
     const currentModel = "gemini-3.5-flash-lite";
     const startTime = Date.now();
 

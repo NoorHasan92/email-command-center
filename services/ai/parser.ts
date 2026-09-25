@@ -3,7 +3,18 @@ import { logger } from "@/lib/logger";
 
 export function parseAIResponse(jsonString: string): AIAnalysisOutput {
   try {
-    const parsed = JSON.parse(jsonString);
+    let clean = jsonString.trim();
+    if (clean.startsWith("```json")) {
+      clean = clean.slice(7);
+    } else if (clean.startsWith("```")) {
+      clean = clean.slice(3);
+    }
+    if (clean.endsWith("```")) {
+      clean = clean.slice(0, -3);
+    }
+    clean = clean.trim();
+
+    const parsed = JSON.parse(clean);
     const validated = aiAnalysisSchema.parse(parsed);
     return validated;
   } catch (error: any) {
