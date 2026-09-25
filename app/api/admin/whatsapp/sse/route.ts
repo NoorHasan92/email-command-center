@@ -31,12 +31,14 @@ export async function GET(req: NextRequest) {
 
             const store = new DatabaseStore(SYSTEM_SENDER_ID);
             const meta = await store.getMetadata();
+            const sock = whatsappManager.getSocket(SYSTEM_SENDER_ID);
+            const isActuallyConnected = !!(sock && sock.user);
             
-            if (meta?.phoneNumber) {
+            if (isActuallyConnected && meta?.phoneNumber) {
                 send('status', { status: 'connected', ...meta });
             } else {
                 send('status', { status: 'connecting' });
-                // We connect lazily here
+                // Connect to generate fresh QR code if needed
                 whatsappManager.connect(SYSTEM_SENDER_ID).catch(console.error);
             }
 
