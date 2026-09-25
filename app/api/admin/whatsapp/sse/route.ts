@@ -31,8 +31,7 @@ export async function GET(req: NextRequest) {
 
             const store = new DatabaseStore(SYSTEM_SENDER_ID);
             const meta = await store.getMetadata();
-            const sock = whatsappManager.getSocket(SYSTEM_SENDER_ID);
-            const isActuallyConnected = !!(sock && sock.user);
+            const isActuallyConnected = whatsappManager.isSocketConnected(SYSTEM_SENDER_ID);
             
             if (isActuallyConnected && meta?.phoneNumber) {
                 send('status', { status: 'connected', ...meta });

@@ -14,13 +14,18 @@ export class WhatsAppManager extends EventEmitter {
     private lastStatuses: Map<string, string> = new Map();
     private readonly MAX_RETRIES = 5;
 
+    public isSocketConnected(userId: string): boolean {
+        const sock = this.sockets.get(userId);
+        return !!(sock && this.lastStatuses.get(userId) === 'connected' && (sock.ws as any)?.isOpen);
+    }
+
     /**
      * Ensures an authenticated, ready socket is available.
-     * Waits up to timeoutMs (default 15s) for the handshake to finish.
+     * Waits up to timeoutMs (default 20s) for the handshake to finish.
      */
-    async ensureConnected(userId: string, timeoutMs = 15000): Promise<ReturnType<typeof makeWASocket>> {
+    async ensureConnected(userId: string, timeoutMs = 20000): Promise<ReturnType<typeof makeWASocket>> {
         const existing = this.sockets.get(userId);
-        if (existing && existing.user) {
+        if (existing && this.isSocketConnected(userId)) {
             return existing;
         }
 
@@ -30,7 +35,7 @@ export class WhatsAppManager extends EventEmitter {
         const startTime = Date.now();
         while (Date.now() - startTime < timeoutMs) {
             const sock = this.sockets.get(userId);
-            if (sock && sock.user) {
+            if (sock && this.isSocketConnected(userId)) {
                 return sock;
             }
 
@@ -46,7 +51,7 @@ export class WhatsAppManager extends EventEmitter {
         }
 
         const finalSock = this.sockets.get(userId);
-        if (finalSock && finalSock.user) {
+        if (finalSock && this.isSocketConnected(userId)) {
             return finalSock;
         }
 
@@ -61,8 +66,7 @@ export class WhatsAppManager extends EventEmitter {
         }
 
         // If an active, authenticated socket already exists, do not recreate
-        const existingSock = this.sockets.get(userId);
-        if (existingSock && existingSock.user) {
+        if (this.isSocketConnected(userId)) {
             return;
         }
 

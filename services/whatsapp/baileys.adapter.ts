@@ -116,7 +116,7 @@ mail.tars.homes`;
     }
 
     async sendOTP(phoneNumber: string, code: string): Promise<string> {
-        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
+        const sock = await whatsappManager.ensureConnected(this.userId, 20000);
         const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
         const text = `🔐 *Inbox Sentinel Verification*
@@ -126,30 +126,46 @@ Your verification code is: *${code}*
 _This code expires in 5 minutes._
 _If you didn't request this, please ignore this message._`;
 
-        try {
-            const result = await sock.sendMessage(to, { text });
-            if (!result?.key?.id) throw new Error("Message failed to send");
-            logger.info(`[BaileysAdapter] Sent OTP to ${to}`);
-            return result.key.id;
-        } catch (error) {
-            logger.error(error, `[BaileysAdapter] OTP Dispatch Failed:`);
-            throw error;
+        let lastError: any = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const activeSock = (attempt === 0) ? sock : await whatsappManager.ensureConnected(this.userId, 20000);
+                const result = await activeSock.sendMessage(to, { text });
+                if (!result?.key?.id) throw new Error("Message failed to send");
+                logger.info(`[BaileysAdapter] Sent OTP to ${to}`);
+                return result.key.id;
+            } catch (error: any) {
+                lastError = error;
+                logger.warn(`[BaileysAdapter] OTP send attempt ${attempt + 1} failed: ${error?.message}`);
+                if (attempt === 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
         }
+        throw lastError;
     }
 
     async sendMessage(phoneNumber: string, text: string): Promise<string> {
-        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
+        const sock = await whatsappManager.ensureConnected(this.userId, 20000);
         const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
-        try {
-            const result = await sock.sendMessage(to, { text });
-            if (!result?.key?.id) throw new Error("Message failed to send");
-            logger.info(`[BaileysAdapter] Sent message to ${to}`);
-            return result.key.id;
-        } catch (error) {
-            logger.error(error, `[BaileysAdapter] Send Message Failed:`);
-            throw error;
+        let lastError: any = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const activeSock = (attempt === 0) ? sock : await whatsappManager.ensureConnected(this.userId, 20000);
+                const result = await activeSock.sendMessage(to, { text });
+                if (!result?.key?.id) throw new Error("Message failed to send");
+                logger.info(`[BaileysAdapter] Sent message to ${to}`);
+                return result.key.id;
+            } catch (error: any) {
+                lastError = error;
+                logger.warn(`[BaileysAdapter] Send message attempt ${attempt + 1} failed: ${error?.message}`);
+                if (attempt === 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
         }
+        throw lastError;
     }
 }
 
