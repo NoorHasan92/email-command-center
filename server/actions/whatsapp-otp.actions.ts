@@ -4,6 +4,7 @@ import { db } from "@/server/repositories/db";
 import { auth } from "@/config/auth";
 import { logSecurityEvent } from "@/services/security/audit";
 import { BaileysAdapter } from "@/services/whatsapp/baileys.adapter";
+import { ChannelDispatcherService } from "@/services/assistant/channel-dispatcher.service";
 import { sendWhatsAppVerificationEmail } from "@/services/emails/resend";
 import crypto from "crypto";
 
@@ -157,6 +158,12 @@ export async function verifyWhatsAppOTPAction(verificationId: string, whatsappCo
     await db.whatsAppVerification.delete({ where: { id: verificationId } });
     
     await logSecurityEvent("PROFILE_UPDATED", userId, { note: "WhatsApp connected via OTP" });
+
+    // Dispatch welcome and capabilities guide to user's WhatsApp
+    ChannelDispatcherService.sendWhatsAppWelcome(
+      verification.phoneNumber,
+      user?.name || undefined
+    ).catch((err) => console.error("[WHATSAPP_WELCOME_ERROR]", err));
 
     return { success: true };
   } catch (error) {

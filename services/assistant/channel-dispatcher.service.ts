@@ -169,4 +169,89 @@ export class ChannelDispatcherService {
       return false;
     }
   }
+
+  /**
+   * Dispatches an onboarding welcome guide to user on Telegram.
+   */
+  static async sendTelegramWelcome(chatId: string, userName?: string): Promise<boolean> {
+    const name = userName ? userName : "there";
+    const text = `✅ *Telegram Connected Successfully!* 🛡️
+
+Hey ${name}, your Telegram is now linked to *Inbox Sentinel*!
+
+Here is what you can do directly from this chat:
+
+🚨 *Real-Time Email Alerts*
+When an urgent or action-required email arrives, Sentinel alerts you instantly with an AI analysis and an inline *[ 🔎 Deep Research & Cross-Check ]* button for 1-tap verification!
+
+🔎 *Autonomous Deep Research & Grounding*
+• *1-Tap Button:* Tap the button on any alert to instantly verify company background and link authenticity against Google Search.
+• *Swipe-to-Reply:* Reply to any email alert with *"Research this company"* or *"verify this"*.
+• *On-Demand Research:* Send */research* to pick from your recent emails or investigate a query.
+
+📊 *Check Quota & Plan Status*
+• Send */status* anytime to view your plan tier, monthly research inquiries used, and remaining credits.
+
+💬 *Natural AI Assistant*
+• Ask anything about your emails: *"What are my urgent emails today?"* or ask follow-ups about previous briefings.
+
+❓ *Need Help?*
+• Send */help* anytime to display this command guide.`;
+
+    try {
+      const res = await this.sendTelegramText(chatId, text);
+      return !!res;
+    } catch (e: any) {
+      logger.error(`[CHANNEL_DISPATCHER] Failed to send Telegram welcome: ${e.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Dispatches an onboarding welcome guide to user on WhatsApp.
+   */
+  static async sendWhatsAppWelcome(phoneNumber: string, userName?: string): Promise<boolean> {
+    const name = userName ? userName : "there";
+    const text = `✅ *WhatsApp Connected Successfully!* 🛡️
+
+Hey ${name}, your WhatsApp is now linked to *Inbox Sentinel*!
+
+Here is what you can do directly from this chat:
+
+🚨 *Real-Time Email Alerts*
+When an urgent or action-required email arrives, Sentinel alerts you right here with an AI summary, action items, and deadline detection.
+
+🔎 *Autonomous Deep Research & Cross-Check*
+• *Swipe-to-Reply:* Simply reply to any email alert with *"Research this company"*, *"verify this"*, or *"deep research"*. Sentinel autonomously cross-checks company registration, link legitimacy, and claims against Google Search.
+• *On-Demand Research:* Type *"research"* anytime to pick from your recent emails or specify a topic.
+
+📊 *Check Quota & Plan Status*
+• Type */status* or *"status"* to view your current plan, monthly Deep Research inquiries used, and remaining quota.
+
+💬 *Natural AI Assistant*
+• Ask anything about your emails: *"Do I have any urgent emails?"* or ask follow-ups about previous investigations.
+
+❓ *Need Help?*
+• Type */help* anytime to display this command guide.`;
+
+    // 1. Try Baileys SYSTEM_SENDER if available
+    try {
+      const { BaileysAdapter } = await import("@/services/whatsapp/baileys.adapter");
+      const adapter = new BaileysAdapter("SYSTEM_SENDER");
+      await adapter.sendMessage(phoneNumber, text);
+      return true;
+    } catch {
+      // Fall through to Meta Cloud API
+    }
+
+    // 2. Try Meta Cloud API
+    try {
+      const res = await this.sendWhatsAppText(phoneNumber, text);
+      return !!res;
+    } catch (e: any) {
+      logger.error(`[CHANNEL_DISPATCHER] Failed to send WhatsApp welcome: ${e.message}`);
+      return false;
+    }
+  }
 }
+

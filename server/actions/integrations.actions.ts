@@ -3,6 +3,7 @@
 import { db } from "@/server/repositories/db";
 import { auth } from "@/config/auth";
 import { logSecurityEvent } from "@/services/security/audit";
+import { ChannelDispatcherService } from "@/services/assistant/channel-dispatcher.service";
 
 export async function toggleWhatsAppAction(phoneNumber: string | null) {
   try {
@@ -11,7 +12,7 @@ export async function toggleWhatsAppAction(phoneNumber: string | null) {
 
     if (phoneNumber) {
       // Connect
-      await db.user.update({
+      const updatedUser = await db.user.update({
         where: { id: session.user.id },
         data: { 
           whatsappOptIn: true,
@@ -19,6 +20,12 @@ export async function toggleWhatsAppAction(phoneNumber: string | null) {
         }
       });
       await logSecurityEvent("PROFILE_UPDATED", session.user.id, { note: "WhatsApp connected" });
+
+      // Dispatch onboarding guide to WhatsApp
+      ChannelDispatcherService.sendWhatsAppWelcome(
+        phoneNumber,
+        updatedUser.name || undefined
+      ).catch((err) => console.error("[WHATSAPP_WELCOME_ERROR]", err));
     } else {
       // Disconnect
       await db.user.update({

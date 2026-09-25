@@ -197,4 +197,51 @@ _If you didn't request this, please ignore this message._`;
             throw error;
         }
     }
+
+    async sendMessage(phoneNumber: string, text: string): Promise<string> {
+        let sock = whatsappManager.getSocket(this.userId);
+        
+        if (!sock || !sock.user) {
+            if (this.userId === 'SYSTEM_SENDER') {
+                logger.info("[BaileysAdapter] SYSTEM_SENDER socket missing. Attempting auto-reconnect...");
+                await whatsappManager.connect(this.userId);
+                
+                await new Promise<void>((resolve) => {
+                    const timeout = setTimeout(() => {
+                        whatsappManager.off(`status-${this.userId}`, onStatus);
+                        resolve();
+                    }, 8000);
+                    
+                    const onStatus = (data: any) => {
+                        if (data.status === 'connected') {
+                            clearTimeout(timeout);
+                            whatsappManager.off(`status-${this.userId}`, onStatus);
+                            resolve();
+                        }
+                    };
+                    
+                    whatsappManager.on(`status-${this.userId}`, onStatus);
+                });
+                
+                sock = whatsappManager.getSocket(this.userId);
+            }
+            
+            if (!sock || !sock.user) {
+                throw new Error("WhatsApp socket not connected");
+            }
+        }
+
+        const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
+
+        try {
+            const result = await sock.sendMessage(to, { text });
+            if (!result?.key?.id) throw new Error("Message failed to send");
+            logger.info(`[BaileysAdapter] Sent message to ${to}`);
+            return result.key.id;
+        } catch (error) {
+            logger.error(error, `[BaileysAdapter] Send Message Failed:`);
+            throw error;
+        }
+    }
 }
+

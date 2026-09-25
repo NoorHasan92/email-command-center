@@ -341,10 +341,7 @@ export async function POST(req: NextRequest) {
                 `📊 *Inbox Sentinel Status*\n\nPlan: ${user.plan}\nDeep Research Inquiries: ${quota.completedCount} used, ${quota.remaining} remaining this month.\nBilling period resets: ${quota.resetDate.toLocaleDateString()}`
               );
             } else if (intent.type === "HELP") {
-              await ChannelDispatcherService.sendWhatsAppText(
-                fromNumber,
-                `🤖 *Inbox Sentinel Assistant*\n\nCommands:\n• /research <topic> — Autonomous evidence investigation\n• /status — Quota and plan summary\n• /help — Show this help menu\n\nYou can also chat with me to inquire about your emails or follow up on previous briefings.`
-              );
+              await ChannelDispatcherService.sendWhatsAppWelcome(fromNumber, user.name || undefined);
             } else {
               // Conversational turn
               const history = await ConversationService.getRecentHistory(conversation.id, 6);

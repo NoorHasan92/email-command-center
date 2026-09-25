@@ -131,6 +131,12 @@ export async function POST(req: NextRequest) {
       const linkToken = parts[1];
 
       if (!linkToken) {
+        const existingUser = await db.user.findFirst({ where: { telegramChatId: chatId } });
+        if (existingUser) {
+          await ChannelDispatcherService.sendTelegramWelcome(chatId, existingUser.name || firstName);
+          return NextResponse.json({ ok: true });
+        }
+
         await sendTelegramMessage(
           chatId,
           `👋 Hey ${firstName}!\n\n` +
@@ -170,10 +176,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await sendTelegramMessage(
-        chatId,
-        `✅ *Account linked successfully!*\n\nHey ${firstName}, your Telegram is now connected to Inbox Sentinel. You'll receive AI alerts and can run deep research commands directly from here.`
-      );
+      await ChannelDispatcherService.sendTelegramWelcome(chatId, firstName);
 
       logger.info(`[TELEGRAM_WEBHOOK] Account linked: userId=${user.id} chatId=${chatId}`);
       return NextResponse.json({ ok: true });
@@ -341,10 +344,7 @@ export async function POST(req: NextRequest) {
         `📊 *Your Inbox Sentinel Status*\n\n• Account: ${user.email}\n• Plan: *${user.plan}*\n• Deep Research Quota: *${quota.completedCount} used, ${quota.remaining} remaining* this month.\n• Reset Date: ${quota.resetDate.toLocaleDateString()}`
       );
     } else if (intent.type === "HELP") {
-      await sendTelegramMessage(
-        chatId,
-        `🤖 *Inbox Sentinel Commands*\n\n• /research <query> — Autonomous evidence investigation\n• /status — Account and research quota status\n• /stop — Disable Telegram notifications\n• /help — Show this help menu\n\nYou can also chat directly with me to ask questions about your emails or follow up on research.`
-      );
+      await ChannelDispatcherService.sendTelegramWelcome(chatId, user.name || undefined);
     } else {
       // General Conversational Turn
       const history = await ConversationService.getRecentHistory(conversation.id, 6);
