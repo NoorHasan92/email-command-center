@@ -14,11 +14,9 @@ interface UserAvatarProps {
 
 export function UserAvatar({ src, name, size = "md", className, disableAnimation = false }: UserAvatarProps) {
   const [error, setError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setError(false);
-    setLoaded(false);
   }, [src]);
 
   // Standard sizes mapping
@@ -53,25 +51,22 @@ export function UserAvatar({ src, name, size = "md", className, disableAnimation
       )}
       
       <div className="relative w-full h-full rounded-full border border-border/30 shadow-sm bg-card overflow-hidden">
+        {/* Background Fallback Initials (always present underneath) */}
+        <div className="absolute inset-0 bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center rounded-full z-0">
+          {fallbackContent}
+        </div>
+
+        {/* Real Profile Image: sits on top (z-10), visible immediately from cache or network */}
         {hasValidImage && (
           <img 
+            key={src}
             src={src!} 
             alt={name || "User Avatar"} 
             referrerPolicy="no-referrer"
-            onLoad={() => setLoaded(true)}
+            loading="eager"
             onError={() => setError(true)}
-            className={cn(
-              "object-cover w-full h-full rounded-full transition-opacity duration-200",
-              loaded ? "opacity-100" : "opacity-0"
-            )}
+            className="relative z-10 object-cover w-full h-full rounded-full"
           />
-        )}
-
-        {/* Fallback Initials */}
-        {(!hasValidImage || !loaded) && (
-          <div className="absolute inset-0 bg-primary/10 text-primary font-bold w-full h-full flex items-center justify-center rounded-full">
-            {fallbackContent}
-          </div>
         )}
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { logoutAllDevicesAction, updateProfileAction, updatePasswordAction } from "@/server/actions/auth.actions";
 import { updateAppPreferencesAction } from "@/server/actions/preferences.actions";
 import { connectAIKeyAction, disconnectAIKeyAction, updateAIProcessingModeAction, verifyAIKeyAction } from "@/server/actions/byok.actions";
@@ -39,6 +39,11 @@ export default function SettingsClient({
   hasGoogleLinked: boolean;
   initialTab?: string;
 }) {
+  const { data: session } = useSession();
+  const effectiveUserImage = user?.image || session?.user?.image;
+  const effectiveUserName = user?.name || session?.user?.name;
+  const effectiveUserEmail = user?.email || session?.user?.email;
+
   const [activeTab, setActiveTab] = useState<"profile" | "intelligence" | "preferences" | "ai" | "security" | "appearance" | "notifications">(initialTab as any);
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -339,11 +344,11 @@ export default function SettingsClient({
                           {/* Premium Profile Card / Avatar */}
                           <div className="flex items-start gap-4 sm:gap-6 mb-8">
                             <div className="shrink-0">
-                              <UserAvatar src={user?.image} name={user?.name} size="xl" />
+                              <UserAvatar src={effectiveUserImage} name={effectiveUserName} size="xl" />
                             </div>
                             <div className="flex flex-col justify-center min-w-0 flex-1">
-                              <h4 className="text-xl font-bold tracking-tight break-words">{user?.name}</h4>
-                              <p className="text-sm text-muted-foreground mb-2 break-all">{user?.email}</p>
+                              <h4 className="text-xl font-bold tracking-tight break-words">{effectiveUserName}</h4>
+                              <p className="text-sm text-muted-foreground mb-2 break-all">{effectiveUserEmail}</p>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${user?.plan === "ADMIN" ? "bg-indigo-500/20 text-indigo-400" :
                                     user?.plan === "ULTRA" ? "bg-purple-500/20 text-purple-400" :

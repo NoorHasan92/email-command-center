@@ -47,6 +47,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   const hasGoogleLinked = user?.accounts?.some(acc => acc.provider === "google") ?? false;
   
+  if (user && !user.image && session?.user?.image) {
+    user.image = session.user.image;
+    db.user.update({
+      where: { id: session.user.id },
+      data: { image: session.user.image }
+    }).catch(err => console.error("Failed to backfill user image in SettingsPage:", err));
+  }
+  
   // Await searchParams before accessing properties (Next.js 15+ requirement)
   const resolvedSearchParams = await searchParams;
   const initialTab = resolvedSearchParams?.tab || "profile";
