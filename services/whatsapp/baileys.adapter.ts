@@ -6,28 +6,7 @@ export class BaileysAdapter implements INotificationProvider {
     constructor(private userId: string) {}
 
     async dispatch(payload: NotificationPayload): Promise<string> {
-        let sock = whatsappManager.getSocket(this.userId);
-        
-        if (!sock || !sock.user) {
-            logger.info(`[BaileysAdapter] Socket missing or not fully connected for user ${this.userId}. Attempting to connect...`);
-            await whatsappManager.connect(this.userId);
-            
-            // Wait up to 10 seconds for the connection to establish
-            let connected = false;
-            for (let i = 0; i < 20; i++) {
-                await new Promise(r => setTimeout(r, 500));
-                sock = whatsappManager.getSocket(this.userId);
-                if (sock && sock.user) {
-                    connected = true;
-                    break;
-                }
-            }
-
-            if (!connected) {
-                throw new Error("[BaileysAdapter] Socket not found or failed to connect within timeout.");
-            }
-        }
-
+        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
 
         let text = `📬 *Inbox Sentinel*
@@ -71,11 +50,7 @@ ${payload.explanation}`;
     }
 
     async dispatchDigest(payload: import("../../core/interfaces/INotificationProvider").DigestPayload): Promise<string> {
-        let sock = whatsappManager.getSocket(this.userId);
-        if (!sock || !sock.user) {
-            throw new Error("[BaileysAdapter] Socket missing or not fully connected for user");
-        }
-
+        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
 
         let text = `📬 *Your Inbox Sentinel Summary*
@@ -117,11 +92,7 @@ ${payload.explanation}`;
     }
 
     async dispatchDeadlineReminder(payload: import("../../core/interfaces/INotificationProvider").DeadlineReminderPayload): Promise<string> {
-        let sock = whatsappManager.getSocket(this.userId);
-        if (!sock || !sock.user) {
-            throw new Error("[BaileysAdapter] Socket missing or not fully connected for user");
-        }
-
+        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
         const to = payload.destination.replace(/\D/g, "") + "@s.whatsapp.net";
 
         const text = `🚨 *Reminder*
@@ -145,39 +116,7 @@ mail.tars.homes`;
     }
 
     async sendOTP(phoneNumber: string, code: string): Promise<string> {
-        let sock = whatsappManager.getSocket(this.userId);
-        
-        if (!sock || !sock.user) {
-            if (this.userId === 'SYSTEM_SENDER') {
-                logger.info("[BaileysAdapter] SYSTEM_SENDER socket missing. Attempting auto-reconnect...");
-                await whatsappManager.connect(this.userId);
-                
-                // Wait up to 8 seconds for the connection to fully establish
-                await new Promise<void>((resolve) => {
-                    const timeout = setTimeout(() => {
-                        whatsappManager.off(`status-${this.userId}`, onStatus);
-                        resolve();
-                    }, 8000);
-                    
-                    const onStatus = (data: any) => {
-                        if (data.status === 'connected') {
-                            clearTimeout(timeout);
-                            whatsappManager.off(`status-${this.userId}`, onStatus);
-                            resolve();
-                        }
-                    };
-                    
-                    whatsappManager.on(`status-${this.userId}`, onStatus);
-                });
-                
-                sock = whatsappManager.getSocket(this.userId);
-            }
-            
-            if (!sock || !sock.user) {
-                throw new Error("The system WhatsApp sender is currently reconnecting. Please try again in a few seconds.");
-            }
-        }
-
+        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
         const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
         const text = `🔐 *Inbox Sentinel Verification*
@@ -199,38 +138,7 @@ _If you didn't request this, please ignore this message._`;
     }
 
     async sendMessage(phoneNumber: string, text: string): Promise<string> {
-        let sock = whatsappManager.getSocket(this.userId);
-        
-        if (!sock || !sock.user) {
-            if (this.userId === 'SYSTEM_SENDER') {
-                logger.info("[BaileysAdapter] SYSTEM_SENDER socket missing. Attempting auto-reconnect...");
-                await whatsappManager.connect(this.userId);
-                
-                await new Promise<void>((resolve) => {
-                    const timeout = setTimeout(() => {
-                        whatsappManager.off(`status-${this.userId}`, onStatus);
-                        resolve();
-                    }, 8000);
-                    
-                    const onStatus = (data: any) => {
-                        if (data.status === 'connected') {
-                            clearTimeout(timeout);
-                            whatsappManager.off(`status-${this.userId}`, onStatus);
-                            resolve();
-                        }
-                    };
-                    
-                    whatsappManager.on(`status-${this.userId}`, onStatus);
-                });
-                
-                sock = whatsappManager.getSocket(this.userId);
-            }
-            
-            if (!sock || !sock.user) {
-                throw new Error("WhatsApp socket not connected");
-            }
-        }
-
+        const sock = await whatsappManager.ensureConnected(this.userId, 15000);
         const to = phoneNumber.replace(/\D/g, "") + "@s.whatsapp.net";
 
         try {

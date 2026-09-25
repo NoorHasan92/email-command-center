@@ -11,9 +11,55 @@ export class WhatsAppManager extends EventEmitter {
     private connectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
     private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
     private retryCounts: Map<string, number> = new Map();
+    private lastStatuses: Map<string, string> = new Map();
     private readonly MAX_RETRIES = 5;
 
+    /**
+     * Ensures an authenticated, ready socket is available.
+     * Waits up to timeoutMs (default 15s) for the handshake to finish.
+     */
+    async ensureConnected(userId: string, timeoutMs = 15000): Promise<ReturnType<typeof makeWASocket>> {
+        const existing = this.sockets.get(userId);
+        if (existing && existing.user) {
+            return existing;
+        }
+
+        // Trigger connection attempt
+        this.connect(userId).catch(e => logger.warn(`[WhatsAppManager] ensureConnected start error for ${userId}: ${e.message}`));
+
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            const sock = this.sockets.get(userId);
+            if (sock && sock.user) {
+                return sock;
+            }
+
+            const status = this.lastStatuses.get(userId);
+            if (status === 'conflict') {
+                throw new Error("WhatsApp connection conflict: Another instance is currently active.");
+            }
+            if (status === 'logged_out') {
+                throw new Error("WhatsApp bot session has expired or been logged out.");
+            }
+
+            await new Promise(r => setTimeout(r, 400));
+        }
+
+        const finalSock = this.sockets.get(userId);
+        if (finalSock && finalSock.user) {
+            return finalSock;
+        }
+
+        throw new Error("The system WhatsApp sender is currently connecting. Please try again in a moment.");
+    }
+
     async connect(userId: string): Promise<void> {
+        // Prevent local dev machines from hijacking the production SYSTEM_SENDER bot
+        if (userId === 'SYSTEM_SENDER' && !process.env.VERCEL && process.env.ENABLE_LOCAL_SYSTEM_WHATSAPP !== 'true') {
+            logger.warn(`[WhatsAppManager] Skipping SYSTEM_SENDER connection on local machine to avoid hijacking live production bot. Set ENABLE_LOCAL_SYSTEM_WHATSAPP=true in .env to override.`);
+            return;
+        }
+
         // If an active, authenticated socket already exists, do not recreate
         const existingSock = this.sockets.get(userId);
         if (existingSock && existingSock.user) {
@@ -25,6 +71,7 @@ export class WhatsAppManager extends EventEmitter {
             return this.connectingPromises.get(userId)!;
         }
 
+        this.lastStatuses.set(userId, 'connecting');
         const connectPromise = this.initSocket(userId);
         this.connectingPromises.set(userId, connectPromise);
 
@@ -94,6 +141,7 @@ export class WhatsAppManager extends EventEmitter {
                 if (isLoggedOut) {
                     logger.warn(`[WhatsAppManager] User ${userId} logged out from WhatsApp. Purging session.`);
                     this.retryCounts.delete(userId);
+                    this.lastStatuses.set(userId, 'logged_out');
                     await store.clear();
                     this.emit(`status-${userId}`, { status: 'logged_out' });
                     if (userId !== 'SYSTEM_SENDER') {
@@ -110,9 +158,12 @@ export class WhatsAppManager extends EventEmitter {
                 if (isReplaced) {
                     logger.warn(`[WhatsAppManager] Connection replaced by another session/instance for ${userId}. Halting auto-reconnect to prevent duplicate session collision.`);
                     this.retryCounts.delete(userId);
+                    this.lastStatuses.set(userId, 'conflict');
                     this.emit(`status-${userId}`, { status: 'conflict', message: 'Connection replaced by another active session' });
                     return;
                 }
+
+                this.lastStatuses.set(userId, 'disconnected');
 
                 // Case 3: Restart required by WhatsApp protocol (e.g. after sync or key rotation)
                 if (isRestartRequired) {
@@ -145,6 +196,7 @@ export class WhatsAppManager extends EventEmitter {
                 }
             } else if (connection === 'open') {
                 logger.info(`[WhatsAppManager] Connection opened for ${userId}`);
+                this.lastStatuses.set(userId, 'connected');
                 
                 // Reset retry counters and timers upon successful connection
                 this.retryCounts.delete(userId);
