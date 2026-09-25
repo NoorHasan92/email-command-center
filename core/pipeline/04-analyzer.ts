@@ -84,21 +84,20 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider, userId
       });
 
       if ((analysis as any)._reservation) {
-        // Platform or Fallback mode: commit the reservation and link to email
-        await AIQuotaService.commitPlatformQuota((analysis as any)._reservation.eventId, {
-          provider: "Google",
-          model: analysis.model,
-          inputTokens: analysis.promptTokens,
-          outputTokens: analysis.completionTokens,
-          estimatedCost: calculateEstimatedCost(analysis.promptTokens || 0, analysis.completionTokens || 0, analysis.model || ""),
-          latencyMs: analysis.latencyMs
-        });
-        
-        // Link the event to this email analysis
-        await tx.aIUsageEvent.update({
-          where: { id: (analysis as any)._reservation.eventId },
-          data: { emailAnalysisId: email.id }
-        });
+        // Platform or Fallback mode: commit the reservation and link to email in single tx update
+        await AIQuotaService.commitPlatformQuota(
+          (analysis as any)._reservation.eventId, 
+          {
+            provider: "Google",
+            model: analysis.model,
+            inputTokens: analysis.promptTokens,
+            outputTokens: analysis.completionTokens,
+            estimatedCost: calculateEstimatedCost(analysis.promptTokens || 0, analysis.completionTokens || 0, analysis.model || ""),
+            latencyMs: analysis.latencyMs,
+            emailAnalysisId: email.id,
+          },
+          tx
+        );
       } else {
         // Personal mode: create the usage event directly since there was no reservation
         await tx.aIUsageEvent.create({
@@ -123,7 +122,7 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider, userId
         where: { id: email.id },
         data: { status: "AI_COMPLETE" },
       });
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     logger.info(`[STAGE 04 - ANALYZER] [AI_ANALYSIS_STORED] [ID: ${email.id}]`);
 

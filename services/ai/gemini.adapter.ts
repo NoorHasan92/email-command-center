@@ -14,14 +14,11 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 const FALLBACK_MODELS = [
-  "gemini-3.5-flash-lite", 
-  "gemini-3.1-flash-lite", 
   "gemini-3.8-flash", 
-  "gemini-3.7-flash", 
-  "gemini-3.5-flash", 
+  "gemini-3-flash-preview", 
   "gemini-3.6-flash", 
-  "gemini-flash-latest",
-  "gemini-flash-lite-latest",
+  "gemini-3.1-flash-lite", 
+  "gemini-3.7-flash", 
 ];
 
 export class GeminiAdapter implements IAIProvider {
@@ -176,7 +173,7 @@ export class GeminiAdapter implements IAIProvider {
     options: ResearchGenerationOptions
   ): Promise<ResearchExecutionResult> {
     const ai = getGeminiClient();
-    const currentModel = "gemini-3.5-flash-lite";
+    const currentModel = "gemini-3.8-flash";
     const startTime = Date.now();
 
     const systemInstruction = `You are an elite research intelligence analyst for Inbox Sentinel.
@@ -314,9 +311,6 @@ Provide your findings formatted with:
     userContext?: string
   ): Promise<any> {
     const ai = getGeminiClient();
-    const currentModel = "gemini-3.5-flash-lite";
-    const startTime = Date.now();
-
     const prompt = `Synthesize the following research findings into an executive briefing for the user.
 ${userContext ? `User Context: ${userContext}` : ""}
 
@@ -327,37 +321,44 @@ Provide:
 1. Executive Briefing in Markdown
 2. Epistemic Assessment: Weigh primary source evidence, corroboration, and any discrepancies.`;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: currentModel,
-        contents: prompt,
-        config: {
-          systemInstruction: "You are an executive research briefing assistant. Produce concise, high-signal briefings with clear source attributions.",
-        },
-      });
-
-      const latencyMs = Date.now() - startTime;
-      const text = response.text || "No synthesis generated.";
-      const promptTokens = response.usageMetadata?.promptTokenCount || 0;
-      const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
-      const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
-
-      return {
-        briefingMarkdown: text,
-        epistemicConclusion: "Synthesis concluded based on available independent sources and corroboration.",
-        telemetry: {
-          provider: "GEMINI",
+    let lastError = null;
+    for (const currentModel of FALLBACK_MODELS) {
+      try {
+        const startTime = Date.now();
+        const response = await ai.models.generateContent({
           model: currentModel,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          latencyMs,
-        },
-      };
-    } catch (e: any) {
-      logger.error(`[GEMINI_ADAPTER] Synthesis failed: ${e.message}`);
-      throw e;
+          contents: prompt,
+          config: {
+            systemInstruction: "You are an executive research briefing assistant. Produce concise, high-signal briefings with clear source attributions.",
+          },
+        });
+
+        const latencyMs = Date.now() - startTime;
+        const text = response.text || "No synthesis generated.";
+        const promptTokens = response.usageMetadata?.promptTokenCount || 0;
+        const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
+        const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
+
+        return {
+          briefingMarkdown: text,
+          epistemicConclusion: "Synthesis concluded based on available independent sources and corroboration.",
+          telemetry: {
+            provider: "GEMINI",
+            model: currentModel,
+            promptTokens,
+            completionTokens,
+            totalTokens,
+            latencyMs,
+          },
+        };
+      } catch (e: any) {
+        lastError = e;
+        logger.warn(`[GEMINI_ADAPTER] Synthesis failed on ${currentModel}: ${e.message}. Trying next fallback model...`);
+      }
     }
+
+    logger.error(`[GEMINI_ADAPTER] Synthesis failed across all models: ${lastError?.message}`);
+    throw lastError;
   }
 
   async chatConversation(
@@ -365,43 +366,47 @@ Provide:
     context?: string
   ): Promise<any> {
     const ai = getGeminiClient();
-    const currentModel = "gemini-3.5-flash-lite";
-    const startTime = Date.now();
-
     const formattedContents = messages.map((m) => ({
       role: m.role === "ASSISTANT" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
 
-    try {
-      const response = await ai.models.generateContent({
-        model: currentModel,
-        contents: formattedContents as any,
-        config: {
-          systemInstruction: `You are Inbox Sentinel's AI Personal Assistant. You are proactive, concise, and helpful. You manage email, conduct research, and provide status updates. ${context ? `\nActive Context: ${context}` : ""}`,
-        },
-      });
-
-      const latencyMs = Date.now() - startTime;
-      const text = response.text || "I understood your message.";
-      const promptTokens = response.usageMetadata?.promptTokenCount || 0;
-      const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
-      const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
-
-      return {
-        reply: text,
-        telemetry: {
-          provider: "GEMINI",
+    let lastError = null;
+    for (const currentModel of FALLBACK_MODELS) {
+      try {
+        const startTime = Date.now();
+        const response = await ai.models.generateContent({
           model: currentModel,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          latencyMs,
-        },
-      };
-    } catch (e: any) {
-      logger.error(`[GEMINI_ADAPTER] Chat conversation failed: ${e.message}`);
-      throw e;
+          contents: formattedContents as any,
+          config: {
+            systemInstruction: `You are Inbox Sentinel's AI Personal Assistant. You are proactive, concise, and helpful. You manage email, conduct research, and provide status updates. ${context ? `\nActive Context: ${context}` : ""}`,
+          },
+        });
+
+        const latencyMs = Date.now() - startTime;
+        const text = response.text || "I understood your message.";
+        const promptTokens = response.usageMetadata?.promptTokenCount || 0;
+        const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
+        const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
+
+        return {
+          reply: text,
+          telemetry: {
+            provider: "GEMINI",
+            model: currentModel,
+            promptTokens,
+            completionTokens,
+            totalTokens,
+            latencyMs,
+          },
+        };
+      } catch (e: any) {
+        lastError = e;
+        logger.warn(`[GEMINI_ADAPTER] Chat failed on ${currentModel}: ${e.message}. Trying next fallback model...`);
+      }
     }
+
+    logger.error(`[GEMINI_ADAPTER] Chat conversation failed across all models: ${lastError?.message}`);
+    throw lastError;
   }
 }

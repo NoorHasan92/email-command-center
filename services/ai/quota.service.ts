@@ -12,7 +12,7 @@ export interface QuotaDetails {
   resetDate: Date;
 }
 
-import { AIOperationType } from "@prisma/client";
+import { AIOperationType, Prisma } from "@prisma/client";
 
 export class AIQuotaService {
   /**
@@ -222,9 +222,22 @@ export class AIQuotaService {
   /**
    * Commit reserved quota and log telemetry
    */
-  static async commitPlatformQuota(eventId: string, telemetry: { provider: string; model: string; inputTokens: number; outputTokens: number; estimatedCost: number; latencyMs: number }) {
+  static async commitPlatformQuota(
+    eventId: string, 
+    telemetry: { 
+      provider: string; 
+      model: string; 
+      inputTokens: number; 
+      outputTokens: number; 
+      estimatedCost: number; 
+      latencyMs: number;
+      emailAnalysisId?: string;
+    },
+    txClient?: any
+  ) {
     try {
-      await db.aIUsageEvent.updateMany({
+      const client = (txClient as any) || db;
+      await client.aIUsageEvent.updateMany({
         where: { 
           id: eventId,
           status: { in: ["RESERVED", "PROCESSING"] } 
@@ -236,7 +249,8 @@ export class AIQuotaService {
           inputTokens: telemetry.inputTokens,
           outputTokens: telemetry.outputTokens,
           estimatedCost: telemetry.estimatedCost,
-          latencyMs: telemetry.latencyMs
+          latencyMs: telemetry.latencyMs,
+          ...(telemetry.emailAnalysisId ? { emailAnalysisId: telemetry.emailAnalysisId } : {})
         }
       });
     } catch (error: any) {
