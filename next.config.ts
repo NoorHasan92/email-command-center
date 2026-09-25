@@ -19,6 +19,18 @@ const cspHeader = `
 `.replace(/\n/g, "");
 
 const nextConfig: NextConfig = {
+  // Prevent Vercel's bundler from breaking native Node modules.
+  // Baileys depends on ws → buffer-util.js which conditionally requires 'bufferutil'.
+  // When bundled, the ws `mask` function export gets destroyed, causing "b.mask is not a function".
+  serverExternalPackages: [
+    "@whiskeysockets/baileys",
+    "ws",
+    "bufferutil",
+    "utf-8-validate",
+    "libsignal",
+    "pino",
+    "qrcode",
+  ],
   eslint: {
     ignoreDuringBuilds: true,
   },
