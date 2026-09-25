@@ -1,5 +1,6 @@
 import "server-only";
 import { logger } from "@/lib/logger";
+import { markdownToTelegramHtml, stripMarkdown } from "@/services/telegram/format.utils";
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -114,10 +115,12 @@ export class ChannelDispatcherService {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
     try {
+      const formattedHtml = markdownToTelegramHtml(text);
       const payload: any = {
         chat_id: chatId,
-        text: text.substring(0, 4000),
-        parse_mode: "Markdown",
+        text: formattedHtml.substring(0, 4096),
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
       };
       if (replyMarkup) payload.reply_markup = replyMarkup;
 
@@ -129,10 +132,12 @@ export class ChannelDispatcherService {
 
       const data = await res.json();
       if (!res.ok) {
-        // Fallback without parse_mode if markdown parsing fails
+        logger.warn(`[CHANNEL_DISPATCHER] Telegram HTML parse failed (${data.description}), falling back to clean plain text`);
+        const cleanPlainText = stripMarkdown(text).substring(0, 4096);
         const retryPayload: any = {
           chat_id: chatId,
-          text: text.substring(0, 4000),
+          text: cleanPlainText,
+          disable_web_page_preview: true,
         };
         if (replyMarkup) retryPayload.reply_markup = replyMarkup;
 
