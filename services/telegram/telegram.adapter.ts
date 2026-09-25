@@ -106,6 +106,13 @@ export class TelegramAdapter implements INotificationProvider {
           text: finalMessage,
           parse_mode: "MarkdownV2",
           disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "🔎 Deep Research & Cross-Check", callback_data: `research:${payload.emailId}` }
+              ]
+            ]
+          }
         }),
       });
 

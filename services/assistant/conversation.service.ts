@@ -143,6 +143,8 @@ export class ConversationService {
     }
   }
 
+  static updateContext = ConversationService.updateActiveContext;
+
   /**
    * Gets recent message history formatted for AI context.
    */

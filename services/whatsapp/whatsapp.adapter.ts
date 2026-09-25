@@ -58,7 +58,7 @@ export class WhatsAppAdapter implements INotificationProvider {
             parameters: [
               { type: "text", text: payload.subject.substring(0, 60) }, // Limit to prevent rejection
               { type: "text", text: payload.actionRequired ? "Action Required" : "High Priority" },
-              { type: "text", text: payload.explanation.substring(0, 500) }
+              { type: "text", text: `${payload.explanation}\n\n💡 Reply "Research" to deep cross-check links & legitimacy.`.substring(0, 500) }
             ]
           }
         ]

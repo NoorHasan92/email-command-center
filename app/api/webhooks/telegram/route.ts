@@ -53,6 +53,67 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Handle Inline Keyboard Callback Queries (e.g. [ 🔎 Deep Research & Cross-Check ] button tap)
+    if (update.callback_query) {
+      const cb = update.callback_query;
+      const callbackId = cb.id;
+      const data = cb.data || "";
+      const cbChatId = String(cb.message?.chat?.id || cb.from?.id);
+
+      await ChannelDispatcherService.answerTelegramCallback(callbackId, "🔎 Launching Deep Research...");
+
+      const cbUser = await db.user.findFirst({ where: { telegramChatId: cbChatId } });
+      if (!cbUser) {
+        await ChannelDispatcherService.sendTelegramText(cbChatId, "👋 Please link your account first via Settings > Integrations.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data.startsWith("research:")) {
+        const emailId = data.replace("research:", "");
+        const targetEmail = await db.email.findUnique({
+          where: { id: emailId },
+          include: { analysis: true },
+        });
+
+        if (!targetEmail) {
+          await ChannelDispatcherService.sendTelegramText(cbChatId, "❌ Email not found or deleted.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const cbConv = await ConversationService.getOrCreateConversation(cbUser.id, "TELEGRAM", cbChatId);
+        await ConversationService.updateContext(cbConv.id, cbUser.id, { activeEmailId: targetEmail.id });
+
+        const researchQuery = `Verify company background, legitimacy, registration links, and domain reputation for: ${targetEmail.subject || "Email"} (Sender: ${targetEmail.from || "Unknown"})`;
+
+        try {
+          await ResearchOrchestratorService.initiateResearch({
+            userId: cbUser.id,
+            query: researchQuery,
+            conversationId: cbConv.id,
+            emailId: targetEmail.id,
+            context: `Subject: ${targetEmail.subject}\nFrom: ${targetEmail.from}\nSummary: ${targetEmail.analysis?.summary || ""}\nAction Items: ${(targetEmail.analysis?.actionItems as any[])?.join("; ") || ""}`,
+          });
+
+          await ChannelDispatcherService.sendTelegramText(
+            cbChatId,
+            `🔎 *Deep Research Initiated*\n\n📧 *Email:* ${targetEmail.subject}\n🎯 *Focus:* Company background, registry verification & link authenticity\n\nOur AI research engine is cross-checking live primary sources. Your synthesized executive briefing will arrive here shortly.`
+          );
+
+          // Trigger background worker (non-blocking)
+          const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+          const secret = process.env.CRON_SECRET || process.env.INTERNAL_WORKER_SECRET;
+          fetch(`${baseUrl}/api/worker/research`, {
+            method: "POST",
+            headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+          }).catch(() => {});
+        } catch (err: any) {
+          await ChannelDispatcherService.sendTelegramText(cbChatId, `⚠️ *Research Request Failed*: ${err.message}`);
+        }
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
     // Only handle text messages
     const message = update.message;
     if (!message?.text) {
@@ -155,6 +216,23 @@ export async function POST(req: NextRequest) {
     // Resolve Conversation Context
     const conversation = await ConversationService.getOrCreateConversation(user.id, "TELEGRAM", chatId);
 
+    // Detect if user replied to an alert message
+    let repliedEmailId: string | null = null;
+    if (message.reply_to_message?.message_id) {
+      const notif = await db.notificationLog.findFirst({
+        where: {
+          channel: "TELEGRAM",
+          providerMessageId: String(message.reply_to_message.message_id),
+        },
+      });
+      if (notif?.emailId) {
+        repliedEmailId = notif.emailId;
+        await ConversationService.updateContext(conversation.id, user.id, { activeEmailId: repliedEmailId });
+      }
+    }
+
+    const currentEmailId = repliedEmailId || conversation.activeEmailId;
+
     // Record Inbound Message
     await ConversationService.recordInboundMessage({
       conversationId: conversation.id,
@@ -162,7 +240,7 @@ export async function POST(req: NextRequest) {
       provider: "TELEGRAM",
       providerMessageId: String(message.message_id),
       content: text,
-      referencedEmailId: conversation.activeEmailId || undefined,
+      referencedEmailId: currentEmailId || undefined,
       referencedResearchId: conversation.activeResearchId || undefined,
     });
 
@@ -170,17 +248,80 @@ export async function POST(req: NextRequest) {
     const intent = IntentClassifier.classify(text);
 
     if (intent.type === "RESEARCH") {
+      let targetEmailId = currentEmailId;
+      let targetEmail: any = null;
+
+      if (targetEmailId) {
+        targetEmail = await db.email.findUnique({
+          where: { id: targetEmailId },
+          include: { analysis: true },
+        });
+      }
+
+      // If user said "research this mail" or "research this company" without direct context, check latest email
+      if (!targetEmail && intent.isReferential) {
+        targetEmail = await db.email.findFirst({
+          where: { emailAccount: { userId: user.id } },
+          orderBy: { date: "desc" },
+          include: { analysis: true },
+        });
+        if (targetEmail) {
+          targetEmailId = targetEmail.id;
+          await ConversationService.updateContext(conversation.id, user.id, { activeEmailId: targetEmail.id });
+        }
+      }
+
+      // If user typed /research with no query and no target email, offer interactive picker of recent emails
+      if (!targetEmail && (!intent.query || intent.isReferential)) {
+        const recentEmails = await db.email.findMany({
+          where: { emailAccount: { userId: user.id } },
+          orderBy: { date: "desc" },
+          take: 4,
+          select: { id: true, subject: true, from: true },
+        });
+
+        if (recentEmails.length > 0) {
+          const keyboard = recentEmails.map((em, idx) => [
+            {
+              text: `🔎 ${idx + 1}. ${(em.subject || "Email").substring(0, 35)}...`,
+              callback_data: `research:${em.id}`,
+            },
+          ]);
+
+          await ChannelDispatcherService.sendTelegramText(
+            chatId,
+            `🤔 *Which email would you like to investigate?*\n\nTap an email below to cross-check its company, links, and legitimacy:`,
+            { inline_keyboard: keyboard }
+          );
+          return NextResponse.json({ ok: true });
+        }
+      }
+
+      let researchQuery = intent.query;
+      let contextStr = undefined;
+
+      if (targetEmail) {
+        if (!researchQuery || intent.isReferential) {
+          researchQuery = `Verify company background, legitimacy, registration links, and domain reputation for: ${targetEmail.subject || "Email"} (Sender: ${targetEmail.from || "Unknown"})`;
+        }
+        contextStr = `Subject: ${targetEmail.subject}\nFrom: ${targetEmail.from}\nSummary: ${targetEmail.analysis?.summary || ""}\nAction Items: ${(targetEmail.analysis?.actionItems as any[])?.join("; ") || ""}`;
+      } else if (!researchQuery) {
+        researchQuery = text;
+      }
+
       try {
         await ResearchOrchestratorService.initiateResearch({
           userId: user.id,
-          query: intent.query || text,
+          query: researchQuery || text || "Investigate email",
           conversationId: conversation.id,
-          emailId: conversation.activeEmailId || undefined,
+          emailId: targetEmailId || undefined,
+          context: contextStr,
         });
 
+        const targetLabel = targetEmail ? `\n\n📧 *Email:* ${targetEmail.subject}` : "";
         await sendTelegramMessage(
           chatId,
-          `🔎 *Investigation Initiated*\n\nQuery: "${intent.query || text}"\n\nOur AI research engine is examining primary sources. Your synthesized executive briefing will arrive here shortly.`
+          `🔎 *Investigation Initiated*${targetLabel}\n\n🎯 *Focus:* Evidence verification, company registry & primary sources\n\nOur AI research engine is cross-checking Google Search. Your synthesized executive briefing will arrive here shortly.`
         );
 
         // Trigger background worker (non-blocking)

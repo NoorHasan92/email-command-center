@@ -11,11 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-
-import { Email, EmailAnalysis } from "@prisma/client";
-import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff, Mail } from "lucide-react";
+import type { Email, EmailAnalysis } from "@prisma/client";
+import { Lightbulb, Calendar, Sparkles, AlertCircle, ThumbsUp, ThumbsDown, BellRing, BellOff, Mail, Globe, ExternalLink, Loader2, CheckCircle2, Compass } from "lucide-react";
 import { submitAIFeedbackAction } from "@/server/actions/training.actions";
 import { markEmailReviewedAction, markEmailUnreviewedAction, getInboxEmailsAction } from "@/server/actions/inbox.actions";
+import { initiateEmailResearchAction, getEmailResearchAction } from "@/server/actions/research.actions";
 import { cleanEmailText } from "@/lib/utils";
 
 export type EmailWithAnalysis = Email & {
@@ -446,6 +446,38 @@ function EmailDetailPane({
   feedbackState?: string;
   isReviewed?: boolean;
 }) {
+  const [researchSession, setResearchSession] = useState<any>(null);
+  const [isResearching, setIsResearching] = useState(false);
+
+  useEffect(() => {
+    if (email?.id) {
+      setResearchSession(null);
+      getEmailResearchAction(email.id).then((res) => {
+        if (res.success && res.researchSession) {
+          setResearchSession(res.researchSession);
+        }
+      });
+    }
+  }, [email?.id]);
+
+  const handleTriggerResearch = async () => {
+    if (!email?.id || isResearching) return;
+    setIsResearching(true);
+    try {
+      const res = await initiateEmailResearchAction(email.id);
+      if (res.success && res.researchSession) {
+        setResearchSession(res.researchSession);
+        toast.success("Deep research & cross-check complete!");
+      } else if (res.error) {
+        toast.error(res.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initiate deep research.");
+    } finally {
+      setIsResearching(false);
+    }
+  };
+
   return (
     <aside 
       className={`fixed inset-y-0 right-0 w-full md:w-[400px] xl:w-[500px] bg-card md:border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-50 flex flex-col ${
@@ -602,6 +634,131 @@ function EmailDetailPane({
                   </div>
                 </div>
               )}
+
+              {/* Deep Research & Grounded Cross-Check Card */}
+              <div className="bg-card border border-primary/20 rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden bg-gradient-to-br from-card via-card to-primary/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <Compass className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold tracking-tight">Autonomous Cross-Check & Deep Research</h3>
+                      <p className="text-[11px] text-muted-foreground">Google Search grounding & primary source verification</p>
+                    </div>
+                  </div>
+                  {researchSession?.status === "COMPLETED" ? (
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] font-semibold">
+                      <CheckCircle2 className="w-3 h-3 mr-1" /> Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 font-semibold">
+                      Live Grounding
+                    </Badge>
+                  )}
+                </div>
+
+                {researchSession?.status === "COMPLETED" ? (
+                  <div className="space-y-3">
+                    {researchSession.epistemicConclusion && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs text-foreground/90 font-medium">
+                        <p className="font-semibold text-emerald-500 mb-1 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Evidence Synthesis:
+                        </p>
+                        <p className="leading-relaxed">{researchSession.epistemicConclusion}</p>
+                      </div>
+                    )}
+
+                    {researchSession.summary && (
+                      <div className="bg-secondary/30 rounded-xl p-3 text-xs leading-relaxed text-muted-foreground">
+                        <p className="font-semibold text-foreground mb-1">Executive Briefing:</p>
+                        <p className="whitespace-pre-wrap">{researchSession.summary}</p>
+                      </div>
+                    )}
+
+                    {researchSession.findings?.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Corroborated Primary Sources</p>
+                        <div className="space-y-2">
+                          {researchSession.findings.map((finding: any, idx: number) => (
+                            <div key={idx} className="bg-secondary/20 border border-border/60 rounded-xl p-3 text-xs space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-[10px] uppercase font-bold bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                  {finding.verificationStatus || "CONFIRMED"}
+                                </Badge>
+                                {finding.confidenceScore && (
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {Math.round(finding.confidenceScore * 100)}% confidence
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-foreground/90 font-medium leading-snug">{finding.claim}</p>
+                              {finding.sources && Array.isArray(finding.sources) && finding.sources.length > 0 && (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  {finding.sources.map((s: any, sIdx: number) => (
+                                    <a
+                                      key={sIdx}
+                                      href={s.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-md font-mono"
+                                    >
+                                      <Globe className="w-3 h-3" />
+                                      {s.domain || s.title || "Source"}
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleTriggerResearch}
+                      disabled={isResearching}
+                      className="w-full mt-2 py-2 px-3 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    >
+                      {isResearching ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                          Re-verifying Primary Sources...
+                        </>
+                      ) : (
+                        <>
+                          <Compass className="w-3.5 h-3.5 text-primary" />
+                          Re-run Deep Cross-Check
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : isResearching ? (
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-primary font-semibold text-xs">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Autonomous Investigation in Progress...
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                      Querying Google Search grounding, verifying company registry records, and authenticating links & claims...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Verify sender legitimacy, registration deadlines, company existence, and cross-reference links against live primary sources before taking action.
+                    </p>
+                    <button
+                      onClick={handleTriggerResearch}
+                      className="w-full py-2.5 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                    >
+                      <Compass className="w-4 h-4" />
+                      Launch Deep Research & Cross-Check
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Email Content Card */}
               <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
