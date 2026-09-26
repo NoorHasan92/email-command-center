@@ -28,6 +28,7 @@ async function getWAVersion(): Promise<[number, number, number]> {
 
 export class WhatsAppManager extends EventEmitter {
     private sockets: Map<string, ReturnType<typeof makeWASocket>> = new Map();
+    private stores: Map<string, DatabaseStore> = new Map();
     private connectingPromises: Map<string, Promise<void>> = new Map();
     private connectionTimeouts: Map<string, NodeJS.Timeout> = new Map();
     private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
@@ -119,7 +120,14 @@ export class WhatsAppManager extends EventEmitter {
             this.sockets.delete(userId);
         }
 
+        // Dispose old store to kill any orphaned flushKeys timers
+        const oldStore = this.stores.get(userId);
+        if (oldStore) {
+            oldStore.dispose();
+        }
+
         const store = new DatabaseStore(userId);
+        this.stores.set(userId, store);
         const { state, saveCreds } = await store.getAuthState();
 
         // Fetch the latest WA protocol version to prevent version mismatch errors
@@ -310,6 +318,13 @@ export class WhatsAppManager extends EventEmitter {
             this.connectionTimeouts.delete(userId);
         }
         this.retryCounts.delete(userId);
+
+        // Dispose the tracked store to kill pending writes
+        const trackedStore = this.stores.get(userId);
+        if (trackedStore) {
+            trackedStore.dispose();
+            this.stores.delete(userId);
+        }
 
         const sock = this.sockets.get(userId);
         if (sock) {

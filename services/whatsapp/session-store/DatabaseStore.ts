@@ -13,14 +13,35 @@ export class DatabaseStore {
     private writeTimer: NodeJS.Timeout | null = null;
     private keys: { [type: string]: { [id: string]: any } } = {};
     private dirtyKeys: { [type: string]: Set<string> } = {};
+    private disposed = false;
 
     constructor(private userId: string, private sessionId: string = "default") {}
 
+    /**
+     * Cancels any pending writes without deleting DB data.
+     * Call this before abandoning a store instance to prevent orphan writes.
+     */
+    dispose() {
+        this.disposed = true;
+        if (this.writeTimer) {
+            clearTimeout(this.writeTimer);
+            this.writeTimer = null;
+        }
+        this.dirtyKeys = {};
+        this.keys = {};
+    }
+
     private flushKeys() {
+        // Abort if this store instance has been disposed/cleared
+        if (this.disposed) return;
+
         if (this.writeTimer) {
             clearTimeout(this.writeTimer);
         }
         this.writeTimer = setTimeout(async () => {
+            // Double-check disposal before executing (timer fired after dispose)
+            if (this.disposed) return;
+
             try {
                 const upserts = [];
                 const deletes = [];
@@ -100,7 +121,8 @@ export class DatabaseStore {
         }
 
         const saveCreds = async () => {
-            if (!this.creds) return;
+            // Skip if disposed — prevents writes from orphaned store instances
+            if (!this.creds || this.disposed) return;
             try {
                 await db.whatsAppSession.upsert({
                     where: {
@@ -161,6 +183,9 @@ export class DatabaseStore {
                     return data;
                 },
                 set: async (data) => {
+                    // Skip if disposed — prevents key writes from orphaned store instances
+                    if (this.disposed) return;
+
                     let changed = false;
                     for (const category in data) {
                         this.keys[category] = this.keys[category] || {};
@@ -220,6 +245,7 @@ export class DatabaseStore {
     }
 
     async saveMetadata(data: any) {
+        if (this.disposed) return;
         try {
             await db.whatsAppSession.upsert({
                 where: {
@@ -247,8 +273,13 @@ export class DatabaseStore {
     }
 
     async clear() {
+        // Mark as disposed FIRST to prevent any in-flight timers from writing after delete
+        this.disposed = true;
         try {
-            if (this.writeTimer) clearTimeout(this.writeTimer);
+            if (this.writeTimer) {
+                clearTimeout(this.writeTimer);
+                this.writeTimer = null;
+            }
             await db.whatsAppSession.deleteMany({
                 where: {
                     userId: this.userId,
