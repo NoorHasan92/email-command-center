@@ -221,23 +221,25 @@ When an urgent or action-required email arrives, Sentinel alerts you instantly w
 
 Hey ${name}, your WhatsApp is now linked to *Inbox Sentinel*!
 
-Here is what you can do directly from this chat:
+Here is what you will receive in this chat:
 
-🚨 *Real-Time Email Alerts*
-When an urgent or action-required email arrives, Sentinel alerts you right here with an AI summary, action items, and deadline detection.
+🚨 *Real-Time Email Alerts (Alerts Only)*
+Whenever an urgent, action-required, or high-priority email arrives, Sentinel delivers an instant alert right here with an AI summary, extracted action items, and deadline detection.
 
-🔎 *Autonomous Deep Research & Cross-Check*
-• *Swipe-to-Reply:* Simply reply to any email alert with *"Research this company"*, *"verify this"*, or *"deep research"*. Sentinel autonomously cross-checks company registration, link legitimacy, and claims against Google Search.
-• *On-Demand Research:* Type *"research"* anytime to pick from your recent emails or specify a topic.
+━━━━━━━━━━━━━━━━━━━━━
+⚠️ *Important Note: One-Way Notification Channel*
+WhatsApp operates as a **one-way automated alert channel**. Inbound replies, commands, or chat messages sent directly to this number are not monitored.
+━━━━━━━━━━━━━━━━━━━━━
 
-📊 *Check Quota & Plan Status*
-• Type */status* or *"status"* to view your current plan, monthly Deep Research inquiries used, and remaining quota.
+🔎 *Want Autonomous Deep Research & AI Chat?*
+To use interactive features, please connect **Telegram**:
+• *1-Tap Evidence Verification & Link Cross-Checking*
+• *Interactive AI Email Assistant & Conversational Follow-Ups*
+• *Live Quota & Plan Status Checks (/status)*
+• *On-Demand Research Investigations (/research)*
 
-💬 *Natural AI Assistant*
-• Ask anything about your emails: *"Do I have any urgent emails?"* or ask follow-ups about previous investigations.
-
-❓ *Need Help?*
-• Type */help* anytime to display this command guide.`;
+👉 Connect Telegram in one tap from your Integrations settings:
+https://mail.tars.homes/integrations`;
 
     // 1. Try Baileys SYSTEM_SENDER if available
     try {
