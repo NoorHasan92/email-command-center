@@ -355,9 +355,30 @@ export async function POST(req: NextRequest) {
       const history = await ConversationService.getRecentHistory(conversation.id, 6);
       const provider = await resolveAIProvider(user.id);
 
+      let userProfileContext: string | null = null;
+      try {
+        const { PersonalProfileService } = await import("@/services/intelligence/profile.service");
+        userProfileContext = await PersonalProfileService.buildActiveProfileContext(user.id);
+      } catch {}
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
+
+      const chatContext = [
+        `Date: ${dateStr} (Year: ${now.getFullYear()}, Timezone: Asia/Kolkata / IST)`,
+        conversation.activeEmailId ? `Active Email ID: ${conversation.activeEmailId}` : null,
+        userProfileContext ? `User Profile & Career Context:\n${userProfileContext}` : null,
+      ].filter(Boolean).join("\n\n");
+
       const replyResult = await provider.chatConversation?.(
         history,
-        conversation.activeEmailId ? `Active Email ID: ${conversation.activeEmailId}` : undefined
+        chatContext || undefined
       );
 
       const replyText = replyResult?.reply || "I've received your message.";

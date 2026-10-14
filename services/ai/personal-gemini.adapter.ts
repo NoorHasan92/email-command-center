@@ -148,8 +148,19 @@ export class PersonalGeminiAdapter implements IAIProvider {
     }
 
     const startTime = Date.now();
-    const systemInstruction = `You are an elite research analyst for Inbox Sentinel. Perform evidence-based research using Google Search grounding.`;
-    const prompt = `Research Query: ${options.query}\n${options.context ? `Context: ${options.context}` : ""}`;
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
+    const systemInstruction = `You are an elite research analyst for Inbox Sentinel. Perform evidence-based research using Google Search grounding.
+TEMPORAL CONTEXT: Today is ${currentDateStr} (Year: ${currentYear}, Timezone: Asia/Kolkata / IST). Evaluate all facts, company statuses, and events relative to ${currentYear}.`;
+    const prompt = `Research Query: ${options.query}\n${options.context ? `Context & Profile:\n${options.context}` : ""}`;
 
     try {
       let response;
@@ -232,7 +243,27 @@ export class PersonalGeminiAdapter implements IAIProvider {
 
   async synthesizeBriefing(findings: any[], userContext?: string): Promise<any> {
     const startTime = Date.now();
-    const prompt = `Synthesize these research findings into an executive briefing:\n${JSON.stringify(findings, null, 2)}`;
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
+    const prompt = `Synthesize these research findings into an executive briefing for the user.
+Today's Date: ${currentDateStr} (${currentYear}).
+${userContext ? `User Context & Career Profile:\n${userContext}\n` : ""}
+
+Provide:
+1. Executive Briefing in Markdown
+2. Personalized Guidance: Provide tailored advice on what the user should do next based on their profile.
+3. Epistemic Assessment
+
+Findings:
+${JSON.stringify(findings, null, 2)}`;
 
     try {
       const response = await this.ai.models.generateContent({
@@ -274,10 +305,23 @@ export class PersonalGeminiAdapter implements IAIProvider {
       parts: [{ text: m.content }],
     }));
 
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
     try {
       const response = await this.ai.models.generateContent({
         model: this.currentModel,
         contents: formattedContents as any,
+        config: {
+          systemInstruction: `You are Inbox Sentinel's AI Personal Assistant. You are proactive, concise, and helpful. Today is ${currentDateStr} (Year: ${currentYear}, Timezone: Asia/Kolkata / IST). ${context ? `\nActive Context & Profile:\n${context}` : ""}`,
+        },
       });
 
       const latencyMs = Date.now() - startTime;

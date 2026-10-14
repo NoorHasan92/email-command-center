@@ -38,11 +38,25 @@ export async function analyzeEmail(email: Email, aiProvider: IAIProvider, userId
   }
 
   try {
-    // 3. Fire AI Request
+    // 3. Fetch active user profile for personalized email analysis & advice
+    let userProfile: string | null = null;
+    try {
+      const { PersonalProfileService } = await import("@/services/intelligence/profile.service");
+      userProfile = await PersonalProfileService.buildActiveProfileContext(userId);
+    } catch (profileErr: any) {
+      logger.warn(`[STAGE 04 - ANALYZER] Could not build profile context for user ${userId}: ${profileErr?.message}`);
+    }
+
+    // 4. Fire AI Request with temporal awareness & personalized profile
     const analysis = await aiProvider.analyzeEmail(
       payloadText, 
       email.subject || "No Subject", 
-      { from: email.from, date: email.date }
+      {
+        from: email.from,
+        date: email.date,
+        userProfile: userProfile || undefined,
+        currentDate: new Date(),
+      }
     );
 
     logger.info(`[STAGE 04 - ANALYZER] [AI_REQUEST_COMPLETED] [ID: ${email.id}] | metadata={"latencyMs": ${analysis.latencyMs}, "tokens": ${analysis.totalTokens}}`);

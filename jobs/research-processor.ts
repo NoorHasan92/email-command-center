@@ -82,10 +82,34 @@ export async function processPendingResearchSessions() {
         // 2. Resolve AI Provider
         const provider = await resolveAIProvider(session.userId);
 
+        // Fetch User's Active Profile Context
+        let userProfileContext: string | null = null;
+        try {
+          const { PersonalProfileService } = await import("@/services/intelligence/profile.service");
+          userProfileContext = await PersonalProfileService.buildActiveProfileContext(session.userId);
+        } catch (profileErr: any) {
+          logger.warn(`[JOB] [RESEARCH_PROCESSOR] Could not load profile for user ${session.userId}: ${profileErr?.message}`);
+        }
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Kolkata",
+        });
+
+        const combinedContext = [
+          `Current Date: ${dateStr} (Year: ${now.getFullYear()}, Timezone: Asia/Kolkata / IST)`,
+          session.context ? `Email Context:\n${session.context}` : null,
+          userProfileContext ? `User Profile & Career Priorities:\n${userProfileContext}` : null,
+        ].filter(Boolean).join("\n\n");
+
         // 3. Step 1: Execute research discovery (Generates AIUsageEvent #1)
         const discovery = await provider.executeResearch!({
           query: session.query,
-          context: session.context || undefined,
+          context: combinedContext || undefined,
           researchSessionId: session.id,
           correlationId: `research:${session.id}:discovery`,
         } as any);
@@ -93,7 +117,7 @@ export async function processPendingResearchSessions() {
         // 4. Step 2: Synthesize briefing (Generates AIUsageEvent #2)
         const synthesis = await provider.synthesizeBriefing!(
           discovery.findings,
-          session.context || undefined,
+          combinedContext || undefined,
           {
             researchSessionId: session.id,
             correlationId: `research:${session.id}:synthesis`,

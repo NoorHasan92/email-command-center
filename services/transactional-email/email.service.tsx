@@ -67,11 +67,16 @@ async function dispatchEmail(
     }
 
     // 3. Dispatch to Resend
+    const appUrl = env.NEXT_PUBLIC_APP_URL || "https://mail.tars.homes";
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: recipient,
       subject,
       react: reactComponent,
+      headers: {
+        "List-Unsubscribe": `<${appUrl}/dashboard>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     });
 
     if (error) {
@@ -113,6 +118,18 @@ export async function sendWelcomeEmail(userId: string) {
     `welcome:${userId}`,
     <WelcomeEmail name={user.name} />,
     userId
+  );
+}
+
+export async function sendTestWelcomeEmail(recipient: string, name?: string) {
+  return dispatchEmail(
+    "WELCOME",
+    recipient,
+    "Welcome to Inbox Sentinel",
+    `test:welcome:${recipient}:${Date.now()}`,
+    <WelcomeEmail name={name || "Friend"} />,
+    undefined,
+    { isTest: true }
   );
 }
 
@@ -162,7 +179,7 @@ export async function sendPaymentReceiptEmail(paymentId: string) {
 
   const { PRODUCTS } = await import("@/config/products");
   const product = PRODUCTS[payment.order.productType];
-  const baseUrl = env.NEXT_PUBLIC_APP_URL || "https://tars.homes";
+  const baseUrl = env.NEXT_PUBLIC_APP_URL || "https://mail.tars.homes";
 
   return dispatchEmail(
     "PAYMENT_RECEIPT",
@@ -210,7 +227,7 @@ export async function sendAccountDeletionConfirmationEmail(userId: string, confi
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return { success: false, error: "User not found" };
 
-  const baseUrl = env.NEXT_PUBLIC_APP_URL || "https://tars.homes";
+  const baseUrl = env.NEXT_PUBLIC_APP_URL || "https://mail.tars.homes";
   const confirmationUrl = `${baseUrl}/api/deletion/confirm?token=${confirmationToken}`;
 
   return dispatchEmail(

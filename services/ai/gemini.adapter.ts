@@ -177,8 +177,23 @@ export class GeminiAdapter implements IAIProvider {
     const ai = getGeminiClient();
     const startTime = Date.now();
 
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
     const systemInstruction = `You are an elite research intelligence analyst for Inbox Sentinel.
 Your mission is to perform thorough, evidence-based investigation on the user's research query.
+
+TEMPORAL ANCHORING & DATE AWARENESS:
+- Today's Date: ${currentDateStr} (Year: ${currentYear}, Timezone: Asia/Kolkata / IST, UTC+5:30).
+- All web search results, corporate registration records, domain WHOIS ages, and claims must be evaluated strictly relative to today's date (${currentDateStr}). Never assume it is 2024 or earlier.
+
 CRITICAL EVIDENCE & TRUST RULES:
 1. Ground claims in primary sources and factual evidence obtained from Google Search.
 2. Evaluate credibility and assign each finding one of these exact verification statuses:
@@ -193,7 +208,7 @@ CRITICAL EVIDENCE & TRUST RULES:
 5. Provide a clear summary and an epistemic conclusion based on the totality of evidence.`;
 
     const prompt = `Research Query: ${options.query}
-${options.context ? `Context: ${options.context}` : ""}
+${options.context ? `Context & Profile:\n${options.context}` : ""}
 ${options.targetUrls?.length ? `Target URLs to investigate:\n${options.targetUrls.join("\n")}` : ""}
 
 Provide your findings formatted with:
@@ -331,15 +346,31 @@ Provide your findings formatted with:
     userContext?: string
   ): Promise<any> {
     const ai = getGeminiClient();
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
     const prompt = `Synthesize the following research findings into an executive briefing for the user.
-${userContext ? `User Context: ${userContext}` : ""}
+
+TEMPORAL CONTEXT:
+Today's Date: ${currentDateStr} (Year: ${currentYear}, Timezone: Asia/Kolkata / IST).
+Ensure all timeline assessments, business active statuses, and deadlines reflect this current year and date.
+
+${userContext ? `User Context & Career Profile:\n${userContext}\n` : ""}
 
 Findings to synthesize:
 ${JSON.stringify(findings, null, 2)}
 
 Provide:
-1. Executive Briefing in Markdown
-2. Epistemic Assessment: Weigh primary source evidence, corroboration, and any discrepancies.`;
+1. Executive Briefing in Markdown (Highlighting verified facts, company legitimacy, red flags, or green flags).
+2. Personalized Guidance & Advice: Based on the User Profile (e.g. education stage, technical interests, career goals), provide tailored advice on what the user should specifically do next (e.g. apply, prepare, proceed with caution, or decline).
+3. Epistemic Assessment: Weigh primary source evidence, corroboration, and any discrepancies.`;
 
     let lastError = null;
     for (const currentModel of FALLBACK_MODELS) {
@@ -349,7 +380,7 @@ Provide:
           model: currentModel,
           contents: prompt,
           config: {
-            systemInstruction: "You are an executive research briefing assistant. Produce concise, high-signal briefings with clear source attributions.",
+            systemInstruction: `You are an executive research briefing analyst for Inbox Sentinel. Today is ${currentDateStr} (${currentYear}). Produce concise, high-signal briefings with clear source attributions and personalized recommendations based on the user's profile.`,
           },
         });
 
@@ -407,6 +438,16 @@ Provide:
       parts: [{ text: m.content }],
     }));
 
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const currentYear = now.getFullYear();
+
     let lastError = null;
     for (const currentModel of FALLBACK_MODELS) {
       try {
@@ -415,7 +456,7 @@ Provide:
           model: currentModel,
           contents: formattedContents as any,
           config: {
-            systemInstruction: `You are Inbox Sentinel's AI Personal Assistant. You are proactive, concise, and helpful. You manage email, conduct research, and provide status updates. ${context ? `\nActive Context: ${context}` : ""}`,
+            systemInstruction: `You are Inbox Sentinel's AI Personal Assistant. You are proactive, concise, and helpful. You manage email, conduct research, and provide personalized advice based on the user's profile and background. Today is ${currentDateStr} (Year: ${currentYear}, Timezone: Asia/Kolkata / IST). ${context ? `\nActive Context & Profile:\n${context}` : ""}`,
           },
         });
 
