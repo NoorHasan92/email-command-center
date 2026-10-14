@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 import { db } from "@/server/repositories/db";
 import { logger } from "@/lib/logger";
 import { WebhookDeduplicationService } from "@/services/security/deduplication.service";
@@ -9,6 +11,7 @@ import { ResearchOrchestratorService } from "@/services/research/research-orches
 import { ChannelDispatcherService } from "@/services/assistant/channel-dispatcher.service";
 import { ResearchQuotaService } from "@/services/research/research-quota.service";
 import { resolveAIProvider } from "@/services/ai/ai-router";
+import { processPendingResearchSessions } from "@/jobs/research-processor";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -99,13 +102,14 @@ export async function POST(req: NextRequest) {
             `🔎 *Deep Research Initiated*\n\n📧 *Email:* ${targetEmail.subject}\n🎯 *Focus:* Company background, registry verification & link authenticity\n\nOur AI research engine is cross-checking live primary sources. Your synthesized executive briefing will arrive here shortly.`
           );
 
-          // Trigger background worker (non-blocking)
-          const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-          const secret = process.env.CRON_SECRET || process.env.INTERNAL_WORKER_SECRET;
-          fetch(`${baseUrl}/api/worker/research`, {
-            method: "POST",
-            headers: secret ? { Authorization: `Bearer ${secret}` } : {},
-          }).catch(() => {});
+          // Trigger background research processing using Next.js 15 after()
+          after(async () => {
+            try {
+              await processPendingResearchSessions();
+            } catch (err: any) {
+              logger.error(`[TELEGRAM_WEBHOOK] Error executing background research: ${err?.message || err}`);
+            }
+          });
         } catch (err: any) {
           await ChannelDispatcherService.sendTelegramText(cbChatId, `⚠️ *Research Request Failed*: ${err.message}`);
         }
@@ -327,13 +331,14 @@ export async function POST(req: NextRequest) {
           `🔎 *Investigation Initiated*${targetLabel}\n\n🎯 *Focus:* Evidence verification, company registry & primary sources\n\nOur AI research engine is cross-checking Google Search. Your synthesized executive briefing will arrive here shortly.`
         );
 
-        // Trigger background worker (non-blocking)
-        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        const secret = process.env.CRON_SECRET || process.env.INTERNAL_WORKER_SECRET;
-        fetch(`${baseUrl}/api/worker/research`, {
-          method: "POST",
-          headers: secret ? { Authorization: `Bearer ${secret}` } : {},
-        }).catch(() => {});
+        // Trigger background research processing using Next.js 15 after()
+        after(async () => {
+          try {
+            await processPendingResearchSessions();
+          } catch (err: any) {
+            logger.error(`[TELEGRAM_WEBHOOK] Error executing background research: ${err?.message || err}`);
+          }
+        });
       } catch (err: any) {
         await sendTelegramMessage(chatId, `⚠️ *Research Request Failed*: ${err.message}`);
       }

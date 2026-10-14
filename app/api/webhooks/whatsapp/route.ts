@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 import crypto from "crypto";
 import { db } from "@/server/repositories/db";
 import { NotificationStatus } from "@prisma/client";
@@ -11,6 +13,7 @@ import { ResearchOrchestratorService } from "@/services/research/research-orches
 import { ChannelDispatcherService } from "@/services/assistant/channel-dispatcher.service";
 import { ResearchQuotaService } from "@/services/research/research-quota.service";
 import { resolveAIProvider } from "@/services/ai/ai-router";
+import { processPendingResearchSessions } from "@/jobs/research-processor";
 
 const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
@@ -321,13 +324,14 @@ export async function POST(req: NextRequest) {
                   `🔎 *Deep Research Initiated*${targetLabel}\n\n🎯 *Focus:* Evidence verification, company registry & primary sources\n\nOur AI research engine is cross-checking live sources. Your synthesized executive briefing will be delivered here shortly.`
                 );
 
-                // Trigger background sweep (non-blocking)
-                const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-                const secret = process.env.CRON_SECRET || process.env.INTERNAL_WORKER_SECRET;
-                fetch(`${baseUrl}/api/worker/research`, {
-                  method: "POST",
-                  headers: secret ? { Authorization: `Bearer ${secret}` } : {},
-                }).catch(() => {});
+                // Trigger background research processing using Next.js 15 after()
+                after(async () => {
+                  try {
+                    await processPendingResearchSessions();
+                  } catch (err: any) {
+                    logger.error(`[WHATSAPP_WEBHOOK] Error executing background research: ${err?.message || err}`);
+                  }
+                });
               } catch (err: any) {
                 await ChannelDispatcherService.sendWhatsAppText(
                   fromNumber,

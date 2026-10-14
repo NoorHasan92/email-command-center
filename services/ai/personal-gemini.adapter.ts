@@ -152,14 +152,26 @@ export class PersonalGeminiAdapter implements IAIProvider {
     const prompt = `Research Query: ${options.query}\n${options.context ? `Context: ${options.context}` : ""}`;
 
     try {
-      const response = await this.ai.models.generateContent({
-        model: this.currentModel,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          tools: [{ googleSearch: {} }],
-        },
-      });
+      let response;
+      try {
+        response = await this.ai.models.generateContent({
+          model: this.currentModel,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            tools: [{ googleSearch: {} }],
+          },
+        });
+      } catch (groundingErr: any) {
+        logger.warn(`[PERSONAL_GEMINI_ADAPTER] Grounded search tool unavailable (${groundingErr.message}). Retrying direct synthesis...`);
+        response = await this.ai.models.generateContent({
+          model: this.currentModel,
+          contents: prompt,
+          config: {
+            systemInstruction,
+          },
+        });
+      }
 
       const latencyMs = Date.now() - startTime;
       const candidate = response.candidates?.[0];

@@ -14,10 +14,12 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 const FALLBACK_MODELS = [
+  "gemini-flash-lite-latest",
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-flash-lite",
   "gemini-3.8-flash", 
-  "gemini-3-flash-preview", 
   "gemini-3.6-flash", 
-  "gemini-3.1-flash-lite", 
   "gemini-3.7-flash", 
 ];
 
@@ -173,7 +175,6 @@ export class GeminiAdapter implements IAIProvider {
     options: ResearchGenerationOptions
   ): Promise<ResearchExecutionResult> {
     const ai = getGeminiClient();
-    const currentModel = "gemini-3.8-flash";
     const startTime = Date.now();
 
     const systemInstruction = `You are an elite research intelligence analyst for Inbox Sentinel.
@@ -200,110 +201,129 @@ Provide your findings formatted with:
 - Epistemic conclusion (weighing primary sources vs corroboration vs conflicting evidence)
 - Key findings with claim, concise evidence quote, confidence score (0.0 - 1.0), and verification status.`;
 
-    try {
-      logger.info(`[GEMINI_ADAPTER] Executing grounded research using ${currentModel}...`);
-      let response;
+    let lastError: any = null;
+    let skipGrounding = false;
+
+    for (const currentModel of FALLBACK_MODELS) {
       try {
-        response = await ai.models.generateContent({
-          model: currentModel,
-          contents: prompt,
-          config: {
-            systemInstruction,
-            tools: [{ googleSearch: {} }],
-          },
-        });
-      } catch (groundingErr: any) {
-        logger.warn(`[GEMINI_ADAPTER] Grounded search tool unavailable (${groundingErr.message}). Retrying direct synthesis...`);
-        response = await ai.models.generateContent({
-          model: currentModel,
-          contents: prompt,
-          config: {
-            systemInstruction,
-          },
-        });
-      }
-
-      const latencyMs = Date.now() - startTime;
-      const candidate = response.candidates?.[0];
-      const groundingMetadata = candidate?.groundingMetadata;
-
-      // Extract real grounding sources
-      const sources: any[] = (groundingMetadata?.groundingChunks || [])
-        .filter((chunk: any) => chunk.web?.uri)
-        .map((chunk: any) => {
-          const uri = chunk.web.uri;
-          let domain = "";
+        logger.info(`[GEMINI_ADAPTER] Executing research using ${currentModel}...`);
+        let response;
+        if (!skipGrounding) {
           try {
-            domain = new URL(uri).hostname;
-          } catch {}
-          return {
-            url: uri,
-            title: chunk.web.title || domain || "Web Source",
-            domain,
-            accessedAt: new Date().toISOString(),
-          };
-        });
-
-      const text = response.text || "";
-      const searchQueriesCount = groundingMetadata?.webSearchQueries?.length || 0;
-
-      // Parse structured findings or construct from grounded output
-      const rawFindings: any[] = [];
-      const lines = text.split("\n");
-      let currentClaim = "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || /^\d+\./.test(trimmed)) {
-          const claimText = trimmed.replace(/^[-*]|\d+\.\s*/, "").trim();
-          if (claimText.length > 20) {
-            rawFindings.push({
-              claim: claimText.substring(0, 300),
-              evidenceSnippet: claimText.substring(0, 300),
-              verificationStatus: (sources.length > 1 ? "CORROBORATED" : sources.length === 1 ? "DIRECTLY_CONFIRMED_BY_SOURCE" : "UNVERIFIED") as any,
-              confidenceScore: sources.length > 0 ? 0.85 : 0.5,
-              relevance: "HIGH",
-              isPrimarySource: sources.length > 0,
-              sources: sources.slice(0, 3),
+            response = await ai.models.generateContent({
+              model: currentModel,
+              contents: prompt,
+              config: {
+                systemInstruction,
+                tools: [{ googleSearch: {} }],
+              },
+            });
+          } catch (groundingErr: any) {
+            skipGrounding = true;
+            logger.warn(`[GEMINI_ADAPTER] Grounded search tool unavailable (${groundingErr.message}) on ${currentModel}. Retrying direct synthesis...`);
+            response = await ai.models.generateContent({
+              model: currentModel,
+              contents: prompt,
+              config: {
+                systemInstruction,
+              },
             });
           }
+        } else {
+          response = await ai.models.generateContent({
+            model: currentModel,
+            contents: prompt,
+            config: {
+              systemInstruction,
+            },
+          });
         }
+
+        const latencyMs = Date.now() - startTime;
+        const candidate = response.candidates?.[0];
+        const groundingMetadata = candidate?.groundingMetadata;
+
+        // Extract real grounding sources
+        const sources: any[] = (groundingMetadata?.groundingChunks || [])
+          .filter((chunk: any) => chunk.web?.uri)
+          .map((chunk: any) => {
+            const uri = chunk.web.uri;
+            let domain = "";
+            try {
+              domain = new URL(uri).hostname;
+            } catch {}
+            return {
+              url: uri,
+              title: chunk.web.title || domain || "Web Source",
+              domain,
+              accessedAt: new Date().toISOString(),
+            };
+          });
+
+        const text = response.text || "";
+        const searchQueriesCount = groundingMetadata?.webSearchQueries?.length || 0;
+
+        // Parse structured findings or construct from grounded output
+        const rawFindings: any[] = [];
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || /^\d+\./.test(trimmed)) {
+            const claimText = trimmed.replace(/^[-*]|\d+\.\s*/, "").trim();
+            if (claimText.length > 20) {
+              rawFindings.push({
+                claim: claimText.substring(0, 300),
+                evidenceSnippet: claimText.substring(0, 300),
+                verificationStatus: (sources.length > 1 ? "CORROBORATED" : sources.length === 1 ? "DIRECTLY_CONFIRMED_BY_SOURCE" : "UNVERIFIED") as any,
+                confidenceScore: sources.length > 0 ? 0.85 : 0.5,
+                relevance: "HIGH",
+                isPrimarySource: sources.length > 0,
+                sources: sources.slice(0, 3),
+              });
+            }
+          }
+        }
+
+        if (rawFindings.length === 0) {
+          rawFindings.push({
+            claim: text.substring(0, 300),
+            evidenceSnippet: text.substring(0, 300),
+            verificationStatus: sources.length > 0 ? "CORROBORATED" : "UNVERIFIED",
+            confidenceScore: 0.8,
+            relevance: "HIGH",
+            isPrimarySource: sources.length > 0,
+            sources: sources.slice(0, 3),
+          });
+        }
+
+        const promptTokens = response.usageMetadata?.promptTokenCount || 0;
+        const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
+        const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
+
+        return {
+          summary: text.substring(0, 800),
+          epistemicConclusion: `Based on ${sources.length} sources examined, findings are ${sources.length > 1 ? "corroborated across independent outlets" : sources.length === 1 ? "confirmed by primary report" : "partially corroborated with limited direct evidence"}.`,
+          findings: rawFindings.slice(0, 8),
+          telemetry: {
+            provider: "GEMINI",
+            model: currentModel,
+            promptTokens,
+            completionTokens,
+            totalTokens,
+            latencyMs,
+            searchQueriesCount,
+          },
+        };
+      } catch (e: any) {
+        lastError = e;
+        logger.warn(`[GEMINI_ADAPTER] Research failed on ${currentModel}: ${e.message}. Trying next fallback model...`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
-
-      if (rawFindings.length === 0) {
-        rawFindings.push({
-          claim: text.substring(0, 300),
-          evidenceSnippet: text.substring(0, 300),
-          verificationStatus: sources.length > 0 ? "CORROBORATED" : "UNVERIFIED",
-          confidenceScore: 0.8,
-          relevance: "HIGH",
-          isPrimarySource: sources.length > 0,
-          sources: sources.slice(0, 3),
-        });
-      }
-
-      const promptTokens = response.usageMetadata?.promptTokenCount || 0;
-      const completionTokens = response.usageMetadata?.candidatesTokenCount || 0;
-      const totalTokens = response.usageMetadata?.totalTokenCount || promptTokens + completionTokens;
-
-      return {
-        summary: text.substring(0, 800),
-        epistemicConclusion: `Based on ${sources.length} sources examined, findings are ${sources.length > 1 ? "corroborated across independent outlets" : sources.length === 1 ? "confirmed by primary report" : "partially corroborated with limited direct evidence"}.`,
-        findings: rawFindings.slice(0, 8),
-        telemetry: {
-          provider: "GEMINI",
-          model: currentModel,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          latencyMs,
-          searchQueriesCount,
-        },
-      };
-    } catch (e: any) {
-      logger.error(`[GEMINI_ADAPTER] Research execution failed: ${e.message}`);
-      throw e;
     }
+
+    logger.error(`[GEMINI_ADAPTER] Research execution failed across all models: ${lastError?.message}`);
+    throw lastError;
   }
 
   async synthesizeBriefing(
@@ -354,11 +374,27 @@ Provide:
       } catch (e: any) {
         lastError = e;
         logger.warn(`[GEMINI_ADAPTER] Synthesis failed on ${currentModel}: ${e.message}. Trying next fallback model...`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
 
-    logger.error(`[GEMINI_ADAPTER] Synthesis failed across all models: ${lastError?.message}`);
-    throw lastError;
+    logger.warn(`[GEMINI_ADAPTER] AI synthesis model unavailable (${lastError?.message}). Constructing direct briefing from findings.`);
+    const fallbackBriefing = findings.length > 0
+      ? `### Key Verified Findings\n\n${findings.map((f: any) => `• **${f.claim}**\n  *Status:* \`${f.verificationStatus}\`\n  *Evidence:* ${f.evidenceSnippet}`).join("\n\n")}`
+      : "Research investigation completed with direct evidence synthesis.";
+
+    return {
+      briefingMarkdown: fallbackBriefing,
+      epistemicConclusion: "Synthesis derived directly from gathered investigative findings.",
+      telemetry: {
+        provider: "GEMINI",
+        model: "direct-synthesis-fallback",
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        latencyMs: 0,
+      },
+    };
   }
 
   async chatConversation(

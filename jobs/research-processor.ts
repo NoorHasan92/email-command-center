@@ -76,6 +76,9 @@ export async function processPendingResearchSessions() {
           continue;
         }
 
+        // Ensure quota reservation is active for this session (refreshes lease if pending in queue)
+        await ResearchQuotaService.reserveQuota(session.userId, session.id);
+
         // 2. Resolve AI Provider
         const provider = await resolveAIProvider(session.userId);
 
